@@ -9,6 +9,7 @@
 
 package com.mirth.connect.donkey.server;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -29,6 +30,7 @@ import com.mirth.connect.donkey.server.controllers.ChannelController;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.DonkeyStatisticsUpdater;
+import com.mirth.connect.donkey.server.data.jdbc.BdbJeDaoFactory;
 import com.mirth.connect.donkey.server.data.jdbc.JdbcDaoFactory;
 import com.mirth.connect.donkey.server.data.jdbc.XmlQuerySource;
 import com.mirth.connect.donkey.server.data.jdbc.XmlQuerySource.XmlQuerySourceException;
@@ -36,6 +38,8 @@ import com.mirth.connect.donkey.server.event.EventDispatcher;
 import com.mirth.connect.donkey.util.Serializer;
 import com.mirth.connect.donkey.util.SerializerProvider;
 import com.mirth.connect.donkey.util.xstream.XStreamSerializer;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.EnvironmentConfig;
 
 public class Donkey {
     @Inject
@@ -66,6 +70,9 @@ public class Donkey {
     private Logger logger = Logger.getLogger(getClass());
     private boolean running = false;
 
+    private Environment bdbJeEnv;
+    private static final String DB_BDB_JE = "bdbje";
+
     public void startEngine(DonkeyConfiguration donkeyConfiguration) throws StartException {
         this.donkeyConfiguration = donkeyConfiguration;
 
@@ -79,24 +86,30 @@ public class Donkey {
             }
         };
 
-        XmlQuerySource xmlQuerySource = new XmlQuerySource();
-
-        try {
-            xmlQuerySource.load("default.xml");
-            xmlQuerySource.load(dbProperties.getProperty("database") + ".xml");
-        } catch (XmlQuerySourceException e) {
-            throw new StartException(e);
+        if(DB_BDB_JE.equalsIgnoreCase(database)) {
+            initBdbJeEnv(dbProperties);
+            daoFactory = BdbJeDaoFactory.getInstance();
         }
-
-        daoFactory = createDaoFactory(database, serializerProvider, xmlQuerySource, false);
-
-        boolean splitReadWrite = Boolean.parseBoolean(dbProperties.getProperty(DatabaseConstants.DATABASE_ENABLE_READ_WRITE_SPLIT));
-
-        if (splitReadWrite) {
-            String readOnlyDatabase = dbProperties.getProperty(DatabaseConstants.DATABASE_READONLY, database);
-            readOnlyDaoFactory = createDaoFactory(readOnlyDatabase, serializerProvider, xmlQuerySource, true);
-        } else {
-            readOnlyDaoFactory = daoFactory;
+        else {
+            XmlQuerySource xmlQuerySource = new XmlQuerySource();
+            
+            try {
+                xmlQuerySource.load("default.xml");
+                xmlQuerySource.load(dbProperties.getProperty("database") + ".xml");
+            } catch (XmlQuerySourceException e) {
+                throw new StartException(e);
+            }
+            
+            daoFactory = createDaoFactory(database, serializerProvider, xmlQuerySource, false);
+            
+            boolean splitReadWrite = Boolean.parseBoolean(dbProperties.getProperty(DatabaseConstants.DATABASE_ENABLE_READ_WRITE_SPLIT));
+            
+            if (splitReadWrite) {
+                String readOnlyDatabase = dbProperties.getProperty(DatabaseConstants.DATABASE_READONLY, database);
+                readOnlyDaoFactory = createDaoFactory(readOnlyDatabase, serializerProvider, xmlQuerySource, true);
+            } else {
+                readOnlyDaoFactory = daoFactory;
+            }
         }
 
         DonkeyDao dao = null;
@@ -222,5 +235,18 @@ public class Donkey {
 
     public EventDispatcher getEventDispatcher() {
         return eventDispatcher;
+    }
+    
+    private void initBdbJeEnv(Properties dbProperties) {
+        File envDir = new File((String)dbProperties.get("database.url"));
+        
+        EnvironmentConfig ec = new EnvironmentConfig();
+        ec.setAllowCreate(true);
+        ec.setTransactional(true);
+        bdbJeEnv = new Environment(envDir, ec);
+    }
+
+    public Environment getBdbJeEnv() {
+        return bdbJeEnv;
     }
 }

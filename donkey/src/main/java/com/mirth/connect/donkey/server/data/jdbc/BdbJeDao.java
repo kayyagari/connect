@@ -1,9 +1,12 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
+import static com.mirth.connect.donkey.util.SerializerUtil.bytesToLong;
+import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
+
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -19,14 +22,17 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.dbutils.DbUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
+import org.capnproto.MessageBuilder;
 
 import com.mirth.connect.donkey.model.channel.MetaDataColumn;
 import com.mirth.connect.donkey.model.channel.MetaDataColumnType;
@@ -37,6 +43,7 @@ import com.mirth.connect.donkey.model.message.MapContent;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.Status;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.Encryptor;
@@ -48,6 +55,17 @@ import com.mirth.connect.donkey.server.data.DonkeyDaoException;
 import com.mirth.connect.donkey.server.data.StatisticsUpdater;
 import com.mirth.connect.donkey.util.MapUtil;
 import com.mirth.connect.donkey.util.SerializerProvider;
+import com.mirth.connect.donkey.util.SerializerUtil;
+import com.sleepycat.je.Cursor;
+import com.sleepycat.je.CursorConfig;
+import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
+import com.sleepycat.je.DatabaseException;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.LockMode;
+import com.sleepycat.je.OperationStatus;
+import com.sleepycat.je.Transaction;
 
 public class BdbJeDao implements DonkeyDao {
     private Donkey donkey;
@@ -73,8 +91,20 @@ public class BdbJeDao implements DonkeyDao {
     private char quoteChar = '"';
     private Logger logger = Logger.getLogger(this.getClass());
 
+    private Environment bdbJeEnv;
+
+    private Transaction txn;
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
+
+    private static final String TABLE_D_CHANNELS = "d_channels";
+    private static final String TABLE_D_MESSAGE_SEQ = "d_msq";
+    private static final Map<String, Database> dbMap = new ConcurrentHashMap<>();
+
+    private static final GenericKeyedObjectPool<Class, MessageBuilder> gop = new GenericKeyedObjectPool<Class, MessageBuilder>(new CapnpMessageBuilderFactory());
+    
     protected BdbJeDao(Donkey donkey, Connection connection, QuerySource querySource, PreparedStatementSource statementSource, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
         this.donkey = donkey;
+        bdbJeEnv = donkey.getBdbJeEnv();
         this.connection = connection;
         this.querySource = querySource;
         this.statementSource = statementSource;
@@ -152,7 +182,10 @@ public class BdbJeDao implements DonkeyDao {
             }
 
             statement.executeUpdate();
-        } catch (SQLException e) {
+            
+            MessageBuilder mb = gop.borrowObject(CapMessage.class);
+            
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
         } finally {
             closeDatabaseObjectIfNeeded(statement);
@@ -1093,19 +1126,23 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public Map<String, Long> getLocalChannelIds() {
         if (localChannelIds == null) {
-            ResultSet resultSet = null;
-
+            CursorConfig cc = new CursorConfig();
+            cc.setReadCommitted(true);
+            Cursor cursor = dbMap.get(TABLE_D_CHANNELS).openCursor(null, cc);
             try {
+                DatabaseEntry key = new DatabaseEntry();
+                DatabaseEntry val = new DatabaseEntry();
                 localChannelIds = new HashMap<String, Long>();
-                resultSet = prepareStatement("getLocalChannelIds", null).executeQuery();
-
-                while (resultSet.next()) {
-                    localChannelIds.put(resultSet.getString(1), resultSet.getLong(2));
+                while(cursor.getNext(key, val, LockMode.READ_COMMITTED) == OperationStatus.SUCCESS) {
+                    long localId = SerializerUtil.bytesToLong(key.getData());
+                    String channelId = new String(val.getData(), UTF_8);
+                    localChannelIds.put(channelId, localId);
                 }
-            } catch (SQLException e) {
+            } catch (Exception e) {
+                localChannelIds = null;
                 throw new DonkeyDaoException(e);
             } finally {
-                close(resultSet);
+                cursor.close();
             }
         }
 
@@ -1411,34 +1448,20 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public long getNextMessageId(String channelId) {
-        Statement statement = null;
-        ResultSet resultSet = null;
-
         try {
-            Map<String, Object> values = new HashMap<String, Object>();
-            values.put("localChannelId", getLocalChannelId(channelId));
 
-            statement = connection.createStatement();
+            long localChannelId = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
+            DatabaseEntry seq = new DatabaseEntry();
+            OperationStatus status = dbMap.get(TABLE_D_MESSAGE_SEQ).get(null, key, seq, LockMode.READ_COMMITTED);
 
-            if (querySource.queryExists("lockMessageSequenceTable")) {
-                statement.executeUpdate(querySource.getQuery("lockMessageSequenceTable", values));
+            if(status != OperationStatus.SUCCESS) {
+                throw new DonkeyDaoException("no message sequence entry found for the channel " + channelId + " with local ID " + localChannelId);
             }
 
-            resultSet = statement.executeQuery(querySource.getQuery("getNextMessageId", values));
-            resultSet.next();
-            long id = resultSet.getLong(1);
-            close(resultSet);
-
-            if (querySource.queryExists("incrementMessageIdSequence")) {
-                statement.executeUpdate(querySource.getQuery("incrementMessageIdSequence", values));
-            }
-
-            return id;
-        } catch (SQLException e) {
+            return bytesToLong(seq.getData());
+        } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            close(statement);
         }
     }
 
@@ -2015,133 +2038,75 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public void createChannel(String channelId, long localChannelId) {
         logger.debug(channelId + ": creating channel");
-        Statement initSequenceStatement = null;
         transactionAlteredChannels = true;
 
-        PreparedStatement statement = null;
+        Transaction lt = bdbJeEnv.beginTransaction(null, null);
         try {
-            statement = prepareStatement("createChannel", null);
-            statement.setString(1, channelId);
-            statement.setLong(2, localChannelId);
-            statement.executeUpdate();
+            Database db = dbMap.get(TABLE_D_CHANNELS);
+            db.put(lt, new DatabaseEntry(SerializerUtil.longToBytes(localChannelId)), new DatabaseEntry(channelId.getBytes(UTF_8)));
 
-            Map<String, Object> values = new HashMap<String, Object>();
-            values.put("localChannelId", localChannelId);
+            createTable("d_m" + localChannelId, lt); // createMessageTable
+            createTable("d_mm" + localChannelId, lt); // createConnectorMessageTable
+            createTable("d_mc" + localChannelId, lt); // createMessageContentTable
+            createTable("d_mcm" + localChannelId, lt); // createMessageCustomMetaDataTable
+            createTable("d_ma" + localChannelId, lt); // createMessageAttachmentTable
+            createTable("d_ms" + localChannelId, lt); // createMessageStatisticsTable
 
-            createTable("createMessageTable", values);
-            createTable("createConnectorMessageTable", values);
-            createTable("createMessageContentTable", values);
-            createTable("createMessageCustomMetaDataTable", values);
-            createTable("createMessageAttachmentTable", values);
-            createTable("createMessageStatisticsTable", values);
-            createTable("createMessageSequence", values);
-
-            if (querySource.queryExists("initMessageSequence")) {
-                initSequenceStatement = getConnection().createStatement();
-                initSequenceStatement.executeUpdate(querySource.getQuery("initMessageSequence", values));
-            }
-        } catch (SQLException e) {
+            // createMessageSequence
+            DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
+            DatabaseEntry seq = new DatabaseEntry(longToBytes(1));
+            dbMap.get(TABLE_D_MESSAGE_SEQ).put(lt, key, seq);
+            lt.commit();
+        } catch (Exception e) {
+            lt.abort();
             throw new DonkeyDaoException(e);
-        } finally {
-            close(initSequenceStatement);
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
-    private void createTable(String query, Map<String, Object> values) {
-        if (querySource.queryExists(query)) {
-            Statement statement = null;
-            int n = 1;
-
-            try {
-                statement = connection.createStatement();
-                statement.executeUpdate(querySource.getQuery(query, values));
-
-                String sequenceQuery = querySource.getQuery(query + "Sequence", values);
-
-                if (sequenceQuery != null) {
-                    statement.executeUpdate(sequenceQuery);
-                }
-
-                String indexQuery = querySource.getQuery(query + "Index" + n, values);
-
-                while (indexQuery != null) {
-                    statement.executeUpdate(indexQuery);
-                    indexQuery = querySource.getQuery(query + "Index" + (++n), values);
-                }
-            } catch (SQLException e) {
-                throw new DonkeyDaoException(e);
-            } finally {
-                close(statement);
-            }
-        }
+    private void createTable(String name) {
+        createTable(name, null);
+    }
+    
+    private void createTable(String name, Transaction localTxn) {
+        DatabaseConfig dc = new DatabaseConfig();
+        dc.setTransactional(true);
+        dc.setAllowCreate(true);
+        Database db = bdbJeEnv.openDatabase(localTxn, name, dc);
+        dbMap.put(name, db);
     }
 
     @Override
     public void checkAndCreateChannelTables() {
         Map<String, Long> channelIds = getLocalChannelIds();
-        Map<String, String> channelTablesMap = new LinkedHashMap<String, String>();
+        List<String> channelTablesLst = new ArrayList<>();
+
+        Database msq = dbMap.get(TABLE_D_MESSAGE_SEQ);
+        DatabaseEntry seq = new DatabaseEntry(longToBytes(1));
+        Transaction lt = bdbJeEnv.beginTransaction(null, null);
+        
         for (Long localChannelId : channelIds.values()) {
-            channelTablesMap.put("d_m" + localChannelId, "createMessageTable");
-            channelTablesMap.put("d_mm" + localChannelId, "createConnectorMessageTable");
-            channelTablesMap.put("d_mc" + localChannelId, "createMessageContentTable");
-            channelTablesMap.put("d_mcm" + localChannelId, "createMessageCustomMetaDataTable");
-            channelTablesMap.put("d_ma" + localChannelId, "createMessageAttachmentTable");
-            channelTablesMap.put("d_ms" + localChannelId, "createMessageStatisticsTable");
-            channelTablesMap.put("d_msq" + localChannelId, "createMessageSequence");
+            channelTablesLst.add("d_m" + localChannelId); // "createMessageTable"
+            channelTablesLst.add("d_mm" + localChannelId); // "createConnectorMessageTable"
+            channelTablesLst.add("d_mc" + localChannelId); // "createMessageContentTable");
+            channelTablesLst.add("d_mcm" + localChannelId); // "createMessageCustomMetaDataTable");
+            channelTablesLst.add("d_ma" + localChannelId); // "createMessageAttachmentTable");
+            channelTablesLst.add("d_ms" + localChannelId); // "createMessageStatisticsTable");
+
+            // createMessageSequence
+            DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
+            msq.putNoOverwrite(lt, key, seq);
         }
 
-        ResultSet rs = null;
-        Statement statement = null;
+        channelTablesLst.removeAll(bdbJeEnv.getDatabaseNames());
+
         try {
-            DatabaseMetaData dbMetaData = connection.getMetaData();
-            rs = dbMetaData.getTables(null, null, "%", null);
-
-            while (rs.next()) {
-                String tableName = rs.getString("TABLE_NAME").toLowerCase();
-                channelTablesMap.remove(tableName);
+            for (String entry : channelTablesLst) {
+                createTable(entry);
             }
-            close(rs);
-
-            /*
-             * MIRTH-2851 - Oracle does not return sequences in the DatabaseMetaData.getTables
-             * method. If we dont remove the d_msq sequence from oracle then it will try to recreate
-             * it which will throw an exception. If any database needs an additional query for
-             * sequences then it could just be added for that database.
-             */
-
-            if (querySource.queryExists("getSequenceMetadata")) {
-                statement = connection.createStatement();
-                rs = statement.executeQuery(querySource.getQuery("getSequenceMetadata"));
-                while (rs.next()) {
-                    String sequenceName = rs.getString("SEQUENCE_NAME").toLowerCase();
-                    channelTablesMap.remove(sequenceName);
-                }
-            }
+            lt.commit();
         } catch (Exception e) {
+            lt.abort();
             throw new DonkeyDaoException(e);
-        } finally {
-            close(rs);
-            close(statement);
-        }
-
-        for (Entry<String, String> entry : channelTablesMap.entrySet()) {
-            Statement initSequenceStatement = null;
-            try {
-                Long localChannelId = Long.parseLong(entry.getKey().replaceAll("[^0-9]", ""));
-                Map<String, Object> values = new HashMap<String, Object>();
-                values.put("localChannelId", localChannelId);
-                createTable(entry.getValue(), values);
-
-                if (entry.getKey().toLowerCase().contains("d_msq") && querySource.queryExists("initMessageSequence")) {
-                    initSequenceStatement = connection.createStatement();
-                    initSequenceStatement.executeUpdate(querySource.getQuery("initMessageSequence", values));
-                }
-            } catch (Exception e) {
-                throw new DonkeyDaoException(e);
-            } finally {
-                close(initSequenceStatement);
-            }
         }
     }
 
@@ -2303,19 +2268,10 @@ public class BdbJeDao implements DonkeyDao {
         logger.debug("Committing transaction" + (durable ? "" : " asynchronously"));
 
         try {
-            if (!durable && asyncCommitCommand != null) {
-                Statement statement = null;
-
-                try {
-                    statement = connection.createStatement();
-                    statement.execute(asyncCommitCommand);
-                } finally {
-                    close(statement);
-                }
-            } else {
-                connection.commit();
+            if(txn != null) {
+                txn.commit();
             }
-        } catch (SQLException e) {
+        } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
         }
 
@@ -2388,38 +2344,23 @@ public class BdbJeDao implements DonkeyDao {
         logger.debug("Rolling back transaction");
 
         try {
-            connection.rollback();
+            if(txn != null) {
+                txn.abort();
+            }
             transactionStats.clear();
-        } catch (SQLException e) {
+        } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
         }
     }
 
     @Override
     public void close() {
-        logger.debug("Closing connection");
-
-        try {
-            if (!connection.isClosed()) {
-                try {
-                    connection.rollback();
-                } catch (SQLException e) {
-                    logger.warn("Failed to rollback transaction", e);
-                }
-                connection.close();
-            }
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        }
     }
 
     @Override
     public boolean isClosed() {
-        try {
-            return connection.isClosed();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        }
+        // return true always
+        return true;
     }
 
     /*
@@ -2438,9 +2379,10 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public boolean initTableStructure() {
-        if (!tableExists("d_channels")) {
+        if (!tableExists(TABLE_D_CHANNELS)) {
             logger.debug("Creating channels table");
-            createTable("createChannelsTable", null);
+            createTable(TABLE_D_CHANNELS);
+            createTable(TABLE_D_MESSAGE_SEQ);
             return true;
         } else {
             return false;
@@ -2448,22 +2390,10 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     private boolean tableExists(String tableName) {
-        ResultSet resultSet = null;
-
         try {
-            DatabaseMetaData metaData = connection.getMetaData();
-            resultSet = metaData.getTables(null, null, tableName, null);
-
-            if (resultSet.next()) {
-                return true;
-            }
-
-            resultSet = metaData.getTables(null, null, tableName.toUpperCase(), null);
-            return resultSet.next();
-        } catch (SQLException e) {
+            return bdbJeEnv.getDatabaseNames().contains(tableName);
+        } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
         }
     }
 

@@ -24,17 +24,17 @@ import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("message")
 public class Message implements Serializable {
-    private Long messageId;
-    private String serverId;
-    private String channelId;
-    private Calendar receivedDate;
-    private boolean processed;
-    private Long originalId;
-    private Long importId;
-    private String importChannelId;
-    private List<Attachment> attachments;
-    private Map<Integer, ConnectorMessage> connectorMessages = new LinkedHashMap<Integer, ConnectorMessage>();
-    private transient ConnectorMessage mergedConnectorMessage;
+    protected Long messageId;
+    protected String serverId;
+    protected String channelId;
+    protected Calendar receivedDate;
+    protected boolean processed;
+    protected Long originalId;
+    protected Long importId;
+    protected String importChannelId;
+    protected List<Attachment> attachments;
+    protected Map<Integer, ConnectorMessage> connectorMessages = new LinkedHashMap<Integer, ConnectorMessage>();
+    protected transient ConnectorMessage mergedConnectorMessage;
 
     public Long getMessageId() {
         return messageId;

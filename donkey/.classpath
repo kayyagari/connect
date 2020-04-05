@@ -70,5 +70,7 @@
 	<classpathentry kind="lib" path="testlib/aopalliance-repackaged-2.4.0-b31.jar"/>
 	<classpathentry kind="lib" path="lib/guice-4.1.0.jar"/>
 	<classpathentry kind="lib" path="lib/commons/commons-codec-1.11.jar"/>
+	<classpathentry kind="lib" path="lib/je-7.5.11.jar" sourcepath="/Users/dbugger/Downloads/je-7.5.11/src"/>
+	<classpathentry kind="lib" path="lib/runtime-0.1.4.jar" sourcepath="/Users/dbugger/Downloads/runtime-0.1.4-sources.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
