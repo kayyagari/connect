@@ -44,7 +44,7 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="lib/commons/commons-dbcp2-2.0.1.jar"/>
-	<classpathentry kind="lib" path="lib/commons/commons-pool2-2.3.jar"/>
+	<classpathentry kind="lib" path="lib/commons/commons-pool2-2.3.jar" sourcepath="/Users/dbugger/.m2/repository/org/apache/commons/commons-pool2/"/>
 	<classpathentry kind="lib" path="lib/database/derby-10.10.2.0.jar"/>
 	<classpathentry kind="lib" path="lib/database/postgresql-9.4.1212.jdbc42.jar">
 		<attributes>
@@ -72,5 +72,6 @@
 	<classpathentry kind="lib" path="lib/commons/commons-codec-1.11.jar"/>
 	<classpathentry kind="lib" path="lib/je-7.5.11.jar" sourcepath="/Users/dbugger/Downloads/je-7.5.11/src"/>
 	<classpathentry kind="lib" path="lib/runtime-0.1.4.jar" sourcepath="/Users/dbugger/Downloads/runtime-0.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="lib/netty-buffer-4.1.48.Final.jar" sourcepath="/Users/dbugger/Downloads/netty-buffer-4.1.48.Final-sources.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

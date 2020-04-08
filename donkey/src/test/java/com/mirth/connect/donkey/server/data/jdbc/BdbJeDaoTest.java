@@ -1,5 +1,6 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
+import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
@@ -21,8 +22,13 @@ import org.junit.Test;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
+import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.Sequence;
+import com.sleepycat.je.SequenceConfig;
 import com.sleepycat.persist.EntityStore;
 import com.sleepycat.persist.PrimaryIndex;
 import com.sleepycat.persist.StoreConfig;
@@ -114,5 +120,33 @@ public class BdbJeDaoTest {
         System.out.println("id equals " + id.equals(uuid));
         System.out.println(atReader.getEncrypt());
         System.out.println(atReader.getContent());
+    }
+    
+    @Test
+    public void testSeq() {
+        SequenceConfig sc = new SequenceConfig();
+        sc.setAllowCreate(true);
+        sc.setInitialValue(1);
+        sc.setCacheSize(1000);
+        
+        DatabaseConfig dc = new DatabaseConfig();
+        dc.setAllowCreate(true);
+        Database seDb = env.openDatabase(null, "seq_db", dc);
+        DatabaseEntry key = new DatabaseEntry(longToBytes(1));
+        Sequence s = seDb.openSequence(null, key, sc);
+        
+        long start = System.currentTimeMillis();
+        for(int i = 0; i < 10; i++) {
+            long l = s.get(null, 1);
+            System.out.println(l);
+        }
+        long end = System.currentTimeMillis();
+        
+        long l = s.get(null, 1);
+        System.out.println(l);
+        s.close();
+        seDb.close();
+        
+        System.out.println("\ntime taken " + (end-start) + "msec");
     }
 }

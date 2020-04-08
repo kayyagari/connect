@@ -1,7 +1,6 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -10,7 +9,6 @@ import org.apache.log4j.Logger;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.channel.Statistics;
 import com.mirth.connect.donkey.server.controllers.ChannelController;
-import com.mirth.connect.donkey.server.data.DonkeyDaoException;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.StatisticsUpdater;
 import com.mirth.connect.donkey.util.SerializerProvider;
@@ -20,7 +18,6 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
     private Donkey donkey;
     private ChannelController channelController;
     private String statsServerId;
-    private ConnectionPool connectionPool;
     private QuerySource querySource;
     private SerializerProvider serializerProvider;
     private StatisticsUpdater statisticsUpdater;
@@ -48,11 +45,10 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
 
     @Override
     public ConnectionPool getConnectionPool() {
-        return connectionPool;
+        return null;
     }
 
     public void setConnectionPool(ConnectionPool connectionPool) {
-        this.connectionPool = connectionPool;
     }
 
     public QuerySource getQuerySource() {
@@ -87,50 +83,16 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
     }
 
     @Override
-    public JdbcDao getDao() {
+    public BdbJeDao getDao() {
         return getDao(serializerProvider);
     }
 
     @Override
-    public JdbcDao getDao(SerializerProvider serializerProvider) {
-        PooledConnection pooledConnection;
-
-        try {
-            pooledConnection = connectionPool.getConnection();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        }
-
-        PreparedStatementSource statementSource = null;
-        Connection connection = pooledConnection.getConnection();
-        Connection internalConnection = pooledConnection.getInternalConnection();
-        statementSource = statementSources.get(internalConnection);
-
-        if (statementSource == null) {
-            statementSource = new CachedPreparedStatementSource(internalConnection, querySource);
-            statementSources.put(internalConnection, statementSource);
-
-            Integer maxConnections = connectionPool.getMaxConnections();
-
-            if (maxConnections == null || statementSources.size() > maxConnections) {
-                logger.debug("cleaning up prepared statement cache");
-
-                try {
-                    for (Connection currentConnection : statementSources.keySet()) {
-                        if (currentConnection.isClosed()) {
-                            statementSources.remove(currentConnection);
-                        }
-                    }
-                } catch (SQLException e) {
-                    throw new DonkeyDaoException(e);
-                }
-            }
-        }
-
-        return getDao(donkey, connection, querySource, statementSource, serializerProvider, encryptData, decryptData, statisticsUpdater, channelController.getStatistics(), channelController.getTotalStatistics(), statsServerId);
+    public BdbJeDao getDao(SerializerProvider serializerProvider) {
+        return getDao(donkey, null, querySource, null, serializerProvider, encryptData, decryptData, statisticsUpdater, channelController.getStatistics(), channelController.getTotalStatistics(), statsServerId);
     }
 
-    protected JdbcDao getDao(Donkey donkey, Connection connection, QuerySource querySource, PreparedStatementSource statementSource, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
-        return new JdbcDao(donkey, connection, querySource, statementSource, serializerProvider, encryptData, decryptData, statisticsUpdater, currentStats, totalStats, statsServerId);
+    protected BdbJeDao getDao(Donkey donkey, Connection connection, QuerySource querySource, PreparedStatementSource statementSource, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
+        return new BdbJeDao(donkey, connection, querySource, statementSource, serializerProvider, encryptData, decryptData, statisticsUpdater, currentStats, totalStats, statsServerId);
     }
 }

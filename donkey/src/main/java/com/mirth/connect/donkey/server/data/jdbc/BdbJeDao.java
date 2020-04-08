@@ -1,6 +1,22 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.CHANNELMAP;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.CONNECTORMAP;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.ENCODED;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.POSTPROCESSORERROR;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.PROCESSEDRAW;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.PROCESSEDRESPONSE;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.PROCESSINGERROR;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.RAW;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.RESPONSE;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.RESPONSEERROR;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.RESPONSEMAP;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.RESPONSETRANSFORMED;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.SENT;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.SOURCEMAP;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.TRANSFORMED;
 import static com.mirth.connect.donkey.util.SerializerUtil.bytesToLong;
+import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
 import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
 
 import java.io.ByteArrayInputStream;
@@ -24,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
@@ -32,10 +47,14 @@ import org.apache.commons.dbutils.DbUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
-import org.capnproto.MessageBuilder;
+import org.capnproto.MessageReader;
+import org.capnproto.SerializePacked;
 
 import com.mirth.connect.donkey.model.channel.MetaDataColumn;
 import com.mirth.connect.donkey.model.channel.MetaDataColumnType;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.model.message.ErrorContent;
@@ -43,7 +62,6 @@ import com.mirth.connect.donkey.model.message.MapContent;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.Status;
-import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.Encryptor;
@@ -65,7 +83,12 @@ import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.LockMode;
 import com.sleepycat.je.OperationStatus;
+import com.sleepycat.je.Sequence;
+import com.sleepycat.je.SequenceConfig;
 import com.sleepycat.je.Transaction;
+
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.PooledByteBufAllocator;
 
 public class BdbJeDao implements DonkeyDao {
     private Donkey donkey;
@@ -98,13 +121,27 @@ public class BdbJeDao implements DonkeyDao {
 
     private static final String TABLE_D_CHANNELS = "d_channels";
     private static final String TABLE_D_MESSAGE_SEQ = "d_msq";
-    private static final Map<String, Database> dbMap = new ConcurrentHashMap<>();
 
-    private static final GenericKeyedObjectPool<Class, MessageBuilder> gop = new GenericKeyedObjectPool<Class, MessageBuilder>(new CapnpMessageBuilderFactory());
-    
+    private Map<String, Database> dbMap;
+    private Map<Long, Sequence> seqMap;
+    private PooledByteBufAllocator bufAlloc;
+    private GenericKeyedObjectPool<Class, ReusableMessageBuilder> objectPool;
+
+    private static final SequenceConfig SEQ_CONF = new SequenceConfig();
+
+    static {
+        SEQ_CONF.setAllowCreate(true);
+        SEQ_CONF.setInitialValue(1);
+        SEQ_CONF.setCacheSize(1000);
+    }
+
     protected BdbJeDao(Donkey donkey, Connection connection, QuerySource querySource, PreparedStatementSource statementSource, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
         this.donkey = donkey;
         bdbJeEnv = donkey.getBdbJeEnv();
+        dbMap = donkey.getDbMap();
+        seqMap = donkey.getSeqMap();
+        bufAlloc = donkey.getBufAlloc();
+        objectPool = donkey.getObjectPool();
         this.connection = connection;
         this.querySource = querySource;
         this.statementSource = statementSource;
@@ -119,6 +156,7 @@ public class BdbJeDao implements DonkeyDao {
         alwaysDecrypt.addAll(Arrays.asList(ContentType.getMapTypes()));
         alwaysDecrypt.addAll(Arrays.asList(ContentType.getErrorTypes()));
 
+        txn = bdbJeEnv.beginTransaction(null, null);
         logger.debug("Opened connection");
     }
 
@@ -149,46 +187,33 @@ public class BdbJeDao implements DonkeyDao {
     public void insertMessage(Message message) {
         logger.debug(message.getChannelId() + "/" + message.getMessageId() + ": inserting message");
 
-        PreparedStatement statement = null;
+        ReusableMessageBuilder rmb = null;
+
         try {
-            statement = prepareStatement("insertMessage", message.getChannelId());
-            statement.setLong(1, message.getMessageId());
-            statement.setString(2, message.getServerId());
-            statement.setTimestamp(3, new Timestamp(message.getReceivedDate().getTimeInMillis()));
-            statement.setBoolean(4, message.isProcessed());
-
-            Long originalId = message.getOriginalId();
-
-            if (originalId != null) {
-                statement.setLong(5, originalId);
-            } else {
-                statement.setNull(5, Types.BIGINT);
-            }
-
-            Long importId = message.getImportId();
-
-            if (importId != null) {
-                statement.setLong(6, importId);
-            } else {
-                statement.setNull(6, Types.BIGINT);
-            }
-
-            String importChannelId = message.getImportChannelId();
-
-            if (importChannelId != null) {
-                statement.setString(7, message.getImportChannelId());
-            } else {
-                statement.setNull(7, Types.VARCHAR);
-            }
-
-            statement.executeUpdate();
+            rmb = objectPool.borrowObject(CapMessage.class);
+            CapMessage.Builder mb = (CapMessage.Builder)rmb.getSb();
+            mb.setChannelId(message.getChannelId());
+            mb.setImportChannelId(message.getImportChannelId());
+            mb.setImportId(message.getImportId());
+            mb.setMessageId(message.getMessageId());
+            mb.setOriginalId(message.getOriginalId());
+            mb.setProcessed(message.isProcessed());
+            mb.setReceivedDate(message.getReceivedDate().getTimeInMillis());
+            mb.setServerId(message.getServerId());
             
-            MessageBuilder mb = gop.borrowObject(CapMessage.class);
-            
+            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
+            SerializePacked.write(out, rmb.getMb());
+
+            long localChannelId = getLocalChannelId(message.getChannelId());
+            DatabaseEntry key = new DatabaseEntry(longToBytes(message.getMessageId()));
+            DatabaseEntry data = new DatabaseEntry(out.getBytes());
+            dbMap.get("d_m" + localChannelId).put(txn, key, data);
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
         } finally {
-            closeDatabaseObjectIfNeeded(statement);
+            if(rmb != null) {
+                objectPool.returnObject(CapMessage.class, rmb);
+            }
         }
     }
 
@@ -218,149 +243,123 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public void insertMessageContent(MessageContent messageContent) {
-        logger.debug(messageContent.getChannelId() + "/" + messageContent.getMessageId() + "/" + messageContent.getMetaDataId() + ": inserting message content (" + messageContent.getContentType().toString() + ")");
+        upsertMessageContent(messageContent.getChannelId(), messageContent.getMessageId(), messageContent.getMetaDataId(), messageContent.getContentType(), messageContent.getContent(), messageContent.getDataType(), messageContent.isEncrypted(), false);
+    }
+    
+//    private void upsertMessageContent(MessageContent messageContent, boolean update) {
+    private void upsertMessageContent(String channelId, long messageId, int metaDataId, ContentType contentType, String content, String dataType, boolean encrypted, boolean update) {
+        String inserting = update ? "updating" : "inserting";
+        String logMsg = String.format("%s/%d/%d: %s message content (%s)", channelId, messageId, metaDataId, inserting, contentType.toString());
+        logger.debug(logMsg);
 
-        insertContent(messageContent.getChannelId(), messageContent.getMessageId(), messageContent.getMetaDataId(), messageContent.getContentType(), messageContent.getContent(), messageContent.getDataType(), messageContent.isEncrypted());
+        //insertContent(messageContent.getChannelId(), messageContent.getMessageId(), messageContent.getMetaDataId(), messageContent.getContentType(), messageContent.getContent(), messageContent.getDataType(), messageContent.isEncrypted());
+        ReusableMessageBuilder rmb = null;
+        try {
+            rmb = objectPool.borrowObject(CapMessageContent.class);
+            CapMessageContent.Builder cb = (CapMessageContent.Builder) rmb.getSb();
+
+            // Only encrypt if the content is not already encrypted
+            if (encryptData && encryptor != null && !encrypted) {
+                content = encryptor.encrypt(content);
+                encrypted = true;
+            }
+
+            cb.setChannelId(channelId);
+            cb.setContent(content);
+            CapContentType cct = null;
+            switch (contentType) {
+            case CHANNEL_MAP:
+                cct = CHANNELMAP;
+                break;
+            case CONNECTOR_MAP:
+                cct = CONNECTORMAP;
+                break;
+            case ENCODED:
+                cct = ENCODED;
+                break;
+            case POSTPROCESSOR_ERROR:
+                cct = POSTPROCESSORERROR;
+                break;
+            case PROCESSED_RAW:
+                cct = PROCESSEDRAW;
+                break;
+            case PROCESSED_RESPONSE:
+                cct = PROCESSEDRESPONSE;
+                break;
+            case PROCESSING_ERROR:
+                cct = PROCESSINGERROR;
+                break;
+            case RAW:
+                cct = RAW;
+                break;
+            case RESPONSE:
+                cct = RESPONSE;
+                break;
+            case RESPONSE_ERROR:
+                cct = RESPONSEERROR;
+                break;
+            case RESPONSE_MAP:
+                cct = RESPONSEMAP;
+                break;
+            case RESPONSE_TRANSFORMED:
+                cct = RESPONSETRANSFORMED;
+                break;
+            case SENT:
+                cct = SENT;
+                break;
+            case SOURCE_MAP:
+                cct = SOURCEMAP;
+                break;
+            case TRANSFORMED:
+                cct = TRANSFORMED;
+                break;
+            }
+
+            cb.setContentType(cct);
+            cb.setDataType(dataType);
+            cb.setEncrypted(encrypted);
+            cb.setMessageId(messageId);
+            cb.setMetaDataId(metaDataId);
+
+            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
+            SerializePacked.write(out, rmb.getMb());
+
+            long localChannelId = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
+            DatabaseEntry data = new DatabaseEntry(out.getBytes());
+            Database msgContentDb = dbMap.get("d_mc" + localChannelId);
+            msgContentDb.put(txn, key, data);
+        } catch (Exception e) {
+            throw new DonkeyDaoException(e);
+        } finally {
+            if(rmb != null) {
+                objectPool.returnObject(CapMessageContent.class, rmb);
+            }
+        }
     }
 
     @Override
     public void batchInsertMessageContent(MessageContent messageContent) {
-        logger.debug(messageContent.getChannelId() + "/" + messageContent.getMessageId() + "/" + messageContent.getMetaDataId() + ": batch inserting message content (" + messageContent.getContentType().toString() + ")");
-
-        PreparedStatement statement = null;
-        try {
-            String content;
-            boolean encrypted;
-
-            // Only encrypt if the content is not already encrypted
-            if (encryptData && encryptor != null && !messageContent.isEncrypted()) {
-                content = encryptor.encrypt(messageContent.getContent());
-                encrypted = true;
-            } else {
-                content = messageContent.getContent();
-                encrypted = messageContent.isEncrypted();
-            }
-
-            statement = prepareStatement("batchInsertMessageContent", messageContent.getChannelId());
-            statement.setInt(1, messageContent.getMetaDataId());
-            statement.setLong(2, messageContent.getMessageId());
-            statement.setInt(3, messageContent.getContentType().getContentTypeCode());
-            statement.setString(4, content);
-            statement.setString(5, messageContent.getDataType());
-            statement.setBoolean(6, encrypted);
-
-            statement.addBatch();
-            statement.clearParameters();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
+        insertMessageContent(messageContent);
     }
 
     @Override
-    public void executeBatchInsertMessageContent(String channelId) {
-        logger.debug(channelId + ": executing batch message content insert");
-
-        PreparedStatement statement = null;
-        try {
-            /*
-             * MIRTH-3597 Batch statements need to have their own prepared statement object due to a
-             * bug? in the Oracle 12 JDBC driver. Therefore we need to have both
-             * insertMessageContent and insertMessageContentBatch even though they are the same
-             * query. We should also call clearBatch() after each batch execution to verify that all
-             * internal buffers are cleared.
-             */
-            statement = prepareStatement("batchInsertMessageContent", channelId);
-            statement.executeBatch();
-            statement.clearBatch();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
-    }
+    public void executeBatchInsertMessageContent(String channelId) {}
 
     @Override
     public void storeMessageContent(MessageContent messageContent) {
         logger.debug(messageContent.getChannelId() + "/" + messageContent.getMessageId() + "/" + messageContent.getMetaDataId() + ": updating message content (" + messageContent.getContentType().toString() + ")");
 
-        storeContent(messageContent.getChannelId(), messageContent.getMessageId(), messageContent.getMetaDataId(), messageContent.getContentType(), messageContent.getContent(), messageContent.getDataType(), messageContent.isEncrypted());
-    }
-
-    private void insertContent(String channelId, long messageId, int metaDataId, ContentType contentType, String content, String dataType, boolean encrypted) {
-        PreparedStatement statement = null;
-        try {
-            // Only encrypt if the content is not already encrypted
-            if (encryptData && encryptor != null && !encrypted) {
-                content = encryptor.encrypt(content);
-                encrypted = true;
-            }
-
-            statement = prepareStatement("insertMessageContent", channelId);
-            statement.setInt(1, metaDataId);
-            statement.setLong(2, messageId);
-            statement.setInt(3, contentType.getContentTypeCode());
-            statement.setString(4, content);
-            statement.setString(5, dataType);
-            statement.setBoolean(6, encrypted);
-
-            statement.executeUpdate();
-            statement.clearParameters();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
+        //storeContent(messageContent.getChannelId(), messageContent.getMessageId(), messageContent.getMetaDataId(), messageContent.getContentType(), messageContent.getContent(), messageContent.getDataType(), messageContent.isEncrypted());
+        upsertMessageContent(messageContent.getChannelId(), messageContent.getMessageId(), messageContent.getMetaDataId(), messageContent.getContentType(), messageContent.getContent(), messageContent.getDataType(), messageContent.isEncrypted(), true);
     }
 
     public void storeContent(String channelId, long messageId, int metaDataId, ContentType contentType, String content, String dataType, boolean encrypted) {
-        PreparedStatement statement = null;
-        try {
-            // Only encrypt if the content is not already encrypted
-            if (encryptData && encryptor != null && !encrypted) {
-                content = encryptor.encrypt(content);
-                encrypted = true;
-            }
+        upsertMessageContent(channelId, messageId, metaDataId, contentType, content, dataType, encrypted, true);
+    }
 
-            statement = prepareStatement("storeMessageContent", channelId);
-
-            if (content == null) {
-                statement.setNull(1, Types.LONGVARCHAR);
-            } else {
-                statement.setString(1, content);
-            }
-
-            statement.setString(2, dataType);
-            statement.setBoolean(3, encrypted);
-            statement.setInt(4, metaDataId);
-            statement.setLong(5, messageId);
-            statement.setInt(6, contentType.getContentTypeCode());
-
-            int rowCount = statement.executeUpdate();
-            statement.clearParameters();
-
-            if (rowCount == 0) {
-                // This is the same code as insertContent, without going through the encryption process again
-                logger.debug(channelId + "/" + messageId + "/" + metaDataId + ": updating message content (" + contentType.toString() + ")");
-
-                closeDatabaseObjectIfNeeded(statement);
-                statement = prepareStatement("insertMessageContent", channelId);
-                statement.setInt(1, metaDataId);
-                statement.setLong(2, messageId);
-                statement.setInt(3, contentType.getContentTypeCode());
-                statement.setString(4, content);
-                statement.setString(5, dataType);
-                statement.setBoolean(6, encrypted);
-
-                statement.executeUpdate();
-                statement.clearParameters();
-            }
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
+    private void insertContent(String channelId, long messageId, int metaDataId, ContentType contentType, String content, String dataType, boolean encrypted) {
+        upsertMessageContent(channelId, messageId, metaDataId, contentType, content, dataType, encrypted, false);
     }
 
     @Override
@@ -1094,33 +1093,46 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public void markAsProcessed(String channelId, long messageId) {
         logger.debug(channelId + "/" + messageId + ": marking as processed");
+        markAsProcessedOrReset(channelId, messageId, false);
+    }
 
-        PreparedStatement statement = null;
+    private void markAsProcessedOrReset(String channelId, long messageId, boolean reset) {
         try {
-            statement = prepareStatement("markAsProcessed", channelId);
-            statement.setLong(1, messageId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
+            long localChannelId = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(longToBytes(messageId));
+            DatabaseEntry data = new DatabaseEntry();
+            Database messageDb = dbMap.get("d_m" + localChannelId);
+            OperationStatus os = messageDb.get(txn, key, data, LockMode.READ_COMMITTED);
+            if(os == OperationStatus.SUCCESS) {
+                CapnpInputStream ai = new CapnpInputStream(data.getData());
+                MessageReader mr = SerializePacked.read(ai);
+                CapMessage.Reader atReader= mr.getRoot(CapMessage.factory);
+
+                ReusableMessageBuilder rmb = objectPool.borrowObject(CapMessage.class);
+                rmb.getMb().setRoot(CapMessage.factory, atReader);
+                CapMessage.Builder mb = (CapMessage.Builder)rmb.getSb();
+                mb.setProcessed(true);
+
+                if(reset) {
+                    mb.setImportChannelId((String)null);
+                    mb.setImportId(0);
+                }
+
+                CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
+                SerializePacked.write(out, rmb.getMb());
+                data = new DatabaseEntry(out.getBytes());
+                messageDb.put(txn, key, data);
+                objectPool.returnObject(CapMessage.class, rmb);
+            }
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
     @Override
     public void resetMessage(String channelId, long messageId) {
         logger.debug(channelId + "/" + messageId + ": resetting message");
-
-        PreparedStatement statement = null;
-        try {
-            statement = prepareStatement("resetMessage", channelId);
-            statement.setLong(1, messageId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
+        markAsProcessedOrReset(channelId, messageId, true);
     }
 
     @Override
@@ -1151,7 +1163,8 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public void removeChannel(String channelId) {
-        if (!getLocalChannelIds().containsKey(channelId)) {
+        Long localChannelId = getLocalChannelIds().get(channelId);
+        if (localChannelId == null) {
             return;
         }
 
@@ -1159,26 +1172,28 @@ public class BdbJeDao implements DonkeyDao {
 
         transactionAlteredChannels = true;
 
-        List<AutoCloseable> statements = new ArrayList<>();
         try {
-            statements.add(prepareStatement("dropStatisticsTable", channelId));
-            statements.add(prepareStatement("dropAttachmentsTable", channelId));
-            statements.add(prepareStatement("dropCustomMetadataTable", channelId));
-            statements.add(prepareStatement("dropMessageContentTable", channelId));
-            statements.add(prepareStatement("dropMessageMetadataTable", channelId));
-            statements.add(prepareStatement("dropMessageSequence", channelId));
-            statements.add(prepareStatement("dropMessageTable", channelId));
-            statements.add(prepareStatement("deleteChannel", channelId));
+            List<String> dbNames = new ArrayList<>();
+            dbNames.add("d_ms" + localChannelId);
+            dbNames.add("d_ma" + localChannelId);
+            dbNames.add("d_mcm" + localChannelId);
+            dbNames.add("d_mc" + localChannelId);
+            dbNames.add("d_mm" + localChannelId);
+            dbNames.add("d_m" + localChannelId);
 
-            for (AutoCloseable statement : statements) {
-                ((PreparedStatement) statement).executeUpdate();
+            for (String s : dbNames) {
+                dbMap.remove(s).close();
+                bdbJeEnv.removeDatabase(txn, s);
             }
 
+            DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
+            seqMap.remove(localChannelId).close();
+            dbMap.get(TABLE_D_MESSAGE_SEQ).removeSequence(txn, key);
+            
+            dbMap.get(TABLE_D_CHANNELS).delete(txn, key);
             removedChannelIds.add(channelId);
-        } catch (SQLException e) {
+        } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectsIfNeeded(statements);
         }
     }
 
@@ -1317,17 +1332,13 @@ public class BdbJeDao implements DonkeyDao {
     private void deleteMessageContentByMetaDataIdAndContentType(String channelId, long messageId, int metaDataId, ContentType contentType) {
         logger.debug(channelId + "/" + messageId + ": deleting content");
 
-        PreparedStatement statement = null;
         try {
-            statement = prepareStatement("deleteMessageContentByMetaDataIdAndContentType", channelId);
-            statement.setLong(1, messageId);
-            statement.setInt(2, metaDataId);
-            statement.setInt(3, contentType.getContentTypeCode());
-            statement.executeUpdate();
-        } catch (SQLException e) {
+            long localChannelId = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
+            Database msgContentDb = dbMap.get("d_mc" + localChannelId);
+            msgContentDb.delete(txn, key);
+        } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
@@ -1449,17 +1460,8 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public long getNextMessageId(String channelId) {
         try {
-
             long localChannelId = getLocalChannelId(channelId);
-            DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
-            DatabaseEntry seq = new DatabaseEntry();
-            OperationStatus status = dbMap.get(TABLE_D_MESSAGE_SEQ).get(null, key, seq, LockMode.READ_COMMITTED);
-
-            if(status != OperationStatus.SUCCESS) {
-                throw new DonkeyDaoException("no message sequence entry found for the channel " + channelId + " with local ID " + localChannelId);
-            }
-
-            return bytesToLong(seq.getData());
+            return seqMap.get(localChannelId).get(txn, 1);
         } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
         }
@@ -2040,25 +2042,22 @@ public class BdbJeDao implements DonkeyDao {
         logger.debug(channelId + ": creating channel");
         transactionAlteredChannels = true;
 
-        Transaction lt = bdbJeEnv.beginTransaction(null, null);
         try {
             Database db = dbMap.get(TABLE_D_CHANNELS);
-            db.put(lt, new DatabaseEntry(SerializerUtil.longToBytes(localChannelId)), new DatabaseEntry(channelId.getBytes(UTF_8)));
+            db.put(txn, new DatabaseEntry(SerializerUtil.longToBytes(localChannelId)), new DatabaseEntry(channelId.getBytes(UTF_8)));
 
-            createTable("d_m" + localChannelId, lt); // createMessageTable
-            createTable("d_mm" + localChannelId, lt); // createConnectorMessageTable
-            createTable("d_mc" + localChannelId, lt); // createMessageContentTable
-            createTable("d_mcm" + localChannelId, lt); // createMessageCustomMetaDataTable
-            createTable("d_ma" + localChannelId, lt); // createMessageAttachmentTable
-            createTable("d_ms" + localChannelId, lt); // createMessageStatisticsTable
+            createTable("d_m" + localChannelId, txn); // createMessageTable
+            createTable("d_mm" + localChannelId, txn); // createConnectorMessageTable
+            createTable("d_mc" + localChannelId, txn); // createMessageContentTable
+            createTable("d_mcm" + localChannelId, txn); // createMessageCustomMetaDataTable
+            createTable("d_ma" + localChannelId, txn); // createMessageAttachmentTable
+            createTable("d_ms" + localChannelId, txn); // createMessageStatisticsTable
 
             // createMessageSequence
             DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
-            DatabaseEntry seq = new DatabaseEntry(longToBytes(1));
-            dbMap.get(TABLE_D_MESSAGE_SEQ).put(lt, key, seq);
-            lt.commit();
+            Sequence seq = dbMap.get(TABLE_D_MESSAGE_SEQ).openSequence(txn, key, SEQ_CONF);
+            seqMap.put(localChannelId, seq);
         } catch (Exception e) {
-            lt.abort();
             throw new DonkeyDaoException(e);
         }
     }
@@ -2082,7 +2081,6 @@ public class BdbJeDao implements DonkeyDao {
 
         Database msq = dbMap.get(TABLE_D_MESSAGE_SEQ);
         DatabaseEntry seq = new DatabaseEntry(longToBytes(1));
-        Transaction lt = bdbJeEnv.beginTransaction(null, null);
         
         for (Long localChannelId : channelIds.values()) {
             channelTablesLst.add("d_m" + localChannelId); // "createMessageTable"
@@ -2094,7 +2092,7 @@ public class BdbJeDao implements DonkeyDao {
 
             // createMessageSequence
             DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
-            msq.putNoOverwrite(lt, key, seq);
+            msq.putNoOverwrite(txn, key, seq);
         }
 
         channelTablesLst.removeAll(bdbJeEnv.getDatabaseNames());
@@ -2103,9 +2101,7 @@ public class BdbJeDao implements DonkeyDao {
             for (String entry : channelTablesLst) {
                 createTable(entry);
             }
-            lt.commit();
         } catch (Exception e) {
-            lt.abort();
             throw new DonkeyDaoException(e);
         }
     }
@@ -2268,10 +2264,13 @@ public class BdbJeDao implements DonkeyDao {
         logger.debug("Committing transaction" + (durable ? "" : " asynchronously"));
 
         try {
-            if(txn != null) {
+            if(durable) {
                 txn.commit();
             }
-        } catch (DatabaseException e) {
+            else {
+                txn.abort();
+            }
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
         }
 
@@ -2344,23 +2343,23 @@ public class BdbJeDao implements DonkeyDao {
         logger.debug("Rolling back transaction");
 
         try {
-            if(txn != null) {
-                txn.abort();
-            }
+            txn.abort();
             transactionStats.clear();
-        } catch (DatabaseException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
         }
     }
 
     @Override
     public void close() {
+        if(txn.isValid()) {
+            txn.abort();
+        }
     }
 
     @Override
     public boolean isClosed() {
-        // return true always
-        return true;
+        return !txn.isValid();
     }
 
     /*
@@ -3010,5 +3009,14 @@ public class BdbJeDao implements DonkeyDao {
     protected String getDeployedChannelName(String channelId) {
         Channel channel = donkey.getDeployedChannels().get(channelId);
         return channel != null ? channel.getName() : "";
+    }
+    
+    private byte[] buildPrimaryKeyOfMessageContent(long messageId, int metaDataId, ContentType ct) {
+        byte[] buf = new byte[16]; // MESSAGE_ID, METADATA_ID, CONTENT_TYPE
+        longToBytes(messageId, buf, 0);
+        intToBytes(metaDataId, buf, 8);
+        intToBytes(ct.getContentTypeCode(), buf, 12);
+        
+        return buf;
     }
 }

@@ -21,7 +21,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
+import org.capnproto.StructBuilder;
 
 import com.google.inject.Inject;
 import com.mirth.connect.donkey.model.DatabaseConstants;
@@ -31,15 +33,21 @@ import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.DonkeyStatisticsUpdater;
 import com.mirth.connect.donkey.server.data.jdbc.BdbJeDaoFactory;
+import com.mirth.connect.donkey.server.data.jdbc.CapnpStructBuilderFactory;
 import com.mirth.connect.donkey.server.data.jdbc.JdbcDaoFactory;
+import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.mirth.connect.donkey.server.data.jdbc.XmlQuerySource;
 import com.mirth.connect.donkey.server.data.jdbc.XmlQuerySource.XmlQuerySourceException;
 import com.mirth.connect.donkey.server.event.EventDispatcher;
 import com.mirth.connect.donkey.util.Serializer;
 import com.mirth.connect.donkey.util.SerializerProvider;
 import com.mirth.connect.donkey.util.xstream.XStreamSerializer;
+import com.sleepycat.je.Database;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.Sequence;
+
+import io.netty.buffer.PooledByteBufAllocator;
 
 public class Donkey {
     @Inject
@@ -71,6 +79,11 @@ public class Donkey {
     private boolean running = false;
 
     private Environment bdbJeEnv;
+    private Map<String, Database> dbMap;
+    private Map<Long, Sequence> seqMap;
+    private PooledByteBufAllocator bufAlloc;
+    private GenericKeyedObjectPool<Class, ReusableMessageBuilder> objectPool;
+    
     private static final String DB_BDB_JE = "bdbje";
 
     public void startEngine(DonkeyConfiguration donkeyConfiguration) throws StartException {
@@ -116,11 +129,9 @@ public class Donkey {
         try {
             dao = daoFactory.getDao();
 
-            if (dao.initTableStructure()) {
-                dao.commit();
-            }
-
+            dao.initTableStructure();
             dao.checkAndCreateChannelTables();
+
             dao.commit();
         } catch (Exception e) {
             logger.error("Could not check and create channel tables on startup", e);
@@ -244,9 +255,29 @@ public class Donkey {
         ec.setAllowCreate(true);
         ec.setTransactional(true);
         bdbJeEnv = new Environment(envDir, ec);
+        dbMap = new ConcurrentHashMap<>();
+        seqMap = new ConcurrentHashMap<>();
+        bufAlloc = new PooledByteBufAllocator();
+        objectPool = new GenericKeyedObjectPool<Class, ReusableMessageBuilder>(new CapnpStructBuilderFactory());
     }
 
     public Environment getBdbJeEnv() {
         return bdbJeEnv;
+    }
+
+    public Map<String, Database> getDbMap() {
+        return dbMap;
+    }
+
+    public Map<Long, Sequence> getSeqMap() {
+        return seqMap;
+    }
+
+    public PooledByteBufAllocator getBufAlloc() {
+        return bufAlloc;
+    }
+
+    public GenericKeyedObjectPool<Class, ReusableMessageBuilder> getObjectPool() {
+        return objectPool;
     }
 }
