@@ -6,8 +6,16 @@ import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.capnproto.MessageBuilder;
 import org.capnproto.StructBuilder;
 
+import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapErrorContent;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMapContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadata;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadataColumn;
 
+@SuppressWarnings("rawtypes")
 public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class, ReusableMessageBuilder> {
 
     @Override
@@ -29,6 +37,30 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
         
         if(key == CapMessage.class) {
             sb = mb.initRoot(CapMessage.factory);
+        }
+        else if(key == CapAttachment.class) {
+            sb = mb.initRoot(CapAttachment.factory);
+        }
+        else if(key == CapMessageContent.class) {
+            sb = mb.initRoot(CapMessageContent.factory);
+        }
+        else if(key == CapConnectorMessage.class) {
+            sb = mb.initRoot(CapConnectorMessage.factory);
+        }
+        else if(key == CapMapContent.class) {
+            sb = mb.initRoot(CapMapContent.factory);
+        }
+        else if(key == CapErrorContent.class) {
+            sb = mb.initRoot(CapErrorContent.factory);
+        }
+        else if(key == CapMetadata.class) {
+            sb = mb.initRoot(CapMetadata.factory);
+        }
+        else if(key == CapMetadataColumn.class) {
+            sb = mb.initRoot(CapMetadataColumn.factory);
+        }
+        else {
+            throw new IllegalArgumentException("unknown message class " + key.getName());
         }
 
         return new DefaultPooledObject<ReusableMessageBuilder>(new ReusableMessageBuilder(mb, sb));

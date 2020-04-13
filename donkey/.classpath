@@ -73,5 +73,6 @@
 	<classpathentry kind="lib" path="lib/je-7.5.11.jar" sourcepath="/Users/dbugger/Downloads/je-7.5.11/src"/>
 	<classpathentry kind="lib" path="lib/runtime-0.1.4.jar" sourcepath="/Users/dbugger/Downloads/runtime-0.1.4-sources.jar"/>
 	<classpathentry kind="lib" path="lib/netty-buffer-4.1.48.Final.jar" sourcepath="/Users/dbugger/Downloads/netty-buffer-4.1.48.Final-sources.jar"/>
+	<classpathentry kind="lib" path="lib/netty-common-4.1.48.Final.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

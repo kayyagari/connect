@@ -5,9 +5,10 @@ $Java.outerClassname("CapnpModel");
 
 struct CapAttachment {
     id @0 :Text;
-    content @1 :Data;
+    messageId @1 :Int64;
     type @2 :Text;
-    encrypt @3 :Bool;
+    attachmentSize @3 :Int32;
+    content @4 :Data;
 }
 
 struct CapMessage {
@@ -49,14 +50,11 @@ struct CapMessageContent {
 }
     
 struct CapConnectorMessage {
-    messageId @0 :Int64;
-    metaDataId @1 :Int32;
-    channelId @2 :Text;
-    channelName @3 :Text;
-    connectorName @4 :Text;
-    serverId @5 :Text;
-    receivedDate @6 :Int64;
-    status @7 :CapStatus;
+    id @0 :Int32;
+    messageId @1 :Int64;
+    serverId @2 :Text;
+    receivedDate @3 :Int64;
+    status @4 :CapStatus;
     enum CapStatus {
         received @0;
         filtered @1;
@@ -66,13 +64,13 @@ struct CapConnectorMessage {
         error @5;
         pending @6;
     }
-    
-    errorCode @8 :Int32;
-    sendAttempts @9 :Int32;
-    sendDate @10 :Int64;
-    responseDate @11 :Int64;
-    chainId @12 :Int32;
-    orderId @13 :Int32;
+    connectorName @5 :Text;
+    sendAttempts @6 :Int32;
+    sendDate @7 :Int64;
+    responseDate @8 :Int64;
+    errorCode @9 :Int32;
+    chainId @10 :Int32;
+    orderId @11 :Int32;
  }
 
 struct Map(Key, Value) {
@@ -91,4 +89,22 @@ struct CapMapContent {
 struct CapErrorContent {
     content @0 :Text;
     encrypted @1 :Bool;
+}
+
+struct CapMetadata {
+    metadataId @0 :Int32;
+    messageId @1 :Int64;
+    columns @2 :List(CapMetadataColumn);
+}
+
+struct CapMetadataColumn {
+    name @0 :Text;
+    type @1 :Type;
+    enum Type {
+      string @0;
+      number @1;
+      boolean @2;
+      timestamp @3;
+    }
+    value @2 :Text;
 }

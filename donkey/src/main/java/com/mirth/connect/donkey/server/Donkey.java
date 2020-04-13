@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
-import org.capnproto.StructBuilder;
 
 import com.google.inject.Inject;
 import com.mirth.connect.donkey.model.DatabaseConstants;
@@ -43,6 +42,7 @@ import com.mirth.connect.donkey.util.Serializer;
 import com.mirth.connect.donkey.util.SerializerProvider;
 import com.mirth.connect.donkey.util.xstream.XStreamSerializer;
 import com.sleepycat.je.Database;
+import com.sleepycat.je.Durability;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 import com.sleepycat.je.Sequence;
@@ -254,6 +254,8 @@ public class Donkey {
         EnvironmentConfig ec = new EnvironmentConfig();
         ec.setAllowCreate(true);
         ec.setTransactional(true);
+        ec.setDurability(Durability.COMMIT_NO_SYNC);
+        //ec.setCachePercent(70);
         bdbJeEnv = new Environment(envDir, ec);
         dbMap = new ConcurrentHashMap<>();
         seqMap = new ConcurrentHashMap<>();

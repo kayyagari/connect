@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.dbutils.DbUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
@@ -91,6 +92,7 @@ public class TestUtils {
     final public static String TEST_HL7_ACK = "MSH|^~\\&|||LABNET|AcmeLabs|20090601105700||ACK|HMCDOOGAL-0088|D|2.2\rMSA|AA|HMCDOOGAL-0088\r";
 
     final private static String DONKEY_CONFIGURATION_FILE = "donkey-testing.properties";
+    final private static String DONKEY_CONFIGURATION_JE_FILE = "donkey-testing-je.properties";
     final private static String PERFORMANCE_LOG_FILE = null;
 
     final public static String DEFAULT_CHANNEL_ID = "testchannel";
@@ -1284,11 +1286,34 @@ public class TestUtils {
     }
 
     public static DonkeyConfiguration getDonkeyTestConfiguration() {
+        return getDonkeyTestConfiguration(false, false);
+    }
+
+    public static DonkeyConfiguration getDonkeyTestConfigurationForJE(boolean cleanEnv) {
+        return getDonkeyTestConfiguration(true, true);
+    }
+
+    private static DonkeyConfiguration getDonkeyTestConfiguration(boolean useDatabaseJE, boolean cleanJEEnv) {
         try {
             Properties databaseProperties = new Properties();
-            InputStream is = ResourceUtil.getResourceStream(Donkey.class, DONKEY_CONFIGURATION_FILE);
+            String confFileName = useDatabaseJE ? DONKEY_CONFIGURATION_JE_FILE : DONKEY_CONFIGURATION_FILE;
+            InputStream is = ResourceUtil.getResourceStream(Donkey.class, confFileName);
             databaseProperties.load(is);
             IOUtils.closeQuietly(is);
+
+            if(useDatabaseJE) {
+                File dir = new File(databaseProperties.getProperty("database.url"));
+                if(cleanJEEnv) {
+                    try {
+                        FileUtils.deleteDirectory(dir);
+                    }
+                    catch(Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                
+                dir.mkdirs();
+            }
 
             return new DonkeyConfiguration(new File(".").getAbsolutePath(), databaseProperties, null, new EventDispatcher() {
                 @Override

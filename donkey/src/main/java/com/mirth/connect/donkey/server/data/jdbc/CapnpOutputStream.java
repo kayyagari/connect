@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 
 import org.capnproto.BufferedOutputStream;
 
+import com.sleepycat.je.DatabaseEntry;
+
 import io.netty.buffer.ByteBuf;
 
 public class CapnpOutputStream implements BufferedOutputStream {
@@ -40,7 +42,8 @@ public class CapnpOutputStream implements BufferedOutputStream {
     public void flush() throws IOException {
     }
     
-    public byte[] getBytes() {
-        return buf.array();
+    public DatabaseEntry getData() {
+        //System.out.println("offset " + buf.arrayOffset() + " no. of bytes " + buf.readableBytes() + " iscontiguous " + buf.isContiguous());
+        return new DatabaseEntry(buf.array(), buf.arrayOffset(), buf.readableBytes());
     }
 }
