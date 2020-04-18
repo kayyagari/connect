@@ -1,6 +1,6 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
-import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
+import static com.mirth.connect.donkey.util.SerializerUtil.*;
 import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
@@ -19,14 +19,18 @@ import org.capnproto.SerializePacked;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
+import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
+import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
 import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.Get;
+import com.sleepycat.je.LockMode;
+import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Sequence;
 import com.sleepycat.je.SequenceConfig;
 import com.sleepycat.persist.EntityStore;
@@ -146,5 +150,49 @@ public class GeneralJETest {
         seDb.close();
         
         System.out.println("\ntime taken " + (end-start) + "msec");
+    }
+    
+    @Test
+    public void testKeyRangeSearch() {
+        DatabaseConfig dc = new DatabaseConfig();
+        dc.setAllowCreate(true);
+        Database db = env.openDatabase(null, "key_range.db", dc);
+        for(long i=0; i<10; i++) {
+            for(int j=0; j < 5; j++) {
+                byte[] buf = new byte[12]; // MESSAGE_ID, METADATA_ID
+                longToBytes(i, buf, 0);
+                intToBytes(j, buf, 8);
+                DatabaseEntry key = new DatabaseEntry(buf);
+                DatabaseEntry data = new DatabaseEntry(longToBytes(i+1));
+                db.put(null, key, data);
+            }
+        }
+        
+        int total = deleteAllStartingwith(1, db);
+        System.out.println("total " + total);
+    }
+    
+    private int deleteAllStartingwith(long keyPrefixId, Database db) {
+        Cursor cursor = db.openCursor(null, null);
+        DatabaseEntry key = new DatabaseEntry(longToBytes(keyPrefixId));
+        DatabaseEntry data = new DatabaseEntry();
+        OperationStatus os = cursor.getSearchKeyRange(key, data, null);
+        int total = 0;
+        if(os == OperationStatus.SUCCESS) {
+            do {
+                System.out.println(bytesToLong(key.getData()) + " - " + bytesToLong(data.getData()));
+                long curPrefix = bytesToLong(key.getData());
+                if(curPrefix != keyPrefixId) {
+                    break;
+                }
+                cursor.delete();
+                total++;
+            }
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
+        }
+        
+        cursor.close();
+        
+        return total;
     }
 }

@@ -108,3 +108,16 @@ struct CapMetadataColumn {
     }
     value @2 :Text;
 }
+
+struct CapStatistics {
+     metadataId @0 :Int32;
+     serverId @1 :Text;
+     received @2 :Int64;
+     receivedLifetime @3 :Int64;
+     filtered @4 :Int64;
+     filteredLifetime @5 :Int64;
+     sent @6 :Int64;
+     sentLifetime @7 :Int64;
+     error @8 :Int64;
+     errorLifetime @9 :Int64;
+}

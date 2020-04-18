@@ -9,24 +9,32 @@
 
 package com.mirth.connect.donkey.model.message;
 
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.ERROR;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.FILTERED;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.PENDING;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.QUEUED;
+import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.RECEIVED;
+
 import java.io.Serializable;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus;
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("connectorMessage")
 public class ConnectorMessage implements Serializable {
-    private long messageId;
-    private int metaDataId;
-    private String channelId;
-    private String channelName;
-    private String connectorName;
-    private String serverId;
-    private Calendar receivedDate;
-    private Status status;
+    protected long messageId;
+    protected int metaDataId;
+    protected String channelId;
+    protected String channelName;
+    protected String connectorName;
+    protected String serverId;
+    protected Calendar receivedDate;
+    protected Status status;
     private MessageContent raw;
     private MessageContent processedRaw;
     private MessageContent transformed;
@@ -35,25 +43,25 @@ public class ConnectorMessage implements Serializable {
     private MessageContent response;
     private MessageContent responseTransformed;
     private MessageContent processedResponse;
-    private MapContent sourceMapContent = new MapContent();
-    private MapContent connectorMapContent = new MapContent();
-    private MapContent channelMapContent = new MapContent();
-    private MapContent responseMapContent = new MapContent();
-    private Map<String, Object> metaDataMap = new HashMap<String, Object>();
-    private ErrorContent processingErrorContent = new ErrorContent();
-    private ErrorContent postProcessorErrorContent = new ErrorContent();
-    private ErrorContent responseErrorContent = new ErrorContent();
-    private int errorCode = 0;
-    private int sendAttempts = 0;
-    private Calendar sendDate;
-    private Calendar responseDate;
-    private int chainId;
-    private int orderId;
+    protected MapContent sourceMapContent = new MapContent();
+    protected MapContent connectorMapContent = new MapContent();
+    protected MapContent channelMapContent = new MapContent();
+    protected MapContent responseMapContent = new MapContent();
+    protected Map<String, Object> metaDataMap = new HashMap<String, Object>();
+    protected ErrorContent processingErrorContent = new ErrorContent();
+    protected ErrorContent postProcessorErrorContent = new ErrorContent();
+    protected ErrorContent responseErrorContent = new ErrorContent();
+    protected int errorCode = 0;
+    protected int sendAttempts = 0;
+    protected Calendar sendDate;
+    protected Calendar responseDate;
+    protected int chainId;
+    protected int orderId;
 
-    private transient ConnectorProperties sentProperties;
-    private transient Integer queueBucket;
-    private transient boolean attemptedFirst;
-    private transient long dispatcherId;
+    protected transient ConnectorProperties sentProperties;
+    protected transient Integer queueBucket;
+    protected transient boolean attemptedFirst;
+    protected transient long dispatcherId;
 
     public ConnectorMessage() {}
 
@@ -496,5 +504,34 @@ public class ConnectorMessage implements Serializable {
 
     public String toString() {
         return "message " + messageId + "-" + metaDataId + " (" + status + ")";
+    }
+
+    public static CapConnectorMessage.CapStatus toCapnpConnectorMessageStatus(Status status) {
+        CapConnectorMessage.CapStatus cstatus = null;
+        switch (status) {
+        case ERROR:
+            cstatus = ERROR;
+            break;
+        case FILTERED:
+            cstatus = FILTERED;
+            break;
+        case PENDING:
+            cstatus = PENDING;
+            break;
+        case QUEUED:
+            cstatus = QUEUED;
+            break;
+        case RECEIVED:
+            cstatus = RECEIVED;
+            break;
+        case SENT:
+            cstatus = CapStatus.SENT;
+            break;
+        case TRANSFORMED:
+            cstatus = CapStatus.TRANSFORMED;
+            break;
+        }
+        
+        return cstatus;
     }
 }

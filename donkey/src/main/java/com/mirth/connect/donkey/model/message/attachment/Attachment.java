@@ -15,10 +15,10 @@ import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("attachment")
 public class Attachment implements Serializable {
-    private String id;
-    private byte[] content;
-    private String type;
-    private boolean encrypt;
+    protected String id;
+    protected byte[] content;
+    protected String type;
+    protected boolean encrypt;
 
     public Attachment() {
 

@@ -14,6 +14,7 @@ import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadata;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadataColumn;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapStatistics;
 
 @SuppressWarnings("rawtypes")
 public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class, ReusableMessageBuilder> {
@@ -58,6 +59,9 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
         }
         else if(key == CapMetadataColumn.class) {
             sb = mb.initRoot(CapMetadataColumn.factory);
+        }
+        else if(key == CapStatistics.class) {
+            sb = mb.initRoot(CapStatistics.factory);
         }
         else {
             throw new IllegalArgumentException("unknown message class " + key.getName());

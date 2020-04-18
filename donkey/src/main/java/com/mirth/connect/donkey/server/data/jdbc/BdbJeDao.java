@@ -20,6 +20,7 @@ import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
 import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +54,7 @@ import org.capnproto.StructList;
 
 import com.mirth.connect.donkey.model.channel.MetaDataColumn;
 import com.mirth.connect.donkey.model.channel.MetaDataColumnType;
+import com.mirth.connect.donkey.model.message.BdbJeConnectorMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus;
@@ -60,14 +63,17 @@ import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadata;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadataColumn;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapStatistics;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.model.message.ErrorContent;
+import com.mirth.connect.donkey.model.message.JeMessage;
 import com.mirth.connect.donkey.model.message.MapContent;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
+import com.mirth.connect.donkey.model.message.attachment.BdbJeAttachment;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.Encryptor;
 import com.mirth.connect.donkey.server.channel.Channel;
@@ -86,6 +92,7 @@ import com.sleepycat.je.DatabaseConfig;
 import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Environment;
+import com.sleepycat.je.Get;
 import com.sleepycat.je.LockMode;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Sequence;
@@ -126,6 +133,7 @@ public class BdbJeDao implements DonkeyDao {
 
     private static final String TABLE_D_CHANNELS = "d_channels";
     private static final String TABLE_D_MESSAGE_SEQ = "d_msq";
+    private static final String TABLE_D_META_COLUMNS = "d_mcm_columns";
 
     private Map<String, Database> dbMap;
     private Map<Long, Sequence> seqMap;
@@ -232,7 +240,6 @@ public class BdbJeDao implements DonkeyDao {
         Calendar sendDate = connectorMessage.getSendDate();
         Calendar responseDate = connectorMessage.getResponseDate();
 
-        PreparedStatement statement = null;
         ReusableMessageBuilder rmb = null;
         try {
             DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfConnectorMessage(connectorMessage.getMessageId(), connectorMessage.getMetaDataId()));
@@ -297,56 +304,7 @@ public class BdbJeDao implements DonkeyDao {
 
             cb.setChannelId(channelId);
             cb.setContent(content);
-            CapContentType cct = null;
-            switch (contentType) {
-            case CHANNEL_MAP:
-                cct = CHANNELMAP;
-                break;
-            case CONNECTOR_MAP:
-                cct = CONNECTORMAP;
-                break;
-            case ENCODED:
-                cct = ENCODED;
-                break;
-            case POSTPROCESSOR_ERROR:
-                cct = POSTPROCESSORERROR;
-                break;
-            case PROCESSED_RAW:
-                cct = PROCESSEDRAW;
-                break;
-            case PROCESSED_RESPONSE:
-                cct = PROCESSEDRESPONSE;
-                break;
-            case PROCESSING_ERROR:
-                cct = PROCESSINGERROR;
-                break;
-            case RAW:
-                cct = RAW;
-                break;
-            case RESPONSE:
-                cct = RESPONSE;
-                break;
-            case RESPONSE_ERROR:
-                cct = RESPONSEERROR;
-                break;
-            case RESPONSE_MAP:
-                cct = RESPONSEMAP;
-                break;
-            case RESPONSE_TRANSFORMED:
-                cct = RESPONSETRANSFORMED;
-                break;
-            case SENT:
-                cct = SENT;
-                break;
-            case SOURCE_MAP:
-                cct = SOURCEMAP;
-                break;
-            case TRANSFORMED:
-                cct = TRANSFORMED;
-                break;
-            }
-
-            cb.setContentType(cct);
+            cb.setContentType(toCapContentType(contentType));
             cb.setDataType(dataType);
             cb.setEncrypted(encrypted);
             cb.setMessageId(messageId);
@@ -459,94 +417,90 @@ public class BdbJeDao implements DonkeyDao {
 
         logger.debug(channelId + "/" + metaDataId + ": saving statistics");
 
-        PreparedStatement statement = null;
-
+        ReusableMessageBuilder rmb = null;
         try {
-            /*
-             * Indicates whether case statements are used in the update statement, in which case the
-             * number of bound parameters for each statistic will double.
-             */
-            boolean usingCase = false;
-
             if (metaDataId == null) {
-                if (querySource.queryExists("updateChannelStatisticsWithCase")) {
-                    usingCase = true;
-                    statement = prepareStatement("updateChannelStatisticsWithCase", channelId);
-                } else {
-                    statement = prepareStatement("updateChannelStatistics", channelId);
-                }
-            } else {
-                if (querySource.queryExists("updateConnectorStatisticsWithCase")) {
-                    usingCase = true;
-                    statement = prepareStatement("updateConnectorStatisticsWithCase", channelId);
-                } else {
-                    statement = prepareStatement("updateConnectorStatistics", channelId);
-                }
+                metaDataId = -1; // indicates this row contains channel stats
             }
 
-            // Keep track of the index since it will change depending on whether case statements are used
-            int paramIndex = 1;
+            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfStats(metaDataId));
+            long cid = getLocalChannelId(channelId);
+            Database statsDb = dbMap.get("d_ms" + cid);
+            DatabaseEntry data = new DatabaseEntry();
+            OperationStatus os = statsDb.get(txn, key, data, LockMode.READ_COMMITTED);
 
-            if (usingCase) {
-                statement.setLong(paramIndex++, received);
-                statement.setLong(paramIndex++, received);
-                statement.setLong(paramIndex++, received);
-                statement.setLong(paramIndex++, received);
-                statement.setLong(paramIndex++, filtered);
-                statement.setLong(paramIndex++, filtered);
-                statement.setLong(paramIndex++, filtered);
-                statement.setLong(paramIndex++, filtered);
-                statement.setLong(paramIndex++, sent);
-                statement.setLong(paramIndex++, sent);
-                statement.setLong(paramIndex++, sent);
-                statement.setLong(paramIndex++, sent);
-                statement.setLong(paramIndex++, error);
-                statement.setLong(paramIndex++, error);
-                statement.setLong(paramIndex++, error);
-                statement.setLong(paramIndex++, error);
-            } else {
-                statement.setLong(paramIndex++, received);
-                statement.setLong(paramIndex++, received);
-                statement.setLong(paramIndex++, filtered);
-                statement.setLong(paramIndex++, filtered);
-                statement.setLong(paramIndex++, sent);
-                statement.setLong(paramIndex++, sent);
-                statement.setLong(paramIndex++, error);
-                statement.setLong(paramIndex++, error);
+            CapStatistics.Builder cb = null;
+            if(os == OperationStatus.SUCCESS) {
+                CapnpInputStream in = new CapnpInputStream(data.getData());
+                MessageReader mr = SerializePacked.read(in);
+                CapStatistics.Reader atReader= mr.getRoot(CapStatistics.factory);
+
+                rmb = objectPool.borrowObject(CapStatistics.class);
+                rmb.getMb().setRoot(CapStatistics.factory, atReader);
+                cb = (CapStatistics.Builder)rmb.getSb();
+            }
+            else {
+                rmb = objectPool.borrowObject(CapStatistics.class);
+                cb = (CapStatistics.Builder)rmb.getSb();
             }
 
-            if (metaDataId != null) {
-                statement.setInt(paramIndex++, metaDataId);
-                statement.setString(paramIndex++, statsServerId);
-            } else {
-                statement.setString(paramIndex++, statsServerId);
+            long tmpReceived = cb.getReceived() + received;
+            if(tmpReceived < 0) {
+                tmpReceived = 0;
             }
-
-            if (statement.executeUpdate() == 0) {
-                closeDatabaseObjectIfNeeded(statement);
-                statement = prepareStatement("insertChannelStatistics", channelId);
-
-                if (metaDataId == null) {
-                    statement.setNull(1, Types.INTEGER);
-                } else {
-                    statement.setInt(1, metaDataId);
-                }
-
-                statement.setString(2, statsServerId);
-                statement.setLong(3, received);
-                statement.setLong(4, received);
-                statement.setLong(5, filtered);
-                statement.setLong(6, filtered);
-                statement.setLong(7, sent);
-                statement.setLong(8, sent);
-                statement.setLong(9, error);
-                statement.setLong(10, error);
-                statement.executeUpdate();
+            cb.setReceived(tmpReceived);
+            
+            long tmpReceivedLife = cb.getReceivedLifetime() + received;
+            if(tmpReceivedLife < 0) {
+                tmpReceivedLife = 0;
             }
-        } catch (SQLException e) {
+            cb.setReceivedLifetime(tmpReceivedLife);
+
+            long tmpFiltered = cb.getFiltered() + filtered;
+            if(tmpFiltered < 0) {
+                tmpFiltered = 0;
+            }
+            cb.setFiltered(tmpFiltered);
+
+            long tmpFilteredLifetime = cb.getFilteredLifetime() + filtered;
+            if(tmpFilteredLifetime < 0) {
+                tmpFilteredLifetime = 0;
+            }
+            cb.setFilteredLifetime(tmpFilteredLifetime);
+            
+            long tmpSent = cb.getSent() + sent;
+            if(tmpSent < 0) {
+                tmpSent = 0;
+            }
+            cb.setSent(tmpSent);
+
+            long tmpSentLifetime = cb.getSentLifetime() + sent;
+            if(tmpSentLifetime < 0) {
+                tmpSentLifetime = 0;
+            }
+            cb.setSentLifetime(tmpSentLifetime);
+            
+            long tmpError = cb.getError() + error;
+            if(tmpError < 0) {
+                tmpError = 0;
+            }
+            cb.setError(tmpError);
+
+            long tmpErrorLifetime = cb.getError() + error;
+            if(tmpErrorLifetime < 0) {
+                tmpErrorLifetime = 0;
+            }
+            cb.setErrorLifetime(tmpErrorLifetime);
+            
+            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
+            SerializePacked.write(out, rmb.getMb());
+            statsDb.put(txn, key, out.getData());
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
         } finally {
-            closeDatabaseObjectIfNeeded(statement);
+            if(rmb != null) {
+                objectPool.returnObject(CapStatistics.class, rmb);
+            }
         }
     }
 
@@ -569,7 +523,7 @@ public class BdbJeDao implements DonkeyDao {
             
             CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
             SerializePacked.write(out, rmb.getMb());
-            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfAttachment(messageId, attachment.getId()));
+            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfAttachment(messageId, attachment.getAttachmentId()));
             DatabaseEntry data = out.getData();
             long localChannelId = getLocalChannelId(channelId);
             dbMap.get("d_ma" + localChannelId).put(txn, key, data);
@@ -650,7 +604,7 @@ public class BdbJeDao implements DonkeyDao {
                 CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
                 SerializePacked.write(out, rmb.getMb());
                 long cid = getLocalChannelId(connectorMessage.getChannelId());
-                DatabaseEntry key = new DatabaseEntry(longToBytes(connectorMessage.getMessageId()));
+                DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMetadata(connectorMessage.getMessageId(), connectorMessage.getMetaDataId()));
                 DatabaseEntry data = out.getData();
                 dbMap.get("d_mcm" + cid).put(txn, key, data);
             }
@@ -696,30 +650,7 @@ public class BdbJeDao implements DonkeyDao {
             cb.setErrorCode(connectorMessage.getErrorCode());
             cb.setChainId(connectorMessage.getChainId());
             cb.setOrderId(connectorMessage.getOrderId());
-            CapConnectorMessage.CapStatus cstatus = null;
-            switch (connectorMessage.getStatus()) {
-            case ERROR:
-                cstatus = ERROR;
-                break;
-            case FILTERED:
-                cstatus = FILTERED;
-                break;
-            case PENDING:
-                cstatus = PENDING;
-                break;
-            case QUEUED:
-                cstatus = QUEUED;
-                break;
-            case RECEIVED:
-                cstatus = RECEIVED;
-                break;
-            case SENT:
-                cstatus = CapStatus.SENT;
-                break;
-            case TRANSFORMED:
-                cstatus = CapStatus.TRANSFORMED;
-                break;
-            }
+            CapConnectorMessage.CapStatus cstatus = ConnectorMessage.toCapnpConnectorMessageStatus(connectorMessage.getStatus());
             cb.setStatus(cstatus);
 
             CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
@@ -752,59 +683,67 @@ public class BdbJeDao implements DonkeyDao {
     public void deleteMessage(String channelId, long messageId) {
         logger.debug(channelId + "/" + messageId + ": deleting message");
 
-        PreparedStatement statement = null;
         try {
-            cascadeMessageDelete("deleteMessageCascadeAttachments", messageId, channelId);
-            cascadeMessageDelete("deleteMessageCascadeMetadata", messageId, channelId);
-            cascadeMessageDelete("deleteMessageCascadeContent", messageId, channelId);
-            cascadeMessageDelete("deleteMessageCascadeConnectorMessage", messageId, channelId);
+            long cid = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(longToBytes(messageId));
+            //cascadeMessageDelete("deleteMessageCascadeAttachments", messageId, channelId);
+            dbMap.get("d_ma" + cid).delete(txn, key);
 
-            statement = prepareStatement("deleteMessage", channelId);
-            statement.setLong(1, messageId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
+            //cascadeMessageDelete("deleteMessageCascadeMetadata", messageId, channelId);
+            Database metadataDb = dbMap.get("d_mcm" + cid);
+            deleteAllStartingwith(messageId, metadataDb);
+            
+            //cascadeMessageDelete("deleteMessageCascadeContent", messageId, channelId);
+            Database msgContentDb = dbMap.get("d_mc" + cid);
+            deleteAllStartingwith(messageId, msgContentDb);
+
+            //cascadeMessageDelete("deleteMessageCascadeConnectorMessage", messageId, channelId);
+            Database cmDb = dbMap.get("d_mm" + cid);
+            deleteAllStartingwith(messageId, cmDb);
+            
+            dbMap.get("d_m" + cid).delete(txn, key);
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
     @Override
     public void deleteConnectorMessages(String channelId, long messageId, Set<Integer> metaDataIds) {
         logger.debug(channelId + "/" + messageId + ": deleting connector messages");
-        long localChannelId = getLocalChannelId(channelId);
+        long cid = getLocalChannelId(channelId);
 
-        PreparedStatement statement = null;
         try {
             if (metaDataIds == null) {
-                cascadeMessageDelete("deleteMessageCascadeMetadata", messageId, channelId);
-                cascadeMessageDelete("deleteMessageCascadeContent", messageId, channelId);
+                //cascadeMessageDelete("deleteMessageCascadeMetadata", messageId, channelId);
+                Database metadataDb = dbMap.get("d_mcm" + cid);
+                deleteAllStartingwith(messageId, metadataDb);
 
-                statement = prepareStatement("deleteConnectorMessages", channelId);
-                statement.setLong(1, messageId);
-                statement.executeUpdate();
+                //cascadeMessageDelete("deleteMessageCascadeContent", messageId, channelId);
+                Database msgContentDb = dbMap.get("d_mc" + cid);
+                deleteAllStartingwith(messageId, msgContentDb);
+
+                //statement = prepareStatement("deleteConnectorMessages", channelId);
+                Database cmDb = dbMap.get("d_mm" + cid);
+                deleteAllStartingwith(messageId, cmDb);
             } else {
                 Map<String, Object> values = new HashMap<String, Object>();
-                values.put("localChannelId", localChannelId);
+                values.put("localChannelId", cid);
                 values.put("metaDataIds", StringUtils.join(metaDataIds, ','));
 
-                cascadeMessageDelete("deleteConnectorMessagesByMetaDataIdsCascadeContent", messageId, values);
-                cascadeMessageDelete("deleteConnectorMessagesByMetaDataIdsCascadeMetadata", messageId, values);
-
-                statement = null;
-
-                try {
-                    statement = getConnection().prepareStatement(querySource.getQuery("deleteConnectorMessagesByMetaDataIds", values));
-                    statement.setLong(1, messageId);
-                    statement.executeUpdate();
-                } finally {
-                    close(statement);
+                Database msgContentDb = dbMap.get("d_mc" + cid);
+                Database metadataDb = dbMap.get("d_mcm" + cid);
+                Database mcDb = dbMap.get("d_mm" + cid);
+                byte[] keyData = buildPrimaryKeyOfConnectorMessage(messageId, 0);
+                DatabaseEntry key = new DatabaseEntry(keyData);
+                for(int mid : metaDataIds) {
+                    intToBytes(mid, keyData, 8); // the same key is useful for all the below DBs
+                    msgContentDb.delete(txn, key);
+                    metadataDb.delete(txn, key);
+                    mcDb.delete(txn, key);
                 }
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
@@ -844,31 +783,61 @@ public class BdbJeDao implements DonkeyDao {
     public void updateStatus(ConnectorMessage connectorMessage, Status previousStatus) {
         logger.debug(connectorMessage.getChannelId() + "/" + connectorMessage.getMessageId() + "/" + connectorMessage.getMetaDataId() + ": updating status from " + previousStatus.getStatusCode() + " to " + connectorMessage.getStatus().getStatusCode());
 
-        PreparedStatement statement = null;
-        try {
-            // don't decrement the previous status if it was RECEIVED
-            if (previousStatus == Status.RECEIVED) {
-                previousStatus = null;
-            }
-
-            transactionStats.update(connectorMessage.getChannelId(), connectorMessage.getMetaDataId(), connectorMessage.getStatus(), previousStatus);
-
-            statement = prepareStatement("updateStatus", connectorMessage.getChannelId());
-            statement.setString(1, Character.toString(connectorMessage.getStatus().getStatusCode()));
-            statement.setInt(2, connectorMessage.getMetaDataId());
-            statement.setLong(3, connectorMessage.getMessageId());
-            statement.setString(4, connectorMessage.getServerId());
-
-            if (statement.executeUpdate() == 0) {
-                throw new DonkeyDaoException("Failed to update connector message status, the connector message was removed from this server.");
-            }
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
+        // don't decrement the previous status if it was RECEIVED
+        if (previousStatus == Status.RECEIVED) {
+            previousStatus = null;
+        }
+        
+        transactionStats.update(connectorMessage.getChannelId(), connectorMessage.getMetaDataId(), connectorMessage.getStatus(), previousStatus);
+        
+        boolean updated = updateConnectorMessage(connectorMessage, true, false);
+        if(!updated) {
+            throw new DonkeyDaoException("Failed to update connector message status, the connector message was removed from this server.");
         }
     }
 
+    private boolean updateConnectorMessage(ConnectorMessage connectorMessage, boolean status, boolean error) {
+        ReusableMessageBuilder rmb = null;
+        try {
+            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfConnectorMessage(connectorMessage.getMessageId(), connectorMessage.getMetaDataId()));
+            long cid = getLocalChannelId(connectorMessage.getChannelId());
+            DatabaseEntry data = new DatabaseEntry();
+            Database cmDb = dbMap.get("d_mm" + cid);
+            OperationStatus os = cmDb.get(txn, key, data, LockMode.READ_COMMITTED);
+            if(os == OperationStatus.SUCCESS) {
+                CapnpInputStream in = new CapnpInputStream(data.getData());
+                MessageReader mr = SerializePacked.read(in);
+                CapConnectorMessage.Reader atReader= mr.getRoot(CapConnectorMessage.factory);
+
+                rmb = objectPool.borrowObject(CapConnectorMessage.class);
+                rmb.getMb().setRoot(CapConnectorMessage.factory, atReader);
+                CapConnectorMessage.Builder cb = (CapConnectorMessage.Builder)rmb.getSb();
+
+                if(status) {
+                    CapConnectorMessage.CapStatus cstatus = ConnectorMessage.toCapnpConnectorMessageStatus(connectorMessage.getStatus());
+                    cb.setStatus(cstatus);
+                }
+                
+                if(error) {
+                    cb.setErrorCode(connectorMessage.getErrorCode());
+                }
+
+                CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
+                SerializePacked.write(out, rmb.getMb());
+                data = out.getData();
+                cmDb.put(txn, key, data);
+                return true;
+            }
+        } catch (Exception e) {
+            throw new DonkeyDaoException(e);
+        } finally {
+            if(rmb != null) {
+                objectPool.returnObject(CapConnectorMessage.class, rmb);
+            }
+        }
+        return false;
+    }
+    
     @Override
     public void updateErrors(ConnectorMessage connectorMessage) {
         logger.debug(connectorMessage.getChannelId() + "/" + connectorMessage.getMessageId() + "/" + connectorMessage.getMetaDataId() + ": updating errors");
@@ -914,20 +883,7 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     private void updateErrorCode(ConnectorMessage connectorMessage) {
-        PreparedStatement statement = null;
-        try {
-            statement = prepareStatement("updateErrorCode", connectorMessage.getChannelId());
-
-            statement.setInt(1, connectorMessage.getErrorCode());
-            statement.setInt(2, connectorMessage.getMetaDataId());
-            statement.setLong(3, connectorMessage.getMessageId());
-            statement.setString(4, connectorMessage.getServerId());
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
+        updateConnectorMessage(connectorMessage, false, true);
     }
 
     @Override
@@ -1072,6 +1028,7 @@ public class BdbJeDao implements DonkeyDao {
             dbNames.add("d_ms" + localChannelId);
             dbNames.add("d_ma" + localChannelId);
             dbNames.add("d_mcm" + localChannelId);
+            dbNames.add("d_mcm_columns");
             dbNames.add("d_mc" + localChannelId);
             dbNames.add("d_mm" + localChannelId);
             dbNames.add("d_m" + localChannelId);
@@ -1099,7 +1056,7 @@ public class BdbJeDao implements DonkeyDao {
             long maxLocalChannelId = 0;
             DatabaseEntry key = new DatabaseEntry();
             DatabaseEntry val = new DatabaseEntry();
-            while(cursor.getNext(key, val, LockMode.READ_COMMITTED) == OperationStatus.SUCCESS) {
+            while(cursor.getNext(key, val, null) == OperationStatus.SUCCESS) {
                 long tmp = bytesToLong(key.getData());
                 if(tmp > maxLocalChannelId) {
                     maxLocalChannelId = tmp;
@@ -1117,111 +1074,43 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public void deleteAllMessages(String channelId) {
         logger.debug(channelId + ": deleting all messages");
-
-        List<AutoCloseable> statements = new ArrayList<>();
         try {
-            // delete tables without constraints
-            cascadeMessageDelete("deleteAllMessagesCascadeAttachments", channelId);
-            cascadeMessageDelete("deleteAllMessagesCascadeMetadata", channelId);
-            cascadeMessageDelete("deleteAllMessagesCascadeContent", channelId);
-
-            PreparedStatement statement = null;
-            // remove constraints so truncate can execute
-            if (querySource.queryExists("dropConstraintMessageContentTable")) {
-                statement = prepareStatement("dropConstraintMessageContentTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-            if (querySource.queryExists("dropConstraintMessageCustomMetaDataTable")) {
-                statement = prepareStatement("dropConstraintMessageCustomMetaDataTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-
-            // delete
-            cascadeMessageDelete("deleteAllMessagesCascadeConnectorMessage", channelId);
-
-            // re-add constraints
-            if (querySource.queryExists("addConstraintMessageCustomMetaDataTable")) {
-                statement = prepareStatement("addConstraintMessageCustomMetaDataTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-            if (querySource.queryExists("addConstraintMessageContentTable")) {
-                statement = prepareStatement("addConstraintMessageContentTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-
-            // remove constraints so truncate can execute
-            if (querySource.queryExists("dropConstraintConnectorMessageTable")) {
-                statement = prepareStatement("dropConstraintConnectorMessageTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-            if (querySource.queryExists("dropConstraintAttachmentTable")) {
-                statement = prepareStatement("dropConstraintAttachmentTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-
-            // delete
-            statement = prepareStatement("deleteAllMessages", channelId);
-            statements.add(statement);
-            statement.executeUpdate();
-
-            // re-add constraints
-            if (querySource.queryExists("addConstraintAttachmentTable")) {
-                statement = prepareStatement("addConstraintAttachmentTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-            if (querySource.queryExists("addConstraintConnectorMessageTable")) {
-                statement = prepareStatement("addConstraintConnectorMessageTable", channelId);
-                statements.add(statement);
-                statement.executeUpdate();
-            }
-
-        } catch (SQLException e) {
+            long cid = getLocalChannelId(channelId);
+            boolean returnCount = false;
+            bdbJeEnv.truncateDatabase(txn, "d_ma" + cid, returnCount);
+            bdbJeEnv.truncateDatabase(txn, "d_mcm" + cid, returnCount);
+            bdbJeEnv.truncateDatabase(txn, "d_mc" + cid, returnCount);
+            bdbJeEnv.truncateDatabase(txn, "d_mm" + cid, returnCount);
+            bdbJeEnv.truncateDatabase(txn, "d_m" + cid, returnCount);
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectsIfNeeded(statements);
         }
     }
 
     @Override
     public void deleteMessageContent(String channelId, long messageId) {
         logger.debug(channelId + "/" + messageId + ": deleting content");
-
-        PreparedStatement statement = null;
-        try {
-            statement = prepareStatement("deleteMessageContent", channelId);
-            statement.setLong(1, messageId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
+        long cid = getLocalChannelId(channelId);
+        Database msgContentDb = dbMap.get("d_mc" + cid);
+        deleteAllStartingwith(messageId, msgContentDb);
     }
 
     @Override
     public void deleteMessageContentByMetaDataIds(String channelId, long messageId, Set<Integer> metaDataIds) {
         logger.debug(channelId + "/" + messageId + ": deleting content by metadata IDs: " + String.valueOf(metaDataIds));
 
-        PreparedStatement statement = null;
         try {
-            Map<String, Object> values = new HashMap<String, Object>();
-            values.put("localChannelId", getLocalChannelId(channelId));
-            values.put("metaDataIds", StringUtils.join(metaDataIds, ','));
-
-            statement = getConnection().prepareStatement(querySource.getQuery("deleteMessageContentByMetaDataIds", values));
-            statement.setLong(1, messageId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
+            long cid = getLocalChannelId(channelId);
+            Database msgContentDb = dbMap.get("d_mc" + cid);
+            byte[] keyData = buildPrimaryKeyOfConnectorMessage(messageId, 0);
+            DatabaseEntry key = new DatabaseEntry(keyData);
+            for(int mid : metaDataIds) {
+                intToBytes(mid, keyData, 8);
+                msgContentDb.delete(txn, key);
+                // should the metadata table be checked to enforce ON DELETE RESTRICT?
+            }
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
@@ -1242,15 +1131,13 @@ public class BdbJeDao implements DonkeyDao {
     public void deleteMessageAttachments(String channelId, long messageId) {
         logger.debug(channelId + "/" + messageId + ": deleting attachments");
 
-        PreparedStatement statement = null;
         try {
-            statement = prepareStatement("deleteMessageAttachments", channelId);
-            statement.setLong(1, messageId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
+            long localChannelId = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(longToBytes(messageId));
+            Database msgContentDb = dbMap.get("d_ma" + localChannelId);
+            msgContentDb.delete(txn, key);
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
@@ -1266,7 +1153,7 @@ public class BdbJeDao implements DonkeyDao {
 
             if (!columns.next()) {
                 columns.close();
-                columns = connection.getMetaData().getColumns(connection.getCatalog(), null, "D_MCM" + localChannelId, null);
+                columns = connection.getMetaData().getColumns(connection.getCatalog(), null, "d_mcm" + localChannelId, null);
 
                 if (!columns.next()) {
                     return metaDataColumns;
@@ -1298,59 +1185,44 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public void removeMetaDataColumn(String channelId, String columnName) {
         logger.debug(channelId + "/" + ": removing custom meta data column (" + columnName + ")");
-        Statement statement = null;
-
-        try {
-            Map<String, Object> values = new HashMap<String, Object>();
-            values.put("localChannelId", getLocalChannelId(channelId));
-            values.put("columnName", columnName);
-
-            statement = connection.createStatement();
-
-            if (querySource.queryExists("removeMetaDataColumnIndex")) {
-                statement.executeUpdate(querySource.getQuery("removeMetaDataColumnIndex", values));
-            }
-
-            statement.executeUpdate(querySource.getQuery("removeMetaDataColumn", values));
-        } catch (SQLException e) {
-            throw new DonkeyDaoException("Failed to remove meta-data column", e);
-        } finally {
-            close(statement);
-        }
+        MetaDataColumn mc = new MetaDataColumn();
+        mc.setName(columnName.toUpperCase());
+        addOrRemoveMetaDataColumn(channelId, mc, true);
     }
 
     @Override
     public long getMaxMessageId(String channelId) {
-        ResultSet resultSet = null;
-        PreparedStatement statement = null;
+        return getMaxOrMinMessageId(channelId, true);
+    }
 
+    private long getMaxOrMinMessageId(String channelId, boolean max) {
         try {
-            statement = prepareStatement("getMaxMessageId", channelId);
-            resultSet = statement.executeQuery();
-            return (resultSet.next()) ? resultSet.getLong(1) : null;
-        } catch (SQLException e) {
+            DatabaseEntry key = new DatabaseEntry();
+            DatabaseEntry data = new DatabaseEntry();
+            long cid = getLocalChannelId(channelId);
+            Cursor c = dbMap.get("d_m" + cid).openCursor(txn, null);
+            OperationStatus os = null;
+            if(max) {
+                os = c.getLast(key, data, null);
+            }
+            else {
+                os = c.getFirst(key, data, null);
+            }
+            
+            long id = -1;
+            if(os == OperationStatus.SUCCESS) {
+                id = bytesToLong(key.getData());
+            }
+            c.close();
+            return id;
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
     @Override
     public long getMinMessageId(String channelId) {
-        ResultSet resultSet = null;
-        PreparedStatement statement = null;
-
-        try {
-            statement = prepareStatement("getMinMessageId", channelId);
-            resultSet = statement.executeQuery();
-            return (resultSet.next()) ? resultSet.getLong(1) : null;
-        } catch (SQLException e) {
-            throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
-        }
+        return getMaxOrMinMessageId(channelId, false);
     }
 
     @Override
@@ -1365,149 +1237,58 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public List<Attachment> getMessageAttachment(String channelId, long messageId) {
-        ResultSet resultSet = null;
-        PreparedStatement statement = null;
-
         try {
-            // Get the total size of each attachment by summing the sizes of its segments
-            statement = prepareStatement("selectMessageAttachmentSizeByMessageId", channelId);
-            statement.setLong(1, messageId);
-            resultSet = statement.executeQuery();
-
-            Map<String, Integer> attachmentSize = new HashMap<String, Integer>();
-            while (resultSet.next()) {
-                // Store the attachment size in a map with the attachment id as the key
-                attachmentSize.put(resultSet.getString("id"), resultSet.getInt("attachment_size"));
-            }
-
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
-
-            // Get the attachment data
-            statement = prepareStatement("selectMessageAttachmentByMessageId", channelId);
-            statement.setLong(1, messageId);
-            // Set the number of rows to be fetched into memory at a time. This limits the amount of memory required for the query.
-            statement.setFetchSize(1);
-            resultSet = statement.executeQuery();
-
-            // Initialize the return object
             List<Attachment> attachments = new ArrayList<Attachment>();
-            // The current attachment id that is being stitched together
-            String currentAttachmentId = null;
-            // The type of the current attachment
-            String type = null;
-            // Use an byte array to combine the segments
-            byte[] content = null;
-            int offset = 0;
-
-            while (resultSet.next()) {
-                // Get the attachment id of the current segment
-                String attachmentId = resultSet.getString("id");
-
-                // Ensure that the attachmentId is in the map we created earlier, otherwise don't return this attachment
-                if (attachmentSize.containsKey(attachmentId)) {
-                    // If starting a new attachment
-                    if (!attachmentId.equals(currentAttachmentId)) {
-                        // If there was a previous attachment, we need to finish it.
-                        if (content != null) {
-                            // Add the data in the output stream to the list of attachments to return
-                            attachments.add(new Attachment(currentAttachmentId, content, type));
-                        }
-                        currentAttachmentId = attachmentId;
-                        type = resultSet.getString("type");
-
-                        // Initialize the byte array size to the exact size of the attachment. This should minimize the memory requirements if the numbers are correct.
-                        // Use 0 as a backup in case the size is not in the map. (If trying to return an attachment that no longer exists)
-                        content = new byte[attachmentSize.get(attachmentId)];
-                        offset = 0;
+            long cid = getLocalChannelId(channelId);
+            Database atDb = dbMap.get("d_ma" + cid);
+            Cursor cursor = atDb.openCursor(txn, null);
+            DatabaseEntry key = new DatabaseEntry(longToBytes(messageId));
+            DatabaseEntry data = new DatabaseEntry();
+            OperationStatus os = cursor.getSearchKeyRange(key, data, null);
+            if(os == OperationStatus.SUCCESS) {
+                do {
+                    long curPrefix = bytesToLong(key.getData());
+                    if(curPrefix != messageId) {
+                        break;
                     }
-
-                    // write the current segment to the output stream buffer
-                    byte[] segment = resultSet.getBytes("content");
-                    System.arraycopy(segment, 0, content, offset, segment.length);
-
-                    offset += segment.length;
+                    CapnpInputStream in = new CapnpInputStream(data.getData());
+                    MessageReader mr = SerializePacked.read(in);
+                    CapAttachment.Reader at = mr.getRoot(CapAttachment.factory);
+                    BdbJeAttachment mcAt = new BdbJeAttachment(at);
+                    attachments.add(mcAt);
                 }
+                while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
             }
-
-            // Finish the message if one exists by adding it to the list of attachments to return
-            if (content != null) {
-                attachments.add(new Attachment(currentAttachmentId, content, type));
-            }
-            content = null;
+            cursor.close();
 
             return attachments;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
     @Override
     public Attachment getMessageAttachment(String channelId, String attachmentId, Long messageId) {
-        ResultSet resultSet = null;
-        Attachment attachment = new Attachment();
-        PreparedStatement statement = null;
         try {
-            // Get the total size of each attachment by summing the sizes of its segments
-            statement = prepareStatement("selectMessageAttachmentSize", channelId);
-            statement.setString(1, attachmentId);
-            statement.setLong(2, messageId);
-            resultSet = statement.executeQuery();
-
-            int size = 0;
-            if (resultSet.next()) {
-                // Store the attachment size in a map with the attachment id as the key
-                size = resultSet.getInt("attachment_size");
+            Attachment attachment = null;
+            long cid = getLocalChannelId(channelId);
+            Database atDb = dbMap.get("d_ma" + cid);
+            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfAttachment(messageId, attachmentId));
+            DatabaseEntry data = new DatabaseEntry();
+            OperationStatus os = atDb.get(txn, key, data, LockMode.READ_COMMITTED);
+            if(os == OperationStatus.SUCCESS) {
+                CapnpInputStream in = new CapnpInputStream(data.getData());
+                MessageReader mr = SerializePacked.read(in);
+                CapAttachment.Reader at = mr.getRoot(CapAttachment.factory);
+                attachment = new BdbJeAttachment(at);
             }
-
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
-
-            // Get the attachment data
-            statement = prepareStatement("selectMessageAttachment", channelId);
-            statement.setString(1, attachmentId);
-            statement.setLong(2, messageId);
-            // Set the number of rows to be fetched into memory at a time. This limits the amount of memory required for the query.
-            statement.setFetchSize(1);
-            resultSet = statement.executeQuery();
-
-            // The type of the current attachment
-            String type = null;
-
-            // Initialize the output stream's buffer size to the exact size of the attachment. This should minimize the memory requirements if the numbers are correct.
-            byte[] content = null;
-            int offset = 0;
-
-            while (resultSet.next()) {
-                if (content == null) {
-                    type = resultSet.getString("type");
-                    content = new byte[size];
-                }
-
-                // write the current segment to the output stream buffer
-                byte[] segment = resultSet.getBytes("content");
-                System.arraycopy(segment, 0, content, offset, segment.length);
-
-                offset += segment.length;
+            else {
+                attachment = new Attachment();
             }
-
-            // Finish the message if one exists by adding it to the list of attachments to return
-            if (content != null) {
-                attachment.setId(attachmentId);
-                attachment.setContent(content);
-                attachment.setType(type);
-            }
-            content = null;
 
             return attachment;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
         }
     }
 
@@ -1520,6 +1301,41 @@ public class BdbJeDao implements DonkeyDao {
             Map<Long, Message> messageMap = new HashMap<Long, Message>();
             List<Message> messageList = new ArrayList<Message>();
             List<Long> messageIds = new ArrayList<Long>();
+            long cid = getLocalChannelId(channelId);
+            Database msgDb = dbMap.get("d_m" + cid);
+            CursorConfig cc = new CursorConfig();
+            cc.setReadCommitted(true);
+            Cursor mCursor = msgDb.openCursor(txn, cc);
+            long tmpMsgId = minMessageId;
+            DatabaseEntry key = new DatabaseEntry(longToBytes(tmpMsgId));
+            DatabaseEntry data = new DatabaseEntry();
+            OperationStatus os = mCursor.getSearchKeyRange(key, data, null);
+            if(os == OperationStatus.NOTFOUND) { // end of DB
+                mCursor.close();
+                return messageList;
+            }
+
+            byte[] srvId = serverId.getBytes(UTF_8);
+            Database conMsgDb = dbMap.get("d_mm" + cid);
+            byte[] conMsgKeydata = new byte[12];
+            intToBytes(0, conMsgKeydata, 8); // pre-fill the ConnectorMessage's key suffix
+            do {
+                CapnpInputStream input = new CapnpInputStream(data.getData());
+                MessageReader mr = SerializePacked.read(input);
+                CapMessage.Reader m = mr.getRoot(CapMessage.factory);
+                if(!m.getProcessed()) {
+                    longToBytes(m.getMessageId(), conMsgKeydata, 0);
+                    key.setData(conMsgKeydata);
+                    conMsgDb.get(txn, key, data, LockMode.READ_COMMITTED);
+                    MessageReader cmMr = SerializePacked.read(input);
+                    CapConnectorMessage.Reader cm = mr.getRoot(CapConnectorMessage.factory);
+                    if(cm.getStatus() != CapStatus.RECEIVED && isEquals(srvId, cm.getServerId())) {
+                        JeMessage jm = new JeMessage(m);
+                        ConnectorMessage connectorMessage = getConnectorMessageFromResultSet(channelId, cm, true, true);
+                    }
+                }
+            }
+            while(true);
 
             Map<String, Object> params = new HashMap<String, Object>();
             params.put("localChannelId", getLocalChannelId(channelId));
@@ -1555,7 +1371,7 @@ public class BdbJeDao implements DonkeyDao {
             }
 
             return messageList;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
         } finally {
             close(resultSet);
@@ -1911,25 +1727,81 @@ public class BdbJeDao implements DonkeyDao {
     @Override
     public void addMetaDataColumn(String channelId, MetaDataColumn metaDataColumn) {
         logger.debug(channelId + ": adding custom meta data column (" + metaDataColumn.getName() + ")");
-        Statement statement = null;
+        addOrRemoveMetaDataColumn(channelId, metaDataColumn, false);
+    }
 
+    private void addOrRemoveMetaDataColumn(String channelId, MetaDataColumn metaDataColumn, boolean remove) {
+
+        ReusableMessageBuilder rmb = null;
         try {
-            Map<String, Object> values = new HashMap<String, Object>();
-            values.put("localChannelId", getLocalChannelId(channelId));
-            values.put("columnName", metaDataColumn.getName());
+            List<MetaDataColumn> lst = new ArrayList<>();
+            CapMetadata.Builder cb = null;
 
-            String queryName = "addMetaDataColumn" + StringUtils.capitalize(StringUtils.lowerCase(metaDataColumn.getType().toString()));
+            Database metaColDb = dbMap.get(TABLE_D_META_COLUMNS);
+            long cid = getLocalChannelId(channelId);
+            DatabaseEntry key = new DatabaseEntry(longToBytes(cid));
+            DatabaseEntry data = new DatabaseEntry();
+            OperationStatus os = metaColDb.get(txn, key, data, LockMode.READ_COMMITTED);
+            if(os == OperationStatus.SUCCESS) {
+                CapnpInputStream in = new CapnpInputStream(data.getData());
+                MessageReader mr = SerializePacked.read(in);
+                CapMetadata.Reader atReader= mr.getRoot(CapMetadata.factory);
 
-            statement = connection.createStatement();
-            statement.executeUpdate(querySource.getQuery(queryName, values));
-
-            if (querySource.queryExists(queryName + "Index")) {
-                statement.executeUpdate(querySource.getQuery(queryName + "Index", values));
+                rmb = objectPool.borrowObject(CapMetadata.class);
+                rmb.getMb().setRoot(CapMetadata.factory, atReader);
+                cb = (CapMetadata.Builder)rmb.getSb();
+                
+                for(CapMetadataColumn.Reader col : atReader.getColumns()) {
+                    String name = col.getName().toString();
+                    if(remove && name.equals(metaDataColumn.getName())) {
+                        continue;
+                    }
+                    lst.add(new MetaDataColumn(name, from(col.getType()), col.getValue().toString()));
+                }
             }
-        } catch (SQLException e) {
+            else {
+                rmb = objectPool.borrowObject(CapMetadata.class);
+                cb = (CapMetadata.Builder)rmb.getSb();
+                if(!remove) {
+                    lst.add(metaDataColumn);
+                }
+            }
+            
+            StructList.Builder<CapMetadataColumn.Builder> colLstBuilder = cb.initColumns(lst.size());
+            
+            for (int i=0; i < lst.size(); i++) {
+                CapMetadataColumn.Builder column = colLstBuilder.get(i);
+                MetaDataColumn mc = lst.get(i);
+                column.setName(mc.getName());
+                column.setValue(mc.getMappingName());
+                // @formatter:off
+                switch (mc.getType()) {
+                case STRING:
+                    column.setType(CapMetadataColumn.Type.STRING);
+                    break;
+                case NUMBER:
+                    column.setType(CapMetadataColumn.Type.NUMBER);
+                    break;
+                case BOOLEAN:
+                    column.setType(CapMetadataColumn.Type.BOOLEAN);
+                    break;
+                case TIMESTAMP:
+                    column.setType(CapMetadataColumn.Type.TIMESTAMP);
+                    break;
+                }
+                // @formatter:on
+            }
+            
+            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
+            SerializePacked.write(out, rmb.getMb());
+            data = out.getData();
+            metaColDb.put(txn, key, data);
+        } catch (Exception e) {
             throw new DonkeyDaoException("Failed to add meta-data column", e);
         } finally {
-            close(statement);
+            if(rmb != null) {
+                objectPool.returnObject(CapMetadata.class, rmb);
+            }
         }
     }
 
@@ -2287,6 +2159,7 @@ public class BdbJeDao implements DonkeyDao {
             logger.debug("Creating channels table");
             createTable(TABLE_D_CHANNELS);
             createTable(TABLE_D_MESSAGE_SEQ);
+            createTable(TABLE_D_META_COLUMNS);
             return true;
         } else {
             return false;
@@ -2343,43 +2216,15 @@ public class BdbJeDao implements DonkeyDao {
         }
     }
 
-    private ConnectorMessage getConnectorMessageFromResultSet(String channelId, ResultSet resultSet, boolean includeContent, boolean includeMetaDataMap) {
+    private ConnectorMessage getConnectorMessageFromResultSet(String channelId, CapConnectorMessage.Reader cm, boolean includeContent, boolean includeMetaDataMap) {
         try {
-            ConnectorMessage connectorMessage = new ConnectorMessage();
-            long messageId = resultSet.getLong("message_id");
-            int metaDataId = resultSet.getInt("id");
-            Calendar receivedDate = Calendar.getInstance();
-            receivedDate.setTimeInMillis(resultSet.getTimestamp("received_date").getTime());
-
-            Calendar sendDate = null;
-            Timestamp sendDateTimestamp = resultSet.getTimestamp("send_date");
-            if (sendDateTimestamp != null) {
-                sendDate = Calendar.getInstance();
-                sendDate.setTimeInMillis(sendDateTimestamp.getTime());
-            }
-
-            Calendar responseDate = null;
-            Timestamp responseDateTimestamp = resultSet.getTimestamp("response_date");
-            if (responseDateTimestamp != null) {
-                responseDate = Calendar.getInstance();
-                responseDate.setTimeInMillis(responseDateTimestamp.getTime());
-            }
+            BdbJeConnectorMessage connectorMessage = new BdbJeConnectorMessage(cm);
 
             connectorMessage.setChannelName(getDeployedChannelName(channelId));
-            connectorMessage.setMessageId(messageId);
-            connectorMessage.setMetaDataId(metaDataId);
             connectorMessage.setChannelId(channelId);
-            connectorMessage.setServerId(resultSet.getString("server_id"));
-            connectorMessage.setConnectorName(resultSet.getString("connector_name"));
-            connectorMessage.setReceivedDate(receivedDate);
-            connectorMessage.setStatus(Status.fromChar(resultSet.getString("status").charAt(0)));
-            connectorMessage.setSendAttempts(resultSet.getInt("send_attempts"));
-            connectorMessage.setSendDate(sendDate);
-            connectorMessage.setResponseDate(responseDate);
-            connectorMessage.setErrorCode(resultSet.getInt("error_code"));
-            connectorMessage.setChainId(resultSet.getInt("chain_id"));
-            connectorMessage.setOrderId(resultSet.getInt("order_id"));
 
+            int metaDataId = connectorMessage.getMetaDataId();
+            long messageId = connectorMessage.getMessageId();
             if (includeContent) {
                 if (metaDataId > 0) {
                     // For destination connectors, retrieve and load any content that is stored on the source connector
@@ -2394,7 +2239,7 @@ public class BdbJeDao implements DonkeyDao {
                 connectorMessage.setMetaDataMap(getMetaDataMap(channelId, messageId, metaDataId));
             }
             return connectorMessage;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
         }
     }
@@ -2404,34 +2249,28 @@ public class BdbJeDao implements DonkeyDao {
      */
     private List<MessageContent> getMessageContent(String channelId, long messageId, int metaDataId) {
         List<MessageContent> messageContents = new ArrayList<MessageContent>();
-        ResultSet resultSet = null;
 
-        PreparedStatement statement = null;
         try {
-            statement = prepareStatement("getMessageContent", channelId);
-            statement.setLong(1, messageId);
-            statement.setInt(2, metaDataId);
-
-            resultSet = statement.executeQuery();
-
-            while (resultSet.next()) {
-                String content = resultSet.getString("content");
-                ContentType contentType = ContentType.fromCode(resultSet.getInt("content_type"));
-                String dataType = resultSet.getString("data_type");
-                boolean encrypted = resultSet.getBoolean("is_encrypted");
-
-                if ((decryptData || alwaysDecrypt.contains(contentType)) && encrypted && encryptor != null) {
-                    content = encryptor.decrypt(content);
-                    encrypted = false;
+            long cid = getLocalChannelId(channelId);
+            Database msgContentDb = dbMap.get("d_mc" + cid);
+            byte[] msgContKey = buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.RAW);
+            DatabaseEntry key = new DatabaseEntry(msgContKey);
+            DatabaseEntry data = new DatabaseEntry();
+            Cursor cursor = msgContentDb.openCursor(txn, null);
+            
+            OperationStatus os = cursor.getSearchKeyRange(key, data, null);
+            if(os == OperationStatus.SUCCESS) {
+                do {
+                    if(bytesToLong(key.getData(), 0) != messageId) {
+                        break;
+                    }
+                    messageContents.add(_getMessageContent(channelId, data.getData()));
                 }
-
-                messageContents.add(new MessageContent(channelId, messageId, metaDataId, contentType, content, dataType, encrypted));
+                while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
             }
-        } catch (SQLException e) {
+            cursor.close();
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
         }
 
         return messageContents;
@@ -2443,50 +2282,29 @@ public class BdbJeDao implements DonkeyDao {
         }
 
         Map<Long, Map<Integer, List<MessageContent>>> messageContentMap = new LinkedHashMap<Long, Map<Integer, List<MessageContent>>>();
-        PreparedStatement statement = null;
-        ResultSet resultSet = null;
 
         try {
-            Map<String, Object> params = new HashMap<String, Object>();
-            params.put("localChannelId", getLocalChannelId(channelId));
-            params.put("messageIds", StringUtils.join(messageIds, ","));
-
-            statement = connection.prepareStatement(querySource.getQuery("getMessageContentByMessageIds", params));
-
-            resultSet = statement.executeQuery();
-
-            while (resultSet.next()) {
-                Long messageId = resultSet.getLong("message_id");
-                Integer metaDataId = resultSet.getInt("metadata_id");
-                String content = resultSet.getString("content");
-                ContentType contentType = ContentType.fromCode(resultSet.getInt("content_type"));
-                String dataType = resultSet.getString("data_type");
-                boolean encrypted = resultSet.getBoolean("is_encrypted");
-
-                if ((decryptData || alwaysDecrypt.contains(contentType)) && encrypted && encryptor != null) {
-                    content = encryptor.decrypt(content);
-                    encrypted = false;
-                }
-
+            for(long messageId : messageIds) {
                 Map<Integer, List<MessageContent>> connectorMessageContentMap = messageContentMap.get(messageId);
                 if (connectorMessageContentMap == null) {
                     connectorMessageContentMap = new HashMap<Integer, List<MessageContent>>();
                     messageContentMap.put(messageId, connectorMessageContentMap);
                 }
 
-                List<MessageContent> messageContents = connectorMessageContentMap.get(metaDataId);
-                if (messageContents == null) {
-                    messageContents = new ArrayList<MessageContent>();
-                    connectorMessageContentMap.put(metaDataId, messageContents);
+                List<MessageContent> messageContents = getMessageContent(channelId, messageId, 0);
+                for(MessageContent mc : messageContents) {
+                    int metaDataId = mc.getMetaDataId();
+                    List<MessageContent> subLst = connectorMessageContentMap.get(metaDataId);
+                    if (messageContents == null) {
+                        subLst = new ArrayList<MessageContent>();
+                        connectorMessageContentMap.put(metaDataId, subLst);
+                    }
+                    subLst.add(mc);
                 }
 
-                messageContents.add(new MessageContent(channelId, messageId, metaDataId, contentType, content, dataType, encrypted));
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            close(statement);
         }
 
         return messageContentMap;
@@ -2497,40 +2315,55 @@ public class BdbJeDao implements DonkeyDao {
      */
     private List<MessageContent> getDestinationMessageContentFromSource(String channelId, long messageId, int metaDataId) {
         List<MessageContent> messageContents = new ArrayList<MessageContent>();
-        ResultSet resultSet = null;
-        PreparedStatement statement = null;
 
         try {
-            statement = prepareStatement("getDestinationMessageContentFromSource", channelId);
-            statement.setLong(1, messageId);
-
-            resultSet = statement.executeQuery();
-
-            while (resultSet.next()) {
-                String content = resultSet.getString("content");
-                ContentType contentType = ContentType.fromCode(resultSet.getInt("content_type"));
-                String dataType = resultSet.getString("data_type");
-                boolean encrypted = resultSet.getBoolean("is_encrypted");
-
-                if ((decryptData || alwaysDecrypt.contains(contentType)) && encrypted && encryptor != null) {
-                    content = encryptor.decrypt(content);
-                    encrypted = false;
+            long cid = getLocalChannelId(channelId);
+            Database msgContentDb = dbMap.get("d_mc" + cid);
+            byte[] msgContKey = buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.ENCODED);
+            DatabaseEntry key = new DatabaseEntry(msgContKey);
+            DatabaseEntry data = new DatabaseEntry();
+            OperationStatus os = msgContentDb.get(txn, key, data, LockMode.READ_COMMITTED);
+            if(os == OperationStatus.SUCCESS) {
+                MessageContent mc = _getMessageContent(channelId, data.getData());
+                if (mc.getContentType() == ContentType.ENCODED) {
+                    mc.setContentType(ContentType.RAW);
                 }
 
-                if (contentType == ContentType.ENCODED) {
-                    contentType = ContentType.RAW;
-                }
-
-                messageContents.add(new MessageContent(channelId, messageId, metaDataId, contentType, content, dataType, encrypted));
+                messageContents.add(mc);
             }
-        } catch (SQLException e) {
+            else {
+                intToBytes(ContentType.SOURCE_MAP.getContentTypeCode(), msgContKey, 12);
+                key.setData(msgContKey);
+                os = msgContentDb.get(txn, key, data, LockMode.READ_COMMITTED);
+                if(os == OperationStatus.SUCCESS) {
+                    MessageContent mc = _getMessageContent(channelId, data.getData());
+                    if (mc.getContentType() == ContentType.ENCODED) {
+                        mc.setContentType(ContentType.RAW);
+                    }
+
+                    messageContents.add(mc);
+                }
+            }
+        } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        } finally {
-            close(resultSet);
-            closeDatabaseObjectIfNeeded(statement);
         }
 
         return messageContents;
+    }
+
+    private MessageContent _getMessageContent(String channelId, byte[] data) throws Exception {
+        CapnpInputStream in = new CapnpInputStream(data);
+        MessageReader mr = SerializePacked.read(in);
+        CapMessageContent.Reader mcr = mr.getRoot(CapMessageContent.factory);
+        ContentType contentType = fromCapContentType(mcr.getContentType());
+        String content = mcr.getContent().toString();
+        boolean encrypted = mcr.getEncrypted();
+        if ((decryptData || alwaysDecrypt.contains(contentType)) && encrypted && encryptor != null) {
+            content = encryptor.decrypt(content);
+            encrypted = false;
+        }
+
+        return new MessageContent(channelId, mcr.getMessageId(), mcr.getMetaDataId(), contentType, content, mcr.getDataType().toString(), encrypted);
     }
 
     /**
@@ -2730,64 +2563,6 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     /**
-     * When using Derby, we manually cascade the deletion of records from dependent tables rather
-     * than relying on ON DELETE CASCADE behavior. Derby uses a table-level lock when cascading
-     * deletes, which hinders concurrency and can increase the risk of deadlocks.
-     */
-    private void cascadeMessageDelete(String queryId, String channelId) throws SQLException {
-        PreparedStatement statement = null;
-        try {
-            statement = prepareStatement(queryId, channelId);
-
-            if (statement != null) {
-                statement.executeUpdate();
-            }
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
-    }
-
-    /**
-     * When using Derby, we manually cascade the deletion of records from dependent tables rather
-     * than relying on ON DELETE CASCADE behavior. Derby uses a table-level lock when cascading
-     * deletes, which hinders concurrency and can increase the risk of deadlocks.
-     */
-    private void cascadeMessageDelete(String queryId, long messageId, String channelId) throws SQLException {
-        PreparedStatement statement = null;
-        try {
-            statement = prepareStatement(queryId, channelId);
-
-            if (statement != null) {
-                statement.setLong(1, messageId);
-                statement.executeUpdate();
-            }
-        } finally {
-            closeDatabaseObjectIfNeeded(statement);
-        }
-    }
-
-    /**
-     * When using Derby, we manually cascade the deletion of records from dependent tables rather
-     * than relying on ON DELETE CASCADE behavior. Derby uses a table-level lock when cascading
-     * deletes, which hinders concurrency and can increase the risk of deadlocks.
-     */
-    private void cascadeMessageDelete(String queryId, long messageId, Map<String, Object> values) throws SQLException {
-        String query = querySource.getQuery(queryId, values);
-
-        if (query != null) {
-            PreparedStatement statement = null;
-
-            try {
-                statement = connection.prepareStatement(query);
-                statement.setLong(1, messageId);
-                statement.executeUpdate();
-            } finally {
-                close(statement);
-            }
-        }
-    }
-
-    /**
      * Returns a prepared statement from the statementSource for the given channelId.
      */
     PreparedStatement prepareStatement(String queryId, String channelId) throws SQLException {
@@ -2801,19 +2576,9 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     protected void close(Statement statement) {
-        try {
-            DbUtils.close(statement);
-        } catch (SQLException e) {
-            logger.error("Failed to close JDBC statement", e);
-        }
     }
 
     protected void close(ResultSet resultSet) {
-        try {
-            DbUtils.close(resultSet);
-        } catch (SQLException e) {
-            logger.error("Failed to close JDBC result set", e);
-        }
     }
 
     private static String sqlTypeToString(int sqlType) {
@@ -2933,6 +2698,23 @@ public class BdbJeDao implements DonkeyDao {
         return buf;
     }
 
+    private byte[] buildPrimaryKeyOfMetadata(long messageId, int metaDataId) {
+        byte[] buf = new byte[12]; // MESSAGE_ID, METADATA_ID
+        longToBytes(messageId, buf, 0);
+        intToBytes(metaDataId, buf, 8);
+        
+        return buf;
+    }
+
+    private byte[] buildPrimaryKeyOfStats(int metadataId) {
+        byte[] tmp = statsServerId.getBytes(UTF_8);
+        byte[] data = new byte[tmp.length + 4];
+        System.arraycopy(tmp, 0, data, 0, tmp.length);
+        intToBytes(metadataId, data, tmp.length);
+        
+        return data;
+    }
+
     private byte[] buildPrimaryKeyOfAttachment(long messageId, String attachmentId) {
         byte[] tmp = attachmentId.getBytes(UTF_8);
         byte[] data = new byte[8 + tmp.length];
@@ -2941,4 +2723,163 @@ public class BdbJeDao implements DonkeyDao {
         
         return data;
     }
+
+    private long deleteAllStartingwith(long keyPrefixId, Database db) {
+        Cursor cursor = db.openCursor(null, null);
+        DatabaseEntry key = new DatabaseEntry(longToBytes(keyPrefixId));
+        DatabaseEntry data = new DatabaseEntry();
+        OperationStatus os = cursor.getSearchKeyRange(key, data, null);
+        long total = 0;
+        if(os == OperationStatus.SUCCESS) {
+            do {
+                //System.out.println(bytesToLong(key.getData()) + " - " + bytesToLong(data.getData()));
+                long curPrefix = bytesToLong(key.getData());
+                if(curPrefix != keyPrefixId) {
+                    break;
+                }
+                cursor.delete();
+                total++;
+            }
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
+        }
+        cursor.close();
+        
+        return total;
+    }
+    
+    private MetaDataColumnType from(CapMetadataColumn.Type t) {
+        switch (t) {
+        case STRING:
+            return MetaDataColumnType.STRING;
+        case BOOLEAN:
+            return MetaDataColumnType.BOOLEAN;
+        case NUMBER:
+            return MetaDataColumnType.NUMBER;
+        case TIMESTAMP:
+            return MetaDataColumnType.TIMESTAMP;
+        }
+        
+        throw new IllegalArgumentException("unknown capnp metadata column type " + t);
+    }
+    
+    private boolean isEquals(byte[] data, org.capnproto.Text.Reader reader) {
+        if(data.length != reader.size) {
+            return false;
+        }
+
+        int o = reader.offset;
+        for(int i = 0; i < data.length; i++) {
+            if(data[i] != reader.buffer.get(o+i)) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private CapMessageContent.CapContentType toCapContentType(ContentType contentType) {
+        CapContentType cct = null;
+        switch (contentType) {
+        case CHANNEL_MAP:
+            cct = CHANNELMAP;
+            break;
+        case CONNECTOR_MAP:
+            cct = CONNECTORMAP;
+            break;
+        case ENCODED:
+            cct = ENCODED;
+            break;
+        case POSTPROCESSOR_ERROR:
+            cct = POSTPROCESSORERROR;
+            break;
+        case PROCESSED_RAW:
+            cct = PROCESSEDRAW;
+            break;
+        case PROCESSED_RESPONSE:
+            cct = PROCESSEDRESPONSE;
+            break;
+        case PROCESSING_ERROR:
+            cct = PROCESSINGERROR;
+            break;
+        case RAW:
+            cct = RAW;
+            break;
+        case RESPONSE:
+            cct = RESPONSE;
+            break;
+        case RESPONSE_ERROR:
+            cct = RESPONSEERROR;
+            break;
+        case RESPONSE_MAP:
+            cct = RESPONSEMAP;
+            break;
+        case RESPONSE_TRANSFORMED:
+            cct = RESPONSETRANSFORMED;
+            break;
+        case SENT:
+            cct = SENT;
+            break;
+        case SOURCE_MAP:
+            cct = SOURCEMAP;
+            break;
+        case TRANSFORMED:
+            cct = TRANSFORMED;
+            break;
+        }
+        
+        return cct;
+    }
+    
+    private ContentType fromCapContentType(CapMessageContent.CapContentType cct) {
+        ContentType contentType = null;
+        switch (cct) {
+        case CHANNELMAP:
+            contentType = ContentType.CHANNEL_MAP;
+            break;
+        case CONNECTORMAP:
+            contentType = ContentType.CONNECTOR_MAP;
+            break;
+        case ENCODED:
+            contentType = ContentType.ENCODED;
+            break;
+        case POSTPROCESSORERROR:
+            contentType = ContentType.POSTPROCESSOR_ERROR;
+            break;
+        case PROCESSEDRAW:
+            contentType = ContentType.PROCESSED_RAW;
+            break;
+        case PROCESSEDRESPONSE:
+            contentType = ContentType.PROCESSED_RESPONSE;
+            break;
+        case PROCESSINGERROR:
+            contentType = ContentType.PROCESSING_ERROR;
+            break;
+        case RAW:
+            contentType = ContentType.RAW;
+            break;
+        case RESPONSE:
+            contentType = ContentType.RESPONSE;
+            break;
+        case RESPONSEERROR:
+            contentType = ContentType.RESPONSE_ERROR;
+            break;
+        case RESPONSEMAP:
+            contentType = ContentType.RESPONSE_MAP;
+            break;
+        case RESPONSETRANSFORMED:
+            contentType = ContentType.RESPONSE_TRANSFORMED;
+            break;
+        case SENT:
+            contentType = ContentType.SENT;
+            break;
+        case SOURCEMAP:
+            contentType = ContentType.SOURCE_MAP;
+            break;
+        case TRANSFORMED:
+            contentType = ContentType.TRANSFORMED;
+            break;
+        }
+        
+        return contentType;
+    }    
 }
