@@ -170,6 +170,18 @@ public class GeneralJETest {
         
         int total = deleteAllStartingwith(1, db);
         System.out.println("total " + total);
+        
+        byte[] buf = new byte[12];
+        longToBytes(4, buf, 0);
+        DatabaseEntry key = new DatabaseEntry(buf);
+        DatabaseEntry data = new DatabaseEntry();
+        Cursor cursor = db.openCursor(null, null);
+        OperationStatus os = cursor.getSearchKeyRange(key, data, null);
+        System.out.println(os + " " + bytesToLong(key.getData()));
+        longToBytes(2, buf, 0);
+        key.setData(buf);
+        os = cursor.getSearchKeyRange(key, data, null);
+        System.out.println(os + " " + bytesToLong(key.getData()));
     }
     
     private int deleteAllStartingwith(long keyPrefixId, Database db) {

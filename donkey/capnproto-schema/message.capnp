@@ -54,7 +54,6 @@ struct CapConnectorMessage {
     messageId @1 :Int64;
     serverId @2 :Text;
     receivedDate @3 :Int64;
-    status @4 :CapStatus;
     enum CapStatus {
         received @0;
         filtered @1;
@@ -64,13 +63,13 @@ struct CapConnectorMessage {
         error @5;
         pending @6;
     }
-    connectorName @5 :Text;
-    sendAttempts @6 :Int32;
-    sendDate @7 :Int64;
-    responseDate @8 :Int64;
-    errorCode @9 :Int32;
-    chainId @10 :Int32;
-    orderId @11 :Int32;
+    connectorName @4 :Text;
+    sendAttempts @5 :Int32;
+    sendDate @6 :Int64;
+    responseDate @7 :Int64;
+    errorCode @8 :Int32;
+    chainId @9 :Int32;
+    orderId @10 :Int32;
  }
 
 struct Map(Key, Value) {

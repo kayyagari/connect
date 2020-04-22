@@ -560,22 +560,6 @@ public final class CapnpModel {
         _setLongField(2, value);
       }
 
-      public final com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus getStatus() {
-        switch(_getShortField(2)) {
-          case 0 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.RECEIVED;
-          case 1 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.FILTERED;
-          case 2 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.TRANSFORMED;
-          case 3 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.SENT;
-          case 4 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.QUEUED;
-          case 5 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.ERROR;
-          case 6 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.PENDING;
-          default: return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus._NOT_IN_SCHEMA;
-        }
-      }
-      public final void setStatus(com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus value) {
-        _setShortField(2, (short)value.ordinal());
-      }
-
       public final boolean hasConnectorName() {
         return !_pointerFieldIsNull(1);
       }
@@ -592,45 +576,45 @@ public final class CapnpModel {
         return _initPointerField(org.capnproto.Text.factory, 1, size);
       }
       public final int getSendAttempts() {
-        return _getIntField(6);
+        return _getIntField(1);
       }
       public final void setSendAttempts(int value) {
-        _setIntField(6, value);
+        _setIntField(1, value);
       }
 
       public final long getSendDate() {
-        return _getLongField(4);
+        return _getLongField(3);
       }
       public final void setSendDate(long value) {
-        _setLongField(4, value);
+        _setLongField(3, value);
       }
 
       public final long getResponseDate() {
-        return _getLongField(5);
+        return _getLongField(4);
       }
       public final void setResponseDate(long value) {
-        _setLongField(5, value);
+        _setLongField(4, value);
       }
 
       public final int getErrorCode() {
-        return _getIntField(7);
+        return _getIntField(10);
       }
       public final void setErrorCode(int value) {
-        _setIntField(7, value);
+        _setIntField(10, value);
       }
 
       public final int getChainId() {
-        return _getIntField(12);
+        return _getIntField(11);
       }
       public final void setChainId(int value) {
-        _setIntField(12, value);
+        _setIntField(11, value);
       }
 
       public final int getOrderId() {
-        return _getIntField(13);
+        return _getIntField(12);
       }
       public final void setOrderId(int value) {
-        _setIntField(13, value);
+        _setIntField(12, value);
       }
 
     }
@@ -659,19 +643,6 @@ public final class CapnpModel {
         return _getLongField(2);
       }
 
-      public final com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus getStatus() {
-        switch(_getShortField(2)) {
-          case 0 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.RECEIVED;
-          case 1 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.FILTERED;
-          case 2 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.TRANSFORMED;
-          case 3 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.SENT;
-          case 4 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.QUEUED;
-          case 5 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.ERROR;
-          case 6 : return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.PENDING;
-          default: return com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus._NOT_IN_SCHEMA;
-        }
-      }
-
       public boolean hasConnectorName() {
         return !_pointerFieldIsNull(1);
       }
@@ -680,27 +651,27 @@ public final class CapnpModel {
       }
 
       public final int getSendAttempts() {
-        return _getIntField(6);
+        return _getIntField(1);
       }
 
       public final long getSendDate() {
-        return _getLongField(4);
+        return _getLongField(3);
       }
 
       public final long getResponseDate() {
-        return _getLongField(5);
+        return _getLongField(4);
       }
 
       public final int getErrorCode() {
-        return _getIntField(7);
+        return _getIntField(10);
       }
 
       public final int getChainId() {
-        return _getIntField(12);
+        return _getIntField(11);
       }
 
       public final int getOrderId() {
-        return _getIntField(13);
+        return _getIntField(12);
       }
 
     }
@@ -1875,7 +1846,7 @@ public static final org.capnproto.SegmentReader b_a0823c23fa48f8b7 =
    "\u0015\u0000\u0000\u0000\u0012\u0001\u0000\u0000" +
    "\u0025\u0000\u0000\u0000\u0017\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0031\u0000\u0000\u0000\u00a7\u0002\u0000\u0000" +
+   "\u0031\u0000\u0000\u0000\u006f\u0002\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u006d\u0065\u0073\u0073\u0061\u0067\u0065\u002e" +
@@ -1888,91 +1859,84 @@ public static final org.capnproto.SegmentReader b_a0823c23fa48f8b7 =
    "\u0001\u0000\u0000\u0000\u0052\u0000\u0000\u0000" +
    "\u0043\u0061\u0070\u0053\u0074\u0061\u0074\u0075" +
    "\u0073\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0030\u0000\u0000\u0000\u0003\u0000\u0004\u0000" +
+   "\u002c\u0000\u0000\u0000\u0003\u0000\u0004\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0041\u0001\u0000\u0000\u001a\u0000\u0000\u0000" +
+   "\u0025\u0001\u0000\u0000\u001a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u003c\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0048\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0020\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u002c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0001\u0000\u0000\u0000\u0001\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0045\u0001\u0000\u0000\u0052\u0000\u0000\u0000" +
+   "\u0029\u0001\u0000\u0000\u0052\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0044\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0050\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0028\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0034\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0002\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u004d\u0001\u0000\u0000\u004a\u0000\u0000\u0000" +
+   "\u0031\u0001\u0000\u0000\u004a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u004c\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0058\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0030\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u003c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0003\u0000\u0000\u0000\u0002\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0003\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0055\u0001\u0000\u0000\u006a\u0000\u0000\u0000" +
+   "\u0039\u0001\u0000\u0000\u006a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0054\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0060\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
-   "\u0004\u0000\u0000\u0000\u0002\u0000\u0000\u0000" +
+   "\u0038\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0044\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0004\u0000\u0000\u0000\u0001\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0004\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u005d\u0001\u0000\u0000\u003a\u0000\u0000\u0000" +
+   "\u0041\u0001\u0000\u0000\u0072\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0058\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0064\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0040\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u004c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0005\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0061\u0001\u0000\u0000\u0072\u0000\u0000\u0000" +
+   "\u0049\u0001\u0000\u0000\u006a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0060\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u006c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
-   "\u0006\u0000\u0000\u0000\u0006\u0000\u0000\u0000" +
+   "\u0048\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0054\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0006\u0000\u0000\u0000\u0003\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0006\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0069\u0001\u0000\u0000\u006a\u0000\u0000\u0000" +
+   "\u0051\u0001\u0000\u0000\u004a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0068\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0074\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0050\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\\\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0007\u0000\u0000\u0000\u0004\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0007\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0071\u0001\u0000\u0000\u004a\u0000\u0000\u0000" +
+   "\u0059\u0001\u0000\u0000\u006a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0070\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u007c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
-   "\u0008\u0000\u0000\u0000\u0005\u0000\u0000\u0000" +
+   "\u0058\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0064\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0008\u0000\u0000\u0000\n\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0008\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0079\u0001\u0000\u0000\u006a\u0000\u0000\u0000" +
+   "\u0061\u0001\u0000\u0000\u0052\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0078\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0084\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
-   "\u0009\u0000\u0000\u0000\u0007\u0000\u0000\u0000" +
+   "\u0060\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u006c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0009\u0000\u0000\u0000\u000b\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0009\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0081\u0001\u0000\u0000\u0052\u0000\u0000\u0000" +
+   "\u0069\u0001\u0000\u0000\u0042\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0080\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u008c\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0064\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0070\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\n\u0000\u0000\u0000\u000c\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\n\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0089\u0001\u0000\u0000\u0042\u0000\u0000\u0000" +
+   "\u006d\u0001\u0000\u0000\u0042\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0084\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0090\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
-   "\u000b\u0000\u0000\u0000\r\u0000\u0000\u0000" +
-   "\u0000\u0000\u0001\u0000\u000b\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u008d\u0001\u0000\u0000\u0042\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0088\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0094\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0068\u0001\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0074\u0001\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0069\u0064\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
@@ -2006,14 +1970,6 @@ public static final org.capnproto.SegmentReader b_a0823c23fa48f8b7 =
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0005\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0073\u0074\u0061\u0074\u0075\u0073\u0000\u0000" +
-   "\u000f\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0016\u00ee\u001c\u00a9\u00c2\u008b\u005f\u0088" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u000f\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0063\u006f\u006e\u006e\u0065\u0063\u0074\u006f" +
