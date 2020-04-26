@@ -19,9 +19,11 @@ public enum Status {
             'P');
 
     private char status;
+    private byte[] data = new byte[1];
 
     private Status(char status) {
         this.status = status;
+        this.data[0] = (byte)status;
     }
 
     /**
@@ -58,5 +60,9 @@ public enum Status {
         // @formatter:on
 
         return null;
+    }
+    
+    public byte[] getData() {
+        return data;
     }
 }

@@ -101,7 +101,9 @@ public class Donkey {
 
         if(DB_BDB_JE.equalsIgnoreCase(database)) {
             initBdbJeEnv(dbProperties);
-            daoFactory = BdbJeDaoFactory.getInstance();
+            BdbJeDaoFactory bdbJedaoFactory = BdbJeDaoFactory.getInstance();
+            bdbJedaoFactory.setStatsServerId(donkeyConfiguration.getServerId());
+            daoFactory = bdbJedaoFactory;
         }
         else {
             XmlQuerySource xmlQuerySource = new XmlQuerySource();

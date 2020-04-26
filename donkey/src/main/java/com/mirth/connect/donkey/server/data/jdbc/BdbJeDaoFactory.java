@@ -1,9 +1,5 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
-import java.sql.Connection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.log4j.Logger;
 
 import com.mirth.connect.donkey.server.Donkey;
@@ -18,12 +14,10 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
     private Donkey donkey;
     private ChannelController channelController;
     private String statsServerId;
-    private QuerySource querySource;
     private SerializerProvider serializerProvider;
     private StatisticsUpdater statisticsUpdater;
     private boolean encryptData = false;
     private boolean decryptData = true;
-    private Map<Connection, PreparedStatementSource> statementSources = new ConcurrentHashMap<Connection, PreparedStatementSource>();
     private Logger logger = Logger.getLogger(getClass());
 
     public static BdbJeDaoFactory getInstance() {
@@ -48,23 +42,8 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
         return null;
     }
 
-    public void setConnectionPool(ConnectionPool connectionPool) {
-    }
-
-    public QuerySource getQuerySource() {
-        return querySource;
-    }
-
-    public void setQuerySource(QuerySource querySource) {
-        this.querySource = querySource;
-    }
-
     public void setSerializerProvider(SerializerProvider serializerProvider) {
         this.serializerProvider = serializerProvider;
-    }
-
-    public Map<Connection, PreparedStatementSource> getStatementSources() {
-        return statementSources;
     }
 
     @Override
@@ -89,10 +68,10 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
 
     @Override
     public BdbJeDao getDao(SerializerProvider serializerProvider) {
-        return getDao(donkey, null, querySource, null, serializerProvider, encryptData, decryptData, statisticsUpdater, channelController.getStatistics(), channelController.getTotalStatistics(), statsServerId);
+        return getDao(donkey, serializerProvider, encryptData, decryptData, statisticsUpdater, channelController.getStatistics(), channelController.getTotalStatistics(), statsServerId);
     }
 
-    protected BdbJeDao getDao(Donkey donkey, Connection connection, QuerySource querySource, PreparedStatementSource statementSource, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
-        return new BdbJeDao(donkey, connection, querySource, statementSource, serializerProvider, encryptData, decryptData, statisticsUpdater, currentStats, totalStats, statsServerId);
+    protected BdbJeDao getDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
+        return new BdbJeDao(donkey, serializerProvider, encryptData, decryptData, statisticsUpdater, currentStats, totalStats, statsServerId);
     }
 }

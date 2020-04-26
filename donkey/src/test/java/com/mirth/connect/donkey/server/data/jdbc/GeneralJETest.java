@@ -157,7 +157,7 @@ public class GeneralJETest {
         DatabaseConfig dc = new DatabaseConfig();
         dc.setAllowCreate(true);
         Database db = env.openDatabase(null, "key_range.db", dc);
-        for(long i=0; i<10; i++) {
+        for(long i=1; i<10; i++) {
             for(int j=0; j < 5; j++) {
                 byte[] buf = new byte[12]; // MESSAGE_ID, METADATA_ID
                 longToBytes(i, buf, 0);
@@ -168,8 +168,8 @@ public class GeneralJETest {
             }
         }
         
-        int total = deleteAllStartingwith(1, db);
-        System.out.println("total " + total);
+//        int total = deleteAllStartingwith(1, db);
+//        System.out.println("total " + total);
         
         byte[] buf = new byte[12];
         longToBytes(4, buf, 0);
@@ -182,6 +182,20 @@ public class GeneralJETest {
         key.setData(buf);
         os = cursor.getSearchKeyRange(key, data, null);
         System.out.println(os + " " + bytesToLong(key.getData()));
+
+//        cursor.close();
+//        cursor = db.openCursor(null, null);
+        System.out.println("searching with zero prefix");
+        longToBytes(0, buf, 0);
+        intToBytes(1, buf, 8);
+        key.setData(buf);
+        os = cursor.getSearchKeyRange(key, data, null);
+        System.out.println(os + " " + bytesToInt(key.getData(), 8) + ", data = " + bytesToLong(data.getData()));
+
+        longToBytes(2, buf, 0);
+        key.setData(buf);
+        os = cursor.getNext(key, data, null);
+        System.out.println(os + " " + bytesToInt(key.getData(), 8) + ", data = " + bytesToLong(data.getData()));
     }
     
     private int deleteAllStartingwith(long keyPrefixId, Database db) {
