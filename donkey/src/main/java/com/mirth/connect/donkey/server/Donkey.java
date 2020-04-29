@@ -103,6 +103,7 @@ public class Donkey {
             initBdbJeEnv(dbProperties);
             BdbJeDaoFactory bdbJedaoFactory = BdbJeDaoFactory.getInstance();
             bdbJedaoFactory.setStatsServerId(donkeyConfiguration.getServerId());
+            bdbJedaoFactory.setSerializerProvider(serializerProvider);
             daoFactory = bdbJedaoFactory;
         }
         else {
