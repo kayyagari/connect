@@ -117,9 +117,9 @@ public class BdbJeDao implements DonkeyDao {
     private Transaction txn;
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
-    private static final String TABLE_D_CHANNELS = "d_channels";
-    private static final String TABLE_D_MESSAGE_SEQ = "d_msq";
-    private static final String TABLE_D_META_COLUMNS = "d_mcm_columns";
+    public static final String TABLE_D_CHANNELS = "d_channels";
+    public static final String TABLE_D_MESSAGE_SEQ = "d_msq";
+    public static final String TABLE_D_META_COLUMNS = "d_mcm_columns";
 
     private Map<String, Database> dbMap;
     private Map<Long, Sequence> seqMap;
@@ -291,7 +291,9 @@ public class BdbJeDao implements DonkeyDao {
             cb.setChannelId(channelId);
             cb.setContent(content);
             cb.setContentType(toCapContentType(contentType));
-            cb.setDataType(dataType);
+            if(dataType != null) {
+                cb.setDataType(dataType);
+            }
             cb.setEncrypted(encrypted);
             cb.setMessageId(messageId);
             cb.setMetaDataId(metaDataId);
