@@ -49,14 +49,6 @@ public class BdbJeConnectorMessage extends ConnectorMessage {
     }
 
     @Override
-    public Status getStatus() {
-        if(status == null) {
-            status = toConnectorMessageStatus(cm.getStatus());
-        }
-        return status;
-    }
-
-    @Override
     public int getErrorCode() {
         if(errorCode == 0) {
             errorCode = cm.getErrorCode();

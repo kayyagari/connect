@@ -1,44 +1,77 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
-import java.util.Calendar;
-import java.util.UUID;
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
-import org.apache.commons.lang3.RandomStringUtils;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.mirth.connect.donkey.model.message.ContentType;
+import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.Message;
-import com.mirth.connect.donkey.model.message.MessageContent;
+import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConfiguration;
-import com.mirth.connect.donkey.server.DonkeyConnectionPools;
 import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.test.util.TestUtils;
+import com.mirth.connect.donkey.util.Serializer;
 
 public class BdbJeDaoTest {
 
     private static DonkeyDaoFactory factory;
 
-    private static final String serverId = UUID.randomUUID().toString();
-    private static final String channelId = UUID.randomUUID().toString();
+    private static final String serverId = "85965adc-b131-4c0d-bd4c-b5d18c234ff9";
+    private static final String channelId = "47efbe21-ed1c-4d85-a2dd-b8f0eefdc251";
     private static final long localChannelId = 1;
 
+    private static final Map<Long, Message> injectedMessages = new HashMap<>();
+
+    private DonkeyDao dao;
+
     @BeforeClass
-    final public static void beforeClass() throws StartException {
+    final public static void beforeClass() throws Exception {
         Donkey jeDonkey = Donkey.getInstance();
         DonkeyConfiguration dconf = TestUtils.getDonkeyTestConfigurationForJE(true);
+        dconf.setServerId(serverId);
 //        dconf = TestUtils.getDonkeyTestConfiguration();
 //        DonkeyConnectionPools.getInstance().init(dconf.getDonkeyProperties());
         jeDonkey.startEngine(dconf);
+        
+        List<String> dbNames = jeDonkey.getBdbJeEnv().getDatabaseNames();
+        assertTrue(dbNames.contains(BdbJeDao.TABLE_D_CHANNELS));
+        assertTrue(dbNames.contains(BdbJeDao.TABLE_D_MESSAGE_SEQ));
+        assertTrue(dbNames.contains(BdbJeDao.TABLE_D_META_COLUMNS));
+
         factory = jeDonkey.getDaoFactory();
         DonkeyDao dao = factory.getDao();
         dao.createChannel(channelId, localChannelId);
         dao.commit();
+        
+        dbNames = jeDonkey.getBdbJeEnv().getDatabaseNames();
+        assertTrue(dbNames.contains("d_m" + localChannelId));
+        assertTrue(dbNames.contains("d_mm" + localChannelId));
+        assertTrue(dbNames.contains("d_mm_status" + localChannelId));
+        assertTrue(dbNames.contains("d_mc" + localChannelId));
+        assertTrue(dbNames.contains("d_mcm" + localChannelId));
+        assertTrue(dbNames.contains("d_ma" + localChannelId));
+        assertTrue(dbNames.contains("d_ms" + localChannelId));
+        
+        injectMessages();
     }
 
     @AfterClass
@@ -46,57 +79,55 @@ public class BdbJeDaoTest {
         Donkey.getInstance().stopEngine();
     }
 
+    private static void injectMessages() throws Exception {
+        Serializer s = Donkey.getInstance().getSerializer();
+        for(int i = 1; i <= 7; i++ ) {
+            InputStream in = BdbJeDaoTest.class.getResourceAsStream("sample-messages/message_" + i + ".xml");
+            StringWriter sw = new StringWriter();
+            IOUtils.copy(in, sw);
+            Message m = s.deserialize(sw.toString(), Message.class);
+            
+            // input validity checks
+            assertEquals(serverId, m.getServerId());
+            assertEquals(channelId, m.getChannelId());
+
+            injectedMessages.put(m.getMessageId(), m);
+            DonkeyDao dao = factory.getDao();
+            
+            dao.insertMessage(m);
+            if(m.getAttachments() != null) {
+                for(Attachment a : m.getAttachments()) {
+                    dao.insertMessageAttachment(channelId, m.getMessageId(), a);
+                }
+            }
+            for(ConnectorMessage cm : m.getConnectorMessages().values()) {
+                dao.insertConnectorMessage(cm, true, true);
+            }
+            
+            dao.commit();
+        }
+    }
+
     @Before
     final public void before() {
+        dao = factory.getDao();
     }
     
-    @Test
-    public void testInsertMessagePerf() {
-        DonkeyDao dao = factory.getDao();
-        long start = System.currentTimeMillis();
-        int count = 100000;
-        for(int i = 0; i < count; i++) {
-            _insertMessage(dao);
-        }
+    @After
+    final public void after() {
         dao.commit();
-        long end = System.currentTimeMillis();
-        
-        System.out.println("time taken to insert " + count + " entries " + (end - start) + "msec");
     }
 
+    // injectMessages() already inserted Message and ConnectorMessage objects
+    // test the retrieval here
     @Test
-    public void testInsertMessageContentPerf() {
-        DonkeyDao dao = factory.getDao();
-        long start = System.currentTimeMillis();
-        int count = 100000;
-        for(int i = 0; i < count; i++) {
-            _insertMessageContent(dao);
+    public void testMessageInsert() {
+        List<Message> lst = dao.getMessages(channelId, new ArrayList<Long>(injectedMessages.keySet()));
+        assertEquals(injectedMessages.size(), lst.size());
+        for(Message m : lst) {
+            Message clone = injectedMessages.get(m.getMessageId());
+            assertNotNull(clone);
+            EqualsBuilder.reflectionEquals(clone, m, false);
         }
-        dao.commit();
-        long end = System.currentTimeMillis();
-        
-        System.out.println("time taken to insert " + count + " entries " + (end - start) + "msec");
-    }
-
-    private void _insertMessageContent(DonkeyDao dao) {
-        MessageContent mc = new MessageContent();
-        mc.setChannelId(channelId);
-        mc.setContent(RandomStringUtils.random(100));
-        mc.setContentType(ContentType.RAW);
-        mc.setDataType("text");
-        mc.setEncrypted(false);
-        mc.setMessageId(dao.getNextMessageId(channelId));
-        mc.setMetaDataId(1);
-    }
-    
-    private void _insertMessage(DonkeyDao dao) {
-        Message msg = new Message();
-        msg.setChannelId(channelId);
-        msg.setMessageId(dao.getNextMessageId(channelId));
-        Calendar now = Calendar.getInstance();
-        now.setTimeInMillis(System.currentTimeMillis());
-        msg.setReceivedDate(now);
-        msg.setServerId(serverId);
-        dao.insertMessage(msg);
     }
 }

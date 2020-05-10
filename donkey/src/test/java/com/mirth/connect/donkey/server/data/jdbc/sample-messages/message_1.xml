@@ -1,0 +1,284 @@
+<message>
+  <messageId>1</messageId>
+  <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
+  <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+  <receivedDate>
+    <time>1587966184501</time>
+    <timezone>Europe/Amsterdam</timezone>
+  </receivedDate>
+  <processed>true</processed>
+  <connectorMessages class="linked-hash-map">
+    <entry>
+      <int>0</int>
+      <connectorMessage>
+        <messageId>1</messageId>
+        <metaDataId>0</metaDataId>
+        <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+        <channelName>bdbje-test</channelName>
+        <connectorName>Source</connectorName>
+        <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
+        <receivedDate>
+          <time>1587966184501</time>
+          <timezone>Europe/Amsterdam</timezone>
+        </receivedDate>
+        <status>TRANSFORMED</status>
+        <raw>
+          <encrypted>false</encrypted>
+          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+          <messageId>1</messageId>
+          <metaDataId>0</metaDataId>
+          <contentType>RAW</contentType>
+          <content>{
+&quot;username&quot;: &quot;user1&quot;,
+&quot;address&quot;: &quot;US&quot;,
+&quot;password&quot;: &quot;secret&quot;,
+&quot;displayName&quot;: &quot;User One&quot;
+}</content>
+          <dataType>HL7V2</dataType>
+        </raw>
+        <encoded>
+          <encrypted>false</encrypted>
+          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+          <messageId>1</messageId>
+          <metaDataId>0</metaDataId>
+          <contentType>ENCODED</contentType>
+          <content>{&#xd;&quot;username&quot;: &quot;user1&quot;,&#xd;&quot;address&quot;: &quot;US&quot;,&#xd;&quot;password&quot;: &quot;secret&quot;,&#xd;&quot;displayName&quot;: &quot;User One&quot;&#xd;}</content>
+          <dataType>HL7V2</dataType>
+        </encoded>
+        <sourceMapContent>
+          <encrypted>false</encrypted>
+          <content class="java.util.Collections$UnmodifiableMap">
+            <m>
+              <entry>
+                <string>mirth_source</string>
+                <string>hand</string>
+              </entry>
+              <entry>
+                <string>destinationSet</string>
+                <linked-hash-set>
+                  <int>1</int>
+                  <int>2</int>
+                </linked-hash-set>
+              </entry>
+            </m>
+          </content>
+        </sourceMapContent>
+        <connectorMapContent>
+          <encrypted>false</encrypted>
+          <content class="map"/>
+        </connectorMapContent>
+        <channelMapContent>
+          <encrypted>false</encrypted>
+          <content class="map"/>
+        </channelMapContent>
+        <responseMapContent>
+          <encrypted>false</encrypted>
+          <content class="map">
+            <entry>
+              <string>d1</string>
+              <response>
+                <status>ERROR</status>
+                <message></message>
+                <error></error>
+                <statusMessage>Error converting message or evaluating filter/transformer</statusMessage>
+              </response>
+            </entry>
+          </content>
+        </responseMapContent>
+        <metaDataMap>
+          <entry>
+            <string>DRAW_TIME</string>
+            <null/>
+          </entry>
+          <entry>
+            <string>HASEDGES</string>
+            <boolean>false</boolean>
+          </entry>
+          <entry>
+            <string>MESSAGE_ID</string>
+            <big-decimal>1</big-decimal>
+          </entry>
+          <entry>
+            <string>SOURCE</string>
+            <string>hand</string>
+          </entry>
+          <entry>
+            <string>METADATA_ID</string>
+            <big-decimal>0</big-decimal>
+          </entry>
+          <entry>
+            <string>HEIGHT</string>
+            <null/>
+          </entry>
+          <entry>
+            <string>TYPE</string>
+            <null/>
+          </entry>
+        </metaDataMap>
+        <processingErrorContent>
+          <encrypted>false</encrypted>
+        </processingErrorContent>
+        <postProcessorErrorContent>
+          <encrypted>false</encrypted>
+        </postProcessorErrorContent>
+        <responseErrorContent>
+          <encrypted>false</encrypted>
+        </responseErrorContent>
+        <errorCode>0</errorCode>
+        <sendAttempts>1</sendAttempts>
+        <responseDate>
+          <time>1587966184608</time>
+          <timezone>Europe/Amsterdam</timezone>
+        </responseDate>
+        <chainId>0</chainId>
+        <orderId>0</orderId>
+      </connectorMessage>
+    </entry>
+    <entry>
+      <int>1</int>
+      <connectorMessage>
+        <messageId>1</messageId>
+        <metaDataId>1</metaDataId>
+        <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+        <channelName>bdbje-test</channelName>
+        <connectorName>Destination 1</connectorName>
+        <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
+        <receivedDate>
+          <time>1587966184532</time>
+          <timezone>Europe/Amsterdam</timezone>
+        </receivedDate>
+        <status>ERROR</status>
+        <raw>
+          <encrypted>false</encrypted>
+          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+          <messageId>1</messageId>
+          <metaDataId>1</metaDataId>
+          <contentType>RAW</contentType>
+          <content>{&#xd;&quot;username&quot;: &quot;user1&quot;,&#xd;&quot;address&quot;: &quot;US&quot;,&#xd;&quot;password&quot;: &quot;secret&quot;,&#xd;&quot;displayName&quot;: &quot;User One&quot;&#xd;}</content>
+          <dataType>HL7V2</dataType>
+        </raw>
+        <transformed>
+          <encrypted>false</encrypted>
+          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
+          <messageId>1</messageId>
+          <metaDataId>1</metaDataId>
+          <contentType>TRANSFORMED</contentType>
+          <content>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&lt;HL7Message&gt;&lt;{&gt;&lt;/{&gt;&lt;&quot;username&quot;: &quot;user1&quot;,&gt;&lt;/&quot;username&quot;: &quot;user1&quot;,&gt;&lt;&quot;address&quot;: &quot;US&quot;,&gt;&lt;/&quot;address&quot;: &quot;US&quot;,&gt;&lt;&quot;password&quot;: &quot;secret&quot;,&gt;&lt;/&quot;password&quot;: &quot;secret&quot;,&gt;&lt;&quot;displayName&quot;: &quot;User One&quot;&gt;&lt;/&quot;displayName&quot;: &quot;User One&quot;&gt;&lt;}&gt;&lt;/}&gt;&lt;/HL7Message&gt;</content>
+          <dataType>XML</dataType>
+        </transformed>
+        <sourceMapContent>
+          <encrypted>false</encrypted>
+          <content class="java.util.Collections$UnmodifiableMap">
+            <m>
+              <entry>
+                <string>mirth_source</string>
+                <string>hand</string>
+              </entry>
+              <entry>
+                <string>destinationSet</string>
+                <linked-hash-set>
+                  <int>1</int>
+                  <int>2</int>
+                </linked-hash-set>
+              </entry>
+            </m>
+          </content>
+        </sourceMapContent>
+        <connectorMapContent>
+          <encrypted>false</encrypted>
+          <content class="map"/>
+        </connectorMapContent>
+        <channelMapContent>
+          <encrypted>false</encrypted>
+          <content class="map"/>
+        </channelMapContent>
+        <responseMapContent>
+          <encrypted>false</encrypted>
+          <content class="map">
+            <entry>
+              <string>d1</string>
+              <response>
+                <status>ERROR</status>
+                <message></message>
+                <error></error>
+                <statusMessage>Error converting message or evaluating filter/transformer</statusMessage>
+              </response>
+            </entry>
+          </content>
+        </responseMapContent>
+        <metaDataMap>
+          <entry>
+            <string>DRAW_TIME</string>
+            <null/>
+          </entry>
+          <entry>
+            <string>HASEDGES</string>
+            <boolean>false</boolean>
+          </entry>
+          <entry>
+            <string>MESSAGE_ID</string>
+            <big-decimal>1</big-decimal>
+          </entry>
+          <entry>
+            <string>SOURCE</string>
+            <string>hand</string>
+          </entry>
+          <entry>
+            <string>METADATA_ID</string>
+            <big-decimal>1</big-decimal>
+          </entry>
+          <entry>
+            <string>HEIGHT</string>
+            <null/>
+          </entry>
+          <entry>
+            <string>TYPE</string>
+            <null/>
+          </entry>
+        </metaDataMap>
+        <processingErrorContent>
+          <encrypted>false</encrypted>
+          <content>Transformer error
+ERROR MESSAGE: Error evaluating transformer
+com.mirth.connect.server.MirthJavascriptTransformerException: 
+CHANNEL:	bdbje-test
+CONNECTOR:	Destination 1
+SCRIPT SOURCE:	
+SOURCE CODE:	
+94:         }
+95:         eval(&apos;importPackage(&apos; + Packages.java.lang.Class.forName(className).getPackage().getName() + &apos;)&apos;);
+96:     }
+97: }
+98: function doScript() {
+99: msg = new XML(connectorMessage.getTransformedData());
+100: if (msg.namespace(&apos;&apos;) != undefined) { default xml namespace = msg.namespace(&apos;&apos;); } else { default xml namespace = &apos;&apos;; }
+101: function filterRule1() {
+102: if(address.length &gt; 0) {
+103: 	return true;
+LINE NUMBER:	99
+DETAILS:	TypeError: The content of elements must consist of well-formed character data or markup.
+	at 8c46f32e-6e0c-4315-abe6-4bd44154cde7:99 (doScript)
+	at 8c46f32e-6e0c-4315-abe6-4bd44154cde7:134
+	at com.mirth.connect.server.transformers.JavaScriptFilterTransformer$FilterTransformerTask.doCall(JavaScriptFilterTransformer.java:154)
+	at com.mirth.connect.server.transformers.JavaScriptFilterTransformer$FilterTransformerTask.doCall(JavaScriptFilterTransformer.java:119)
+	at com.mirth.connect.server.util.javascript.JavaScriptTask.call(JavaScriptTask.java:113)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+</content>
+        </processingErrorContent>
+        <postProcessorErrorContent>
+          <encrypted>false</encrypted>
+        </postProcessorErrorContent>
+        <responseErrorContent>
+          <encrypted>false</encrypted>
+        </responseErrorContent>
+        <errorCode>1</errorCode>
+        <sendAttempts>0</sendAttempts>
+        <chainId>1</chainId>
+        <orderId>1</orderId>
+      </connectorMessage>
+    </entry>
+  </connectorMessages>
+</message>

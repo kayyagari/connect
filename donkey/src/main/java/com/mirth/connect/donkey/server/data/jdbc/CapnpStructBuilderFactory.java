@@ -1,15 +1,14 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
+import java.nio.ByteBuffer;
+
 import org.apache.commons.pool2.KeyedPooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
-import org.capnproto.MessageBuilder;
-import org.capnproto.StructBuilder;
+import org.capnproto.StructFactory;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
-import com.mirth.connect.donkey.model.message.CapnpModel.CapErrorContent;
-import com.mirth.connect.donkey.model.message.CapnpModel.CapMapContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadata;
@@ -19,65 +18,84 @@ import com.mirth.connect.donkey.model.message.CapnpModel.CapStatistics;
 @SuppressWarnings("rawtypes")
 public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class, ReusableMessageBuilder> {
 
+    public static final int CapAttachment_Size = 5 * 1024;
+    public static final int CapMessage_Size = 256;
+    public static final int CapMessageContent_Size = 2 * 1024;
+    public static final int CapConnectorMessage_Size = 512;
+    public static final int CapMetadata_Size = 1024;
+    public static final int CapMetadataColumn_Size = 256;
+    public static final int CapStatistics_Size = 256;
+
     @Override
     public void activateObject(Class key, PooledObject<ReusableMessageBuilder> po)
             throws Exception {
+        //System.out.println("activating " + key + " " + po.getObject());
     }
 
     @Override
     public void destroyObject(Class key, PooledObject<ReusableMessageBuilder> po)
             throws Exception {
+        //System.out.println("destroying " + key);
         po.getObject().reset();
     }
 
     @Override
     public PooledObject<ReusableMessageBuilder> makeObject(Class key)
             throws Exception {
-        MessageBuilder mb = new MessageBuilder();
-        StructBuilder sb = null;
-        
+        //System.out.println("making " + key);
+        ByteBuffer buf;
+        StructFactory factory;
         if(key == CapMessage.class) {
-            sb = mb.initRoot(CapMessage.factory);
+            buf = ByteBuffer.allocate(CapMessage_Size);
+            factory = CapMessage.factory;
         }
         else if(key == CapAttachment.class) {
-            sb = mb.initRoot(CapAttachment.factory);
+            buf = ByteBuffer.allocate(CapAttachment_Size);
+            factory = CapAttachment.factory;
         }
         else if(key == CapMessageContent.class) {
-            sb = mb.initRoot(CapMessageContent.factory);
+            buf = ByteBuffer.allocate(CapMessageContent_Size);
+            factory = CapMessageContent.factory;
         }
         else if(key == CapConnectorMessage.class) {
-            sb = mb.initRoot(CapConnectorMessage.factory);
+            buf = ByteBuffer.allocate(CapConnectorMessage_Size);
+            factory = CapConnectorMessage.factory;
         }
-        else if(key == CapMapContent.class) {
-            sb = mb.initRoot(CapMapContent.factory);
-        }
-        else if(key == CapErrorContent.class) {
-            sb = mb.initRoot(CapErrorContent.factory);
-        }
+//        else if(key == CapMapContent.class) {
+//            sb = mb.initRoot(CapMapContent.factory);
+//        }
+//        else if(key == CapErrorContent.class) {
+//            sb = mb.initRoot(CapErrorContent.factory);
+//        }
         else if(key == CapMetadata.class) {
-            sb = mb.initRoot(CapMetadata.factory);
+            buf = ByteBuffer.allocate(CapMetadata_Size);
+            factory = CapMetadata.factory;
         }
         else if(key == CapMetadataColumn.class) {
-            sb = mb.initRoot(CapMetadataColumn.factory);
+            buf = ByteBuffer.allocate(CapMetadataColumn_Size);
+            factory = CapMetadataColumn.factory;
         }
         else if(key == CapStatistics.class) {
-            sb = mb.initRoot(CapStatistics.factory);
+            buf = ByteBuffer.allocate(CapStatistics_Size);
+            factory = CapStatistics.factory;
         }
         else {
             throw new IllegalArgumentException("unknown message class " + key.getName());
         }
 
-        return new DefaultPooledObject<ReusableMessageBuilder>(new ReusableMessageBuilder(mb, sb));
+        return new DefaultPooledObject<ReusableMessageBuilder>(new ReusableMessageBuilder(buf, factory));
     }
 
     @Override
     public void passivateObject(Class key, PooledObject<ReusableMessageBuilder> po)
             throws Exception {
+        //System.out.println("passivating " + key + " " + po.getObject());
         po.getObject().reset();
     }
 
     @Override
     public boolean validateObject(Class key, PooledObject<ReusableMessageBuilder> po) {
+        //System.out.println("validating " + key);
         return true;
     }
 }

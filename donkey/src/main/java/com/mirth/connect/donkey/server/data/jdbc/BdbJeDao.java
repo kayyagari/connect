@@ -19,8 +19,11 @@ import static com.mirth.connect.donkey.util.SerializerUtil.bytesToInt;
 import static com.mirth.connect.donkey.util.SerializerUtil.bytesToLong;
 import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
 import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
+import static com.mirth.connect.donkey.util.SerializerUtil.readMessage;
+import static com.mirth.connect.donkey.util.SerializerUtil.writeMessageToEntry;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -36,10 +39,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
+import org.capnproto.ArrayInputStream;
+import org.capnproto.ArrayOutputStream;
 import org.capnproto.MessageReader;
 import org.capnproto.SerializePacked;
 import org.capnproto.StructList;
@@ -204,12 +210,11 @@ public class BdbJeDao implements DonkeyDao {
             mb.setReceivedDate(message.getReceivedDate().getTimeInMillis());
             mb.setServerId(message.getServerId());
             
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
-
             long localChannelId = getLocalChannelId(message.getChannelId());
             DatabaseEntry key = new DatabaseEntry(longToBytes(message.getMessageId()));
-            dbMap.get("d_m" + localChannelId).put(txn, key, out.getData());
+            DatabaseEntry data = new DatabaseEntry();
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
+            dbMap.get("d_m" + localChannelId).put(txn, key, data);
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
         } finally {
@@ -234,8 +239,7 @@ public class BdbJeDao implements DonkeyDao {
             Database cmDb = dbMap.get("d_mm" + cid);
             OperationStatus os = cmDb.get(txn, key, data, LockMode.READ_COMMITTED);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(in);
+                MessageReader mr = readMessage(data.getData());
                 CapConnectorMessage.Reader atReader= mr.getRoot(CapConnectorMessage.factory);
 
                 rmb = objectPool.borrowObject(CapConnectorMessage.class);
@@ -251,9 +255,7 @@ public class BdbJeDao implements DonkeyDao {
                     cb.setResponseDate(responseDate.getTimeInMillis());
                 }
                 
-                CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-                SerializePacked.write(out, rmb.getMb());
-                data = out.getData();
+                writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
                 cmDb.put(txn, key, data);
             }
         } catch (Exception e) {
@@ -288,7 +290,6 @@ public class BdbJeDao implements DonkeyDao {
                 encrypted = true;
             }
 
-            cb.setChannelId(channelId);
             cb.setContent(content);
             cb.setContentType(toCapContentType(contentType));
             if(dataType != null) {
@@ -298,12 +299,10 @@ public class BdbJeDao implements DonkeyDao {
             cb.setMessageId(messageId);
             cb.setMetaDataId(metaDataId);
 
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
-
             long localChannelId = getLocalChannelId(channelId);
             DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
-            DatabaseEntry data = out.getData();
+            DatabaseEntry data = new DatabaseEntry();
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
             Database msgContentDb = dbMap.get("d_mc" + localChannelId);
             msgContentDb.put(txn, key, data);
         } catch (Exception e) {
@@ -420,8 +419,7 @@ public class BdbJeDao implements DonkeyDao {
             rmb = objectPool.borrowObject(CapStatistics.class);
             CapStatistics.Builder cb = null;
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(in);
+                MessageReader mr = readMessage(data.getData());
                 CapStatistics.Reader atReader= mr.getRoot(CapStatistics.factory);
                 rmb.getMb().setRoot(CapStatistics.factory, atReader);
                 cb = (CapStatistics.Builder)rmb.getSb();
@@ -478,9 +476,8 @@ public class BdbJeDao implements DonkeyDao {
             }
             cb.setErrorLifetime(tmpErrorLifetime);
             
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
-            statsDb.put(txn, key, out.getData());
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
+            statsDb.put(txn, key, data);
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
         } finally {
@@ -507,10 +504,9 @@ public class BdbJeDao implements DonkeyDao {
             cab.setAttachmentSize(attachment.getContent().length);
             cab.setMessageId(messageId);
             
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
             DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfAttachment(messageId, attachment.getAttachmentId()));
-            DatabaseEntry data = out.getData();
+            DatabaseEntry data = new DatabaseEntry();
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
             long localChannelId = getLocalChannelId(channelId);
             dbMap.get("d_ma" + localChannelId).put(txn, key, data);
         } catch (Exception e) {
@@ -587,11 +583,10 @@ public class BdbJeDao implements DonkeyDao {
                     n++;
                 }
                 
-                CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-                SerializePacked.write(out, rmb.getMb());
                 long cid = getLocalChannelId(connectorMessage.getChannelId());
                 DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMetadata(connectorMessage.getMessageId(), connectorMessage.getMetaDataId()));
-                DatabaseEntry data = out.getData();
+                DatabaseEntry data = new DatabaseEntry();
+                writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
                 dbMap.get("d_mcm" + cid).put(txn, key, data);
             }
         } catch (Exception e) {
@@ -615,6 +610,7 @@ public class BdbJeDao implements DonkeyDao {
 
         ReusableMessageBuilder rmb = null;
         try {
+            _updateErrorsWithoutConnectorMessageUpdate(connectorMessage);
             rmb = objectPool.borrowObject(CapConnectorMessage.class);
             CapConnectorMessage.Builder cb = (CapConnectorMessage.Builder)rmb.getSb();
             cb.setId(connectorMessage.getMetaDataId());
@@ -637,11 +633,10 @@ public class BdbJeDao implements DonkeyDao {
             cb.setChainId(connectorMessage.getChainId());
             cb.setOrderId(connectorMessage.getOrderId());
 
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
             long localchannelId = getLocalChannelId(connectorMessage.getChannelId());
             DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfConnectorMessage(connectorMessage.getMessageId(), connectorMessage.getMetaDataId()));
-            DatabaseEntry data = out.getData();
+            DatabaseEntry data = new DatabaseEntry();
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
             
             dbMap.get("d_mm" + localchannelId).put(txn, key, data);
             Database cmStatusDb = dbMap.get("d_mm_status" + localchannelId);
@@ -653,7 +648,7 @@ public class BdbJeDao implements DonkeyDao {
                 updateMaps(connectorMessage);
             }
 
-            updateErrors(connectorMessage);
+            //updateErrors(connectorMessage);
 
             if (updateStats) {
                 transactionStats.update(connectorMessage.getChannelId(), connectorMessage.getMetaDataId(), connectorMessage.getStatus(), null);
@@ -797,9 +792,9 @@ public class BdbJeDao implements DonkeyDao {
             Database cmDb = dbMap.get("d_mm" + cid);
             OperationStatus os = cmDb.get(txn, key, data, LockMode.READ_COMMITTED);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(in);
+                MessageReader mr = readMessage(data.getData());
                 CapConnectorMessage.Reader atReader= mr.getRoot(CapConnectorMessage.factory);
+                //System.out.println(atReader.getId() + " " + atReader.getMessageId());
 
                 rmb = objectPool.borrowObject(CapConnectorMessage.class);
                 rmb.getMb().setRoot(CapConnectorMessage.factory, atReader);
@@ -809,9 +804,7 @@ public class BdbJeDao implements DonkeyDao {
                     cb.setErrorCode(connectorMessage.getErrorCode());
                 }
 
-                CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-                SerializePacked.write(out, rmb.getMb());
-                data = out.getData();
+                writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
                 cmDb.put(txn, key, data);
                 return true;
             }
@@ -827,6 +820,13 @@ public class BdbJeDao implements DonkeyDao {
     
     @Override
     public void updateErrors(ConnectorMessage connectorMessage) {
+        boolean errorsUpdated = _updateErrorsWithoutConnectorMessageUpdate(connectorMessage);
+        if (errorsUpdated) {
+            updateErrorCode(connectorMessage);
+        }
+    }
+    
+    private boolean _updateErrorsWithoutConnectorMessageUpdate(ConnectorMessage connectorMessage) {
         logger.debug(connectorMessage.getChannelId() + "/" + connectorMessage.getMessageId() + "/" + connectorMessage.getMetaDataId() + ": updating errors");
 
         boolean errorsUpdated = false;
@@ -842,10 +842,8 @@ public class BdbJeDao implements DonkeyDao {
         if (updateError(connectorMessage.getResponseErrorContent(), connectorMessage.getChannelId(), connectorMessage.getMessageId(), connectorMessage.getMetaDataId(), ContentType.RESPONSE_ERROR)) {
             errorsUpdated = true;
         }
-
-        if (errorsUpdated) {
-            updateErrorCode(connectorMessage);
-        }
+        
+        return errorsUpdated;
     }
 
     private boolean updateError(ErrorContent errorContent, String channelId, long messageId, int metaDataId, ContentType contentType) {
@@ -935,6 +933,7 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     private void markAsProcessedOrReset(String channelId, long messageId, boolean reset) {
+        ReusableMessageBuilder rmb = null;
         try {
             long localChannelId = getLocalChannelId(channelId);
             DatabaseEntry key = new DatabaseEntry(longToBytes(messageId));
@@ -942,11 +941,10 @@ public class BdbJeDao implements DonkeyDao {
             Database messageDb = dbMap.get("d_m" + localChannelId);
             OperationStatus os = messageDb.get(txn, key, data, LockMode.READ_COMMITTED);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream ai = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(ai);
+                MessageReader mr = readMessage(data.getData());
                 CapMessage.Reader atReader= mr.getRoot(CapMessage.factory);
 
-                ReusableMessageBuilder rmb = objectPool.borrowObject(CapMessage.class);
+                rmb = objectPool.borrowObject(CapMessage.class);
                 rmb.getMb().setRoot(CapMessage.factory, atReader);
                 CapMessage.Builder mb = (CapMessage.Builder)rmb.getSb();
                 mb.setProcessed(true);
@@ -956,14 +954,16 @@ public class BdbJeDao implements DonkeyDao {
                     mb.setImportId(0);
                 }
 
-                CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-                SerializePacked.write(out, rmb.getMb());
-                data = out.getData();
+                writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
                 messageDb.put(txn, key, data);
-                objectPool.returnObject(CapMessage.class, rmb);
             }
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
+        }
+        finally {
+            if(rmb != null) {
+                objectPool.returnObject(CapMessage.class, rmb);
+            }
         }
     }
 
@@ -992,7 +992,9 @@ public class BdbJeDao implements DonkeyDao {
                 localChannelIds = null;
                 throw new DonkeyDaoException(e);
             } finally {
-                cursor.close();
+                if(cursor != null) {
+                    cursor.close();
+                }
             }
         }
 
@@ -1039,8 +1041,9 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public Long selectMaxLocalChannelId() {
-        Cursor cursor = dbMap.get(TABLE_D_CHANNELS).openCursor(txn, null);
+        Cursor cursor = null;
         try {
+            cursor = dbMap.get(TABLE_D_CHANNELS).openCursor(txn, null);
             long maxLocalChannelId = 0;
             DatabaseEntry key = new DatabaseEntry();
             DatabaseEntry val = new DatabaseEntry();
@@ -1055,7 +1058,9 @@ public class BdbJeDao implements DonkeyDao {
         } catch (DatabaseException e) {
             throw new DonkeyDaoException(e);
         } finally {
-            cursor.close();
+            if(cursor != null) {
+                cursor.close();
+            }
         }
     }
 
@@ -1140,8 +1145,7 @@ public class BdbJeDao implements DonkeyDao {
             DatabaseEntry data = new DatabaseEntry();
             OperationStatus os = metaColDb.get(txn, key, data, LockMode.READ_COMMITTED);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(in);
+                MessageReader mr = readMessage(data.getData());
                 CapMetadata.Reader atReader= mr.getRoot(CapMetadata.factory);
 
                 for(CapMetadataColumn.Reader col : atReader.getColumns()) {
@@ -1170,27 +1174,32 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     private long getMaxOrMinMessageId(String channelId, boolean max) {
+        Cursor cursor = null;
         try {
             DatabaseEntry key = new DatabaseEntry();
             DatabaseEntry data = new DatabaseEntry();
             long cid = getLocalChannelId(channelId);
-            Cursor c = dbMap.get("d_m" + cid).openCursor(txn, null);
+            cursor = dbMap.get("d_m" + cid).openCursor(txn, null);
             OperationStatus os = null;
             if(max) {
-                os = c.getLast(key, data, null);
+                os = cursor.getLast(key, data, null);
             }
             else {
-                os = c.getFirst(key, data, null);
+                os = cursor.getFirst(key, data, null);
             }
             
             long id = -1;
             if(os == OperationStatus.SUCCESS) {
                 id = bytesToLong(key.getData());
             }
-            c.close();
             return id;
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
+        }
+        finally {
+            if(cursor != null) {
+                cursor.close();
+            }
         }
     }
 
@@ -1211,11 +1220,12 @@ public class BdbJeDao implements DonkeyDao {
 
     @Override
     public List<Attachment> getMessageAttachment(String channelId, long messageId) {
+        Cursor cursor = null;
         try {
             List<Attachment> attachments = new ArrayList<Attachment>();
             long cid = getLocalChannelId(channelId);
             Database atDb = dbMap.get("d_ma" + cid);
-            Cursor cursor = atDb.openCursor(txn, null);
+            cursor = atDb.openCursor(txn, null);
             DatabaseEntry key = new DatabaseEntry(longToBytes(messageId));
             DatabaseEntry data = new DatabaseEntry();
             OperationStatus os = cursor.getSearchKeyRange(key, data, null);
@@ -1225,19 +1235,22 @@ public class BdbJeDao implements DonkeyDao {
                     if(curPrefix != messageId) {
                         break;
                     }
-                    CapnpInputStream in = new CapnpInputStream(data.getData());
-                    MessageReader mr = SerializePacked.read(in);
+                    MessageReader mr = readMessage(data.getData());
                     CapAttachment.Reader at = mr.getRoot(CapAttachment.factory);
                     BdbJeAttachment mcAt = new BdbJeAttachment(at);
                     attachments.add(mcAt);
                 }
                 while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
             }
-            cursor.close();
 
             return attachments;
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
+        }
+        finally {
+            if(cursor != null) {
+                cursor.close();
+            }
         }
     }
 
@@ -1251,8 +1264,7 @@ public class BdbJeDao implements DonkeyDao {
             DatabaseEntry data = new DatabaseEntry();
             OperationStatus os = atDb.get(txn, key, data, LockMode.READ_COMMITTED);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(in);
+                MessageReader mr = readMessage(data.getData());
                 CapAttachment.Reader at = mr.getRoot(CapAttachment.factory);
                 attachment = new BdbJeAttachment(at);
             }
@@ -1307,8 +1319,7 @@ public class BdbJeDao implements DonkeyDao {
                         key.setData(msgKey);
                         msgDb.get(txn, key, data, LockMode.READ_COMMITTED);
                         
-                        CapnpInputStream input = new CapnpInputStream(data.getData());
-                        MessageReader mr = SerializePacked.read(input);
+                        MessageReader mr = readMessage(data.getData());
                         CapMessage.Reader m = mr.getRoot(CapMessage.factory);
                         if(!m.getProcessed()) {
                             if(limit <= 0) {
@@ -1328,8 +1339,7 @@ public class BdbJeDao implements DonkeyDao {
                         intToBytes(metaDataId, conMsgKey, 8);
                         key.setData(conMsgKey);
                         conMsgDb.get(txn, key, data, LockMode.READ_COMMITTED);
-                        CapnpInputStream input = new CapnpInputStream(data.getData());
-                        CapConnectorMessage.Reader cm = SerializePacked.read(input).getRoot(CapConnectorMessage.factory);
+                        CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                         ConnectorMessage conMsg = getConnectorMessageFromResultSet(channelId, cm, true, true);
                         conMsg.setStatus(Status.fromChar(statusChar));
                         tmpMsg.getConnectorMessages().put(metaDataId, conMsg);
@@ -1385,8 +1395,7 @@ public class BdbJeDao implements DonkeyDao {
                     DatabaseEntry conMsgKey = new DatabaseEntry(buildPrimaryKeyOfConnectorMessage(curMsgId, metaDataId));
                     os = conMsgDb.get(txn, conMsgKey, data, LockMode.READ_COMMITTED);
 
-                    CapnpInputStream in = new CapnpInputStream(data.getData());
-                    MessageReader mr = SerializePacked.read(in);
+                    MessageReader mr = readMessage(data.getData());
                     CapConnectorMessage.Reader cm = mr.getRoot(CapConnectorMessage.factory);
                     curMsgId = bytesToLong(keyData);
                     if(tmpMsgId != curMsgId) {
@@ -1456,8 +1465,7 @@ public class BdbJeDao implements DonkeyDao {
                             break;
                         }
 
-                        CapnpInputStream in = new CapnpInputStream(data.getData());
-                        CapConnectorMessage.Reader cm = SerializePacked.read(in).getRoot(CapConnectorMessage.factory);
+                        CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                         // Create the connector from the result set without content or metadata map
                         ConnectorMessage connectorMessage = getConnectorMessageFromResultSet(channelId, cm, false, false);
                         // Store the reference to the connector in the message
@@ -1551,8 +1559,7 @@ public class BdbJeDao implements DonkeyDao {
                     
                     if(sc == data.getData()[0]) {
                         conMsgDb.get(txn, key, data, LockMode.READ_COMMITTED);
-                        CapnpInputStream in = new CapnpInputStream(data.getData());
-                        CapConnectorMessage.Reader cm = SerializePacked.read(in).getRoot(CapConnectorMessage.factory);
+                        CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                         ConnectorMessage cMsg = getConnectorMessageFromResultSet(channelId, cm, true, true);
                         cMsg.setStatus(Status.fromChar(sc));
                     }
@@ -1588,8 +1595,7 @@ public class BdbJeDao implements DonkeyDao {
                 if(os == OperationStatus.SUCCESS) {
                     char sc = (char)data.getData()[0];
                     conMsgDb.get(txn, key, data, LockMode.READ_COMMITTED);
-                    CapnpInputStream in = new CapnpInputStream(data.getData());
-                    CapConnectorMessage.Reader cm = SerializePacked.read(in).getRoot(CapConnectorMessage.factory);
+                    CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                     ConnectorMessage conMsg = getConnectorMessageFromResultSet(channelId, cm, includeContent, true);
                     conMsg.setStatus(Status.fromChar(sc));
                     connectorMessages.add(conMsg);
@@ -1622,8 +1628,7 @@ public class BdbJeDao implements DonkeyDao {
                     if(os == OperationStatus.SUCCESS) {
                         char sc = (char)data.getData()[0];
                         conMsgDb.get(txn, key, data, LockMode.READ_COMMITTED);
-                        CapnpInputStream in = new CapnpInputStream(data.getData());
-                        CapConnectorMessage.Reader cm = SerializePacked.read(in).getRoot(CapConnectorMessage.factory);
+                        CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                         ConnectorMessage conMsg = getConnectorMessageFromResultSet(channelId, cm, true, true);
                         conMsg.setStatus(Status.fromChar(sc));
                         connectorMessages.put(conMsg.getMetaDataId(), conMsg);
@@ -1640,8 +1645,7 @@ public class BdbJeDao implements DonkeyDao {
                         }
                         char sc = (char)data.getData()[0];
                         conMsgDb.get(txn, key, data, LockMode.READ_COMMITTED);
-                        CapnpInputStream in = new CapnpInputStream(data.getData());
-                        CapConnectorMessage.Reader cm = SerializePacked.read(in).getRoot(CapConnectorMessage.factory);
+                        CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                         ConnectorMessage conMsg = getConnectorMessageFromResultSet(channelId, cm, true, true);
                         conMsg.setStatus(Status.fromChar(sc));
                         connectorMessages.put(conMsg.getMetaDataId(), conMsg);
@@ -1674,8 +1678,7 @@ public class BdbJeDao implements DonkeyDao {
                 key.setData(longToBytes(messageId));
                 OperationStatus os = dbMap.get("d_m" + cid).get(txn, key, data, LockMode.READ_COMMITTED);
                 if(os == OperationStatus.SUCCESS) {
-                    CapnpInputStream in = new CapnpInputStream(data.getData());
-                    CapMessage.Reader cm = SerializePacked.read(in).getRoot(CapMessage.factory);
+                    CapMessage.Reader cm = readMessage(data.getData()).getRoot(CapMessage.factory);
                     if(!cm.getProcessed()) {
                         skip = true;
                     }
@@ -1800,8 +1803,7 @@ public class BdbJeDao implements DonkeyDao {
             DatabaseEntry data = new DatabaseEntry();
             OperationStatus os = metaColDb.get(txn, key, data, LockMode.READ_COMMITTED);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                MessageReader mr = SerializePacked.read(in);
+                MessageReader mr = readMessage(data.getData());
                 CapMetadata.Reader atReader= mr.getRoot(CapMetadata.factory);
 
                 rmb = objectPool.borrowObject(CapMetadata.class);
@@ -1849,9 +1851,7 @@ public class BdbJeDao implements DonkeyDao {
                 // @formatter:on
             }
             
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
-            data = out.getData();
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
             metaColDb.put(txn, key, data);
         } catch (Exception e) {
             throw new DonkeyDaoException("Failed to add meta-data column", e);
@@ -1964,8 +1964,7 @@ public class BdbJeDao implements DonkeyDao {
             CapStatistics.Builder cb = null;
             rmb = objectPool.borrowObject(CapStatistics.class);
             if(os == OperationStatus.SUCCESS) {
-                CapnpInputStream in = new CapnpInputStream(data.getData());
-                CapStatistics.Reader cr = SerializePacked.read(in).getRoot(CapStatistics.factory);
+                CapStatistics.Reader cr = readMessage(data.getData()).getRoot(CapStatistics.factory);
                 rmb.getMb().setRoot(CapStatistics.factory, cr);
                 cb = (CapStatistics.Builder)rmb.getSb();
             }
@@ -1991,9 +1990,7 @@ public class BdbJeDao implements DonkeyDao {
                 }
             }
             
-            CapnpOutputStream out = new CapnpOutputStream(bufAlloc.buffer());
-            SerializePacked.write(out, rmb.getMb());
-            data = out.getData();
+            writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
             conMsgStatsDb.put(txn, key, data);
             
             if (!resetCurrentStats.containsKey(channelId)) {
@@ -2068,20 +2065,19 @@ public class BdbJeDao implements DonkeyDao {
     private Statistics getChannelStatistics(String serverId, boolean total) {
         Map<String, Long> channelIds = getLocalChannelIds();
         Statistics statistics = new Statistics(!total);
-
+        Cursor cursor = null;
         try {
             for (Map.Entry<String, Long> e : channelIds.entrySet()) {
                 String channelId = e.getKey();
                 long cid = e.getValue();
-                Cursor cursor = dbMap.get("d_ms" + cid).openCursor(txn, null);
+                cursor = dbMap.get("d_ms" + cid).openCursor(txn, null);
                 DatabaseEntry key = new DatabaseEntry();
                 DatabaseEntry data = new DatabaseEntry();
                 
                 Map<Status, Long> stats = new HashMap<Status, Long>();
                 
                 while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
-                    CapnpInputStream in = new CapnpInputStream(data.getData());
-                    CapStatistics.Reader cr = SerializePacked.read(in).getRoot(CapStatistics.factory);
+                    CapStatistics.Reader cr = readMessage(data.getData()).getRoot(CapStatistics.factory);
                     long received = -1;
                     if(total) {
                         received = cr.getReceivedLifetime();
@@ -2120,10 +2116,14 @@ public class BdbJeDao implements DonkeyDao {
                     int metaDataId = bytesToInt(key.getData(), 8);
                     statistics.overwrite(channelId, metaDataId, stats);
                 }
-                cursor.close();
             }
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
+        }
+        finally {
+            if(cursor != null) {
+                cursor.close();
+            }
         }
 
         return statistics;
@@ -2282,8 +2282,7 @@ public class BdbJeDao implements DonkeyDao {
 
     private Message getMessageFromResultSet(String channelId, byte[] data) {
         try {
-            CapnpInputStream in = new CapnpInputStream(data);
-            MessageReader mr = SerializePacked.read(in);
+                        MessageReader mr = readMessage(data);
             CapMessage.Reader msgReader = mr.getRoot(CapMessage.factory);
 
             Message message = new Message();
@@ -2341,14 +2340,14 @@ public class BdbJeDao implements DonkeyDao {
      */
     private List<MessageContent> getMessageContent(String channelId, long messageId, int metaDataId) {
         List<MessageContent> messageContents = new ArrayList<MessageContent>();
-
+        Cursor cursor = null;
         try {
             long cid = getLocalChannelId(channelId);
             Database msgContentDb = dbMap.get("d_mc" + cid);
             byte[] msgContKey = buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.RAW);
             DatabaseEntry key = new DatabaseEntry(msgContKey);
             DatabaseEntry data = new DatabaseEntry();
-            Cursor cursor = msgContentDb.openCursor(txn, null);
+            cursor = msgContentDb.openCursor(txn, null);
             
             OperationStatus os = cursor.getSearchKeyRange(key, data, null);
             if(os == OperationStatus.SUCCESS) {
@@ -2360,9 +2359,13 @@ public class BdbJeDao implements DonkeyDao {
                 }
                 while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
             }
-            cursor.close();
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
+        }
+        finally {
+            if(cursor != null) {
+                cursor.close();
+            }
         }
 
         return messageContents;
@@ -2387,7 +2390,7 @@ public class BdbJeDao implements DonkeyDao {
                 for(MessageContent mc : messageContents) {
                     int metaDataId = mc.getMetaDataId();
                     List<MessageContent> subLst = connectorMessageContentMap.get(metaDataId);
-                    if (messageContents == null) {
+                    if (subLst == null) {
                         subLst = new ArrayList<MessageContent>();
                         connectorMessageContentMap.put(metaDataId, subLst);
                     }
@@ -2444,8 +2447,7 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     private MessageContent _getMessageContent(String channelId, byte[] data) throws Exception {
-        CapnpInputStream in = new CapnpInputStream(data);
-        MessageReader mr = SerializePacked.read(in);
+        MessageReader mr = readMessage(data);
         CapMessageContent.Reader mcr = mr.getRoot(CapMessageContent.factory);
         ContentType contentType = fromCapContentType(mcr.getContentType());
         String content = mcr.getContent().toString();
@@ -2555,8 +2557,7 @@ public class BdbJeDao implements DonkeyDao {
 
     private Map<String, Object> _readMetadataMap(byte[] data) throws Exception {
         Map<String, Object> metaDataMap = new HashMap<String, Object>();
-        CapnpInputStream in = new CapnpInputStream(data);
-        MessageReader mr = SerializePacked.read(in);
+        MessageReader mr = readMessage(data);
         CapMetadata.Reader cm = mr.getRoot(CapMetadata.factory);
         if(cm.hasColumns()) {
             for(CapMetadataColumn.Reader c : cm.getColumns()) {
@@ -2589,30 +2590,35 @@ public class BdbJeDao implements DonkeyDao {
 
     private Map<Integer, Map<String, Object>> _readAllMetadataOfMessageId(Database metadataDb, long messageId) throws Exception {
         Map<Integer, Map<String, Object>> connectorMetaDataMap = null;
-
-        Cursor metadataCursor = metadataDb.openCursor(txn, null);
-        byte[] metaKeyPrefix = new byte[12];
-        longToBytes(messageId, metaKeyPrefix, 0);
-        DatabaseEntry key = new DatabaseEntry(metaKeyPrefix); 
-        DatabaseEntry data = new DatabaseEntry(); 
-        
-        OperationStatus os = metadataCursor.getSearchKeyRange(key, data, null);
-        if(os == OperationStatus.SUCCESS) {
-            connectorMetaDataMap = new HashMap<Integer, Map<String, Object>>();
-            do {
-                long msgId = bytesToLong(key.getData(), 0);
-                if(msgId != messageId) {
-                    break;
+        Cursor metadataCursor = null;
+        try {
+            metadataCursor = metadataDb.openCursor(txn, null);
+            byte[] metaKeyPrefix = new byte[12];
+            longToBytes(messageId, metaKeyPrefix, 0);
+            DatabaseEntry key = new DatabaseEntry(metaKeyPrefix); 
+            DatabaseEntry data = new DatabaseEntry(); 
+            
+            OperationStatus os = metadataCursor.getSearchKeyRange(key, data, null);
+            if(os == OperationStatus.SUCCESS) {
+                connectorMetaDataMap = new HashMap<Integer, Map<String, Object>>();
+                do {
+                    long msgId = bytesToLong(key.getData(), 0);
+                    if(msgId != messageId) {
+                        break;
+                    }
+                    
+                    int metaId = bytesToInt(key.getData(), 8);
+                    Map<String, Object> mmap = _readMetadataMap(data.getData());
+                    connectorMetaDataMap.put(metaId, mmap);
                 }
-
-                int metaId = bytesToInt(key.getData(), 8);
-                Map<String, Object> mmap = _readMetadataMap(data.getData());
-                connectorMetaDataMap.put(metaId, mmap);
+                while(metadataCursor.getNext(key, data, null) == OperationStatus.SUCCESS);
             }
-            while(metadataCursor.getNext(key, data, null) == OperationStatus.SUCCESS);
         }
-
-        metadataCursor.close();
+        finally {
+            if(metadataCursor != null) {
+                metadataCursor.close();
+            }
+        }
         return connectorMetaDataMap;
     }
 
@@ -2866,8 +2872,7 @@ public class BdbJeDao implements DonkeyDao {
                 os = conMsgStatus.get(txn, statusKey, statusData, LockMode.READ_COMMITTED);
                 char statusChar = (char)statusData.getData()[0];
                 if(os == OperationStatus.SUCCESS && Status.RECEIVED.getStatusCode() != statusChar) {
-                    CapnpInputStream in = new CapnpInputStream(data.getData());
-                    MessageReader mr = SerializePacked.read(in);
+                    MessageReader mr = readMessage(data.getData());
                     CapConnectorMessage.Reader cm = mr.getRoot(CapConnectorMessage.factory);
                     ConnectorMessage conMsg = getConnectorMessageFromResultSet(m.getChannelId(), cm, includeContent, includeMetaDataMap);
                     
@@ -2932,6 +2937,8 @@ public class BdbJeDao implements DonkeyDao {
         case TRANSFORMED:
             cct = TRANSFORMED;
             break;
+        default:
+            throw new IllegalArgumentException("unknown content type " + contentType);
         }
         
         return cct;
@@ -2985,6 +2992,9 @@ public class BdbJeDao implements DonkeyDao {
         case TRANSFORMED:
             contentType = ContentType.TRANSFORMED;
             break;
+
+        default:
+            throw new IllegalArgumentException("unknown Cap content type " + cct);
         }
         
         return contentType;
