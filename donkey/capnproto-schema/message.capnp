@@ -23,10 +23,9 @@ struct CapMessage {
 }
 
 struct CapMessageContent {
-    channelId @0 :Text;
-    messageId @1 :Int64;
-    metaDataId @2 :Int32;
-    contentType @3 :CapContentType;
+    messageId @0 :Int64;
+    metaDataId @1 :Int32;
+    contentType @2 :CapContentType;
     enum CapContentType {
         raw @0;
         processedraw @1;
@@ -44,25 +43,17 @@ struct CapMessageContent {
         responseerror @13;
         sourcemap @14;
     }
-    content @4 :Text;
-    dataType @5 :Text;
-    encrypted @6 :Bool;
+    content @3 :Text;
+    dataType @4 :Text;
+    encrypted @5 :Bool;
 }
-    
+
+# default buf size 4 + 8 + 36 + 8 + 256 + 4 + 8 + 8 + 4 + 4 + 4 344B
 struct CapConnectorMessage {
     id @0 :Int32;
     messageId @1 :Int64;
     serverId @2 :Text;
     receivedDate @3 :Int64;
-    enum CapStatus {
-        received @0;
-        filtered @1;
-        transformed @2;
-        sent @3;
-        queued @4;
-        error @5;
-        pending @6;
-    }
     connectorName @4 :Text;
     sendAttempts @5 :Int32;
     sendDate @6 :Int64;
