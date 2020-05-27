@@ -22,38 +22,6 @@
           <timezone>Europe/Amsterdam</timezone>
         </receivedDate>
         <status>TRANSFORMED</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>2</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{
-  &quot;username&quot; : &quot;user1&quot;,
-  &quot;address&quot; : &quot;US&quot;,
-  &quot;password&quot; : &quot;secret&quot;,
-  &quot;displayName&quot; : &quot;User One&quot;
-}</content>
-          <dataType>JSON</dataType>
-        </raw>
-        <transformed>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>2</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>TRANSFORMED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </transformed>
-        <encoded>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>2</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>ENCODED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </encoded>
         <sourceMapContent>
           <encrypted>false</encrypted>
           <content class="java.util.Collections$UnmodifiableMap">
@@ -124,24 +92,6 @@
           <timezone>Europe/Amsterdam</timezone>
         </receivedDate>
         <status>ERROR</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>2</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </raw>
-        <transformed>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>2</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>TRANSFORMED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </transformed>
         <sourceMapContent>
           <encrypted>false</encrypted>
           <content class="java.util.Collections$UnmodifiableMap">

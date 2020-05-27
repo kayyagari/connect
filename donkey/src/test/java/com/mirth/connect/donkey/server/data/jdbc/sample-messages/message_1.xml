@@ -22,29 +22,6 @@
           <timezone>Europe/Amsterdam</timezone>
         </receivedDate>
         <status>TRANSFORMED</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>1</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{
-&quot;username&quot;: &quot;user1&quot;,
-&quot;address&quot;: &quot;US&quot;,
-&quot;password&quot;: &quot;secret&quot;,
-&quot;displayName&quot;: &quot;User One&quot;
-}</content>
-          <dataType>HL7V2</dataType>
-        </raw>
-        <encoded>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>1</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>ENCODED</contentType>
-          <content>{&#xd;&quot;username&quot;: &quot;user1&quot;,&#xd;&quot;address&quot;: &quot;US&quot;,&#xd;&quot;password&quot;: &quot;secret&quot;,&#xd;&quot;displayName&quot;: &quot;User One&quot;&#xd;}</content>
-          <dataType>HL7V2</dataType>
-        </encoded>
         <sourceMapContent>
           <encrypted>false</encrypted>
           <content class="java.util.Collections$UnmodifiableMap">
@@ -87,10 +64,6 @@
         </responseMapContent>
         <metaDataMap>
           <entry>
-            <string>DRAW_TIME</string>
-            <null/>
-          </entry>
-          <entry>
             <string>HASEDGES</string>
             <boolean>false</boolean>
           </entry>
@@ -105,14 +78,6 @@
           <entry>
             <string>METADATA_ID</string>
             <big-decimal>0</big-decimal>
-          </entry>
-          <entry>
-            <string>HEIGHT</string>
-            <null/>
-          </entry>
-          <entry>
-            <string>TYPE</string>
-            <null/>
           </entry>
         </metaDataMap>
         <processingErrorContent>
@@ -148,24 +113,6 @@
           <timezone>Europe/Amsterdam</timezone>
         </receivedDate>
         <status>ERROR</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>1</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{&#xd;&quot;username&quot;: &quot;user1&quot;,&#xd;&quot;address&quot;: &quot;US&quot;,&#xd;&quot;password&quot;: &quot;secret&quot;,&#xd;&quot;displayName&quot;: &quot;User One&quot;&#xd;}</content>
-          <dataType>HL7V2</dataType>
-        </raw>
-        <transformed>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>1</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>TRANSFORMED</contentType>
-          <content>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&lt;HL7Message&gt;&lt;{&gt;&lt;/{&gt;&lt;&quot;username&quot;: &quot;user1&quot;,&gt;&lt;/&quot;username&quot;: &quot;user1&quot;,&gt;&lt;&quot;address&quot;: &quot;US&quot;,&gt;&lt;/&quot;address&quot;: &quot;US&quot;,&gt;&lt;&quot;password&quot;: &quot;secret&quot;,&gt;&lt;/&quot;password&quot;: &quot;secret&quot;,&gt;&lt;&quot;displayName&quot;: &quot;User One&quot;&gt;&lt;/&quot;displayName&quot;: &quot;User One&quot;&gt;&lt;}&gt;&lt;/}&gt;&lt;/HL7Message&gt;</content>
-          <dataType>XML</dataType>
-        </transformed>
         <sourceMapContent>
           <encrypted>false</encrypted>
           <content class="java.util.Collections$UnmodifiableMap">
@@ -208,10 +155,6 @@
         </responseMapContent>
         <metaDataMap>
           <entry>
-            <string>DRAW_TIME</string>
-            <null/>
-          </entry>
-          <entry>
             <string>HASEDGES</string>
             <boolean>false</boolean>
           </entry>
@@ -226,14 +169,6 @@
           <entry>
             <string>METADATA_ID</string>
             <big-decimal>1</big-decimal>
-          </entry>
-          <entry>
-            <string>HEIGHT</string>
-            <null/>
-          </entry>
-          <entry>
-            <string>TYPE</string>
-            <null/>
           </entry>
         </metaDataMap>
         <processingErrorContent>

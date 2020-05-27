@@ -3,10 +3,18 @@
   <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
   <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
   <receivedDate>
-    <time>1587966680002</time>
+    <time>1590470277599</time>
     <timezone>Europe/Amsterdam</timezone>
   </receivedDate>
   <processed>true</processed>
+  <attachments>
+    <attachment>
+      <id>d988f89b-fe11-473c-8b7a-1e751b5632a5</id>
+      <content>bWVzc2FnZSB0byBiZSBzdG9yZWQgYXMgYW4gYXR0YWNobWVudA==</content>
+      <type>text/plain</type>
+      <encrypt>false</encrypt>
+    </attachment>
+  </attachments>
   <connectorMessages class="linked-hash-map">
     <entry>
       <int>0</int>
@@ -18,42 +26,10 @@
         <connectorName>Source</connectorName>
         <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
         <receivedDate>
-          <time>1587966680002</time>
+          <time>1590470277599</time>
           <timezone>Europe/Amsterdam</timezone>
         </receivedDate>
-        <status>TRANSFORMED</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{
-  &quot;username&quot; : &quot;user1&quot;,
-  &quot;address&quot; : &quot;US&quot;,
-  &quot;password&quot; : &quot;secret&quot;,
-  &quot;displayName&quot; : &quot;User One&quot;
-}</content>
-          <dataType>JSON</dataType>
-        </raw>
-        <transformed>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>TRANSFORMED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </transformed>
-        <encoded>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>0</metaDataId>
-          <contentType>ENCODED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </encoded>
+        <status>ERROR</status>
         <sourceMapContent>
           <encrypted>false</encrypted>
           <content class="java.util.Collections$UnmodifiableMap">
@@ -78,28 +54,40 @@
         </channelMapContent>
         <responseMapContent>
           <encrypted>false</encrypted>
-          <content class="map">
-            <entry>
-              <string>d1</string>
-              <response>
-                <status>SENT</status>
-                <message></message>
-                <statusMessage>Message routed successfully to channel id: none</statusMessage>
-              </response>
-            </entry>
-            <entry>
-              <string>d2</string>
-              <response>
-                <status>SENT</status>
-                <message></message>
-                <statusMessage>JavaScript evaluation successful.</statusMessage>
-              </response>
-            </entry>
-          </content>
+          <content class="map"/>
         </responseMapContent>
         <metaDataMap/>
         <processingErrorContent>
           <encrypted>false</encrypted>
+          <content>Transformer error
+ERROR MESSAGE: Error evaluating transformer
+com.mirth.connect.server.MirthJavascriptTransformerException: 
+CHANNEL:    bdbje-test
+CONNECTOR:  sourceConnector
+SCRIPT SOURCE:  
+SOURCE CODE:    
+94:         }
+95:         eval(&apos;importPackage(&apos; + Packages.java.lang.Class.forName(className).getPackage().getName() + &apos;)&apos;);
+96:     }
+97: }
+98: function doScript() {
+99: msg = JSON.parse(connectorMessage.getTransformedData());
+100: function doFilter() { phase[0] = &apos;filter&apos;; return true; }function doTransform() { phase[0] = &apos;transformer&apos;; logger = Packages.org.apache.log4j.Logger.getLogger(phase[0]);
+101: 
+102: 
+103: if (&apos;xml&apos; === typeof msg) {
+LINE NUMBER:    99
+DETAILS:    SyntaxError: Unexpected token: $
+    at fcd26c1e-f6a4-48f0-8738-d1b18eab6fef:99 (doScript)
+    at fcd26c1e-f6a4-48f0-8738-d1b18eab6fef:126
+    at com.mirth.connect.server.transformers.JavaScriptFilterTransformer$FilterTransformerTask.doCall(JavaScriptFilterTransformer.java:154)
+    at com.mirth.connect.server.transformers.JavaScriptFilterTransformer$FilterTransformerTask.doCall(JavaScriptFilterTransformer.java:119)
+    at com.mirth.connect.server.util.javascript.JavaScriptTask.call(JavaScriptTask.java:113)
+    at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+    at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+    at java.lang.Thread.run(Thread.java:748)
+</content>
         </processingErrorContent>
         <postProcessorErrorContent>
           <encrypted>false</encrypted>
@@ -107,316 +95,14 @@
         <responseErrorContent>
           <encrypted>false</encrypted>
         </responseErrorContent>
-        <errorCode>0</errorCode>
+        <errorCode>1</errorCode>
         <sendAttempts>1</sendAttempts>
         <responseDate>
-          <time>1587966680349</time>
+          <time>1590470277707</time>
           <timezone>Europe/Amsterdam</timezone>
         </responseDate>
         <chainId>0</chainId>
         <orderId>0</orderId>
-      </connectorMessage>
-    </entry>
-    <entry>
-      <int>1</int>
-      <connectorMessage>
-        <messageId>3</messageId>
-        <metaDataId>1</metaDataId>
-        <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-        <channelName>bdbje-test</channelName>
-        <connectorName>Destination 1</connectorName>
-        <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
-        <receivedDate>
-          <time>1587966680011</time>
-          <timezone>Europe/Amsterdam</timezone>
-        </receivedDate>
-        <status>SENT</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </raw>
-        <transformed>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>TRANSFORMED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </transformed>
-        <encoded>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>ENCODED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </encoded>
-        <sent>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>SENT</contentType>
-          <content>&lt;com.mirth.connect.connectors.vm.VmDispatcherProperties version=&quot;3.8.1&quot;&gt;
-  &lt;pluginProperties/&gt;
-  &lt;destinationConnectorProperties version=&quot;3.8.1&quot;&gt;
-    &lt;queueEnabled&gt;false&lt;/queueEnabled&gt;
-    &lt;sendFirst&gt;false&lt;/sendFirst&gt;
-    &lt;retryIntervalMillis&gt;10000&lt;/retryIntervalMillis&gt;
-    &lt;regenerateTemplate&gt;false&lt;/regenerateTemplate&gt;
-    &lt;retryCount&gt;0&lt;/retryCount&gt;
-    &lt;rotate&gt;false&lt;/rotate&gt;
-    &lt;includeFilterTransformer&gt;false&lt;/includeFilterTransformer&gt;
-    &lt;threadCount&gt;1&lt;/threadCount&gt;
-    &lt;threadAssignmentVariable&gt;&lt;/threadAssignmentVariable&gt;
-    &lt;validateResponse&gt;false&lt;/validateResponse&gt;
-    &lt;resourceIds class=&quot;linked-hash-map&quot;&gt;
-      &lt;entry&gt;
-        &lt;string&gt;Default Resource&lt;/string&gt;
-        &lt;string&gt;[Default Resource]&lt;/string&gt;
-      &lt;/entry&gt;
-    &lt;/resourceIds&gt;
-    &lt;queueBufferSize&gt;1000&lt;/queueBufferSize&gt;
-    &lt;reattachAttachments&gt;true&lt;/reattachAttachments&gt;
-  &lt;/destinationConnectorProperties&gt;
-  &lt;channelId&gt;none&lt;/channelId&gt;
-  &lt;channelTemplate&gt;{&amp;quot;username&amp;quot;:&amp;quot;user1&amp;quot;,&amp;quot;address&amp;quot;:&amp;quot;US&amp;quot;,&amp;quot;password&amp;quot;:&amp;quot;secret&amp;quot;,&amp;quot;displayName&amp;quot;:&amp;quot;User One&amp;quot;}&lt;/channelTemplate&gt;
-  &lt;mapVariables&gt;
-    &lt;string&gt;var1&lt;/string&gt;
-    &lt;string&gt;var2&lt;/string&gt;
-  &lt;/mapVariables&gt;
-&lt;/com.mirth.connect.connectors.vm.VmDispatcherProperties&gt;</content>
-        </sent>
-        <response>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>1</metaDataId>
-          <contentType>RESPONSE</contentType>
-          <content>&lt;response&gt;
-  &lt;status&gt;SENT&lt;/status&gt;
-  &lt;message&gt;&lt;/message&gt;
-  &lt;statusMessage&gt;Message routed successfully to channel id: none&lt;/statusMessage&gt;
-&lt;/response&gt;</content>
-          <dataType>XML</dataType>
-        </response>
-        <sourceMapContent>
-          <encrypted>false</encrypted>
-          <content class="java.util.Collections$UnmodifiableMap">
-            <m>
-              <entry>
-                <string>destinationSet</string>
-                <linked-hash-set>
-                  <int>1</int>
-                  <int>2</int>
-                </linked-hash-set>
-              </entry>
-            </m>
-          </content>
-        </sourceMapContent>
-        <connectorMapContent>
-          <encrypted>false</encrypted>
-          <content class="map"/>
-        </connectorMapContent>
-        <channelMapContent>
-          <encrypted>false</encrypted>
-          <content class="map"/>
-        </channelMapContent>
-        <responseMapContent>
-          <encrypted>false</encrypted>
-          <content class="map">
-            <entry>
-              <string>d1</string>
-              <response>
-                <status>SENT</status>
-                <message></message>
-                <statusMessage>Message routed successfully to channel id: none</statusMessage>
-              </response>
-            </entry>
-          </content>
-        </responseMapContent>
-        <metaDataMap/>
-        <processingErrorContent>
-          <encrypted>false</encrypted>
-        </processingErrorContent>
-        <postProcessorErrorContent>
-          <encrypted>false</encrypted>
-        </postProcessorErrorContent>
-        <responseErrorContent>
-          <encrypted>false</encrypted>
-        </responseErrorContent>
-        <errorCode>0</errorCode>
-        <sendAttempts>1</sendAttempts>
-        <sendDate>
-          <time>1587966680330</time>
-          <timezone>Europe/Amsterdam</timezone>
-        </sendDate>
-        <responseDate>
-          <time>1587966680330</time>
-          <timezone>Europe/Amsterdam</timezone>
-        </responseDate>
-        <chainId>1</chainId>
-        <orderId>1</orderId>
-      </connectorMessage>
-    </entry>
-    <entry>
-      <int>2</int>
-      <connectorMessage>
-        <messageId>3</messageId>
-        <metaDataId>2</metaDataId>
-        <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-        <channelName>bdbje-test</channelName>
-        <connectorName>Destination 2</connectorName>
-        <serverId>85965adc-b131-4c0d-bd4c-b5d18c234ff9</serverId>
-        <receivedDate>
-          <time>1587966680330</time>
-          <timezone>Europe/Amsterdam</timezone>
-        </receivedDate>
-        <status>SENT</status>
-        <raw>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>2</metaDataId>
-          <contentType>RAW</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>XML</dataType>
-        </raw>
-        <transformed>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>2</metaDataId>
-          <contentType>TRANSFORMED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>JSON</dataType>
-        </transformed>
-        <encoded>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>2</metaDataId>
-          <contentType>ENCODED</contentType>
-          <content>{&quot;username&quot;:&quot;user1&quot;,&quot;address&quot;:&quot;US&quot;,&quot;password&quot;:&quot;secret&quot;,&quot;displayName&quot;:&quot;User One&quot;}</content>
-          <dataType>JSON</dataType>
-        </encoded>
-        <sent>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>2</metaDataId>
-          <contentType>SENT</contentType>
-          <content>&lt;com.mirth.connect.connectors.js.JavaScriptDispatcherProperties version=&quot;3.8.1&quot;&gt;
-  &lt;pluginProperties/&gt;
-  &lt;destinationConnectorProperties version=&quot;3.8.1&quot;&gt;
-    &lt;queueEnabled&gt;false&lt;/queueEnabled&gt;
-    &lt;sendFirst&gt;false&lt;/sendFirst&gt;
-    &lt;retryIntervalMillis&gt;10000&lt;/retryIntervalMillis&gt;
-    &lt;regenerateTemplate&gt;false&lt;/regenerateTemplate&gt;
-    &lt;retryCount&gt;0&lt;/retryCount&gt;
-    &lt;rotate&gt;false&lt;/rotate&gt;
-    &lt;includeFilterTransformer&gt;false&lt;/includeFilterTransformer&gt;
-    &lt;threadCount&gt;1&lt;/threadCount&gt;
-    &lt;threadAssignmentVariable&gt;&lt;/threadAssignmentVariable&gt;
-    &lt;validateResponse&gt;false&lt;/validateResponse&gt;
-    &lt;resourceIds class=&quot;linked-hash-map&quot;&gt;
-      &lt;entry&gt;
-        &lt;string&gt;Default Resource&lt;/string&gt;
-        &lt;string&gt;[Default Resource]&lt;/string&gt;
-      &lt;/entry&gt;
-    &lt;/resourceIds&gt;
-    &lt;queueBufferSize&gt;1000&lt;/queueBufferSize&gt;
-    &lt;reattachAttachments&gt;true&lt;/reattachAttachments&gt;
-  &lt;/destinationConnectorProperties&gt;
-  &lt;script&gt;logger.warn(&amp;quot;received message at d2 &amp;quot; + connectorMessage.getTransformedData());
-//return Status.SENT;&lt;/script&gt;
-&lt;/com.mirth.connect.connectors.js.JavaScriptDispatcherProperties&gt;</content>
-        </sent>
-        <response>
-          <encrypted>false</encrypted>
-          <channelId>47efbe21-ed1c-4d85-a2dd-b8f0eefdc251</channelId>
-          <messageId>3</messageId>
-          <metaDataId>2</metaDataId>
-          <contentType>RESPONSE</contentType>
-          <content>&lt;response&gt;
-  &lt;status&gt;SENT&lt;/status&gt;
-  &lt;message&gt;&lt;/message&gt;
-  &lt;statusMessage&gt;JavaScript evaluation successful.&lt;/statusMessage&gt;
-&lt;/response&gt;</content>
-          <dataType>JSON</dataType>
-        </response>
-        <sourceMapContent>
-          <encrypted>false</encrypted>
-          <content class="java.util.Collections$UnmodifiableMap">
-            <m>
-              <entry>
-                <string>destinationSet</string>
-                <linked-hash-set>
-                  <int>1</int>
-                  <int>2</int>
-                </linked-hash-set>
-              </entry>
-            </m>
-          </content>
-        </sourceMapContent>
-        <connectorMapContent>
-          <encrypted>false</encrypted>
-          <content class="map"/>
-        </connectorMapContent>
-        <channelMapContent>
-          <encrypted>false</encrypted>
-          <content class="map"/>
-        </channelMapContent>
-        <responseMapContent>
-          <encrypted>false</encrypted>
-          <content class="map">
-            <entry>
-              <string>d1</string>
-              <response>
-                <status>SENT</status>
-                <message></message>
-                <statusMessage>Message routed successfully to channel id: none</statusMessage>
-              </response>
-            </entry>
-            <entry>
-              <string>d2</string>
-              <response>
-                <status>SENT</status>
-                <message></message>
-                <statusMessage>JavaScript evaluation successful.</statusMessage>
-              </response>
-            </entry>
-          </content>
-        </responseMapContent>
-        <metaDataMap/>
-        <processingErrorContent>
-          <encrypted>false</encrypted>
-        </processingErrorContent>
-        <postProcessorErrorContent>
-          <encrypted>false</encrypted>
-        </postProcessorErrorContent>
-        <responseErrorContent>
-          <encrypted>false</encrypted>
-        </responseErrorContent>
-        <errorCode>0</errorCode>
-        <sendAttempts>1</sendAttempts>
-        <sendDate>
-          <time>1587966680340</time>
-          <timezone>Europe/Amsterdam</timezone>
-        </sendDate>
-        <responseDate>
-          <time>1587966680343</time>
-          <timezone>Europe/Amsterdam</timezone>
-        </responseDate>
-        <chainId>1</chainId>
-        <orderId>2</orderId>
       </connectorMessage>
     </entry>
   </connectorMessages>
