@@ -9,20 +9,12 @@
 
 package com.mirth.connect.donkey.model.message;
 
-import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.ERROR;
-import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.FILTERED;
-import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.PENDING;
-import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.QUEUED;
-import static com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus.RECEIVED;
-
 import java.io.Serializable;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
-import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
-import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage.CapStatus;
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("connectorMessage")
@@ -506,32 +498,259 @@ public class ConnectorMessage implements Serializable {
         return "message " + messageId + "-" + metaDataId + " (" + status + ")";
     }
 
-    public static CapConnectorMessage.CapStatus toCapnpConnectorMessageStatus(Status status) {
-        CapConnectorMessage.CapStatus cstatus = null;
-        switch (status) {
-        case ERROR:
-            cstatus = ERROR;
-            break;
-        case FILTERED:
-            cstatus = FILTERED;
-            break;
-        case PENDING:
-            cstatus = PENDING;
-            break;
-        case QUEUED:
-            cstatus = QUEUED;
-            break;
-        case RECEIVED:
-            cstatus = RECEIVED;
-            break;
-        case SENT:
-            cstatus = CapStatus.SENT;
-            break;
-        case TRANSFORMED:
-            cstatus = CapStatus.TRANSFORMED;
-            break;
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + chainId;
+        result = prime * result
+                + ((channelId == null) ? 0 : channelId.hashCode());
+        result = prime * result + ((channelMapContent == null) ? 0
+                : channelMapContent.hashCode());
+        result = prime * result
+                + ((channelName == null) ? 0 : channelName.hashCode());
+        result = prime * result + ((connectorMapContent == null) ? 0
+                : connectorMapContent.hashCode());
+        result = prime * result
+                + ((connectorName == null) ? 0 : connectorName.hashCode());
+        result = prime * result + ((encoded == null) ? 0 : encoded.hashCode());
+        result = prime * result + errorCode;
+        result = prime * result + (int) (messageId ^ (messageId >>> 32));
+        result = prime * result + metaDataId;
+        result = prime * result
+                + ((metaDataMap == null) ? 0 : metaDataMap.hashCode());
+        result = prime * result + orderId;
+        result = prime * result + ((postProcessorErrorContent == null) ? 0
+                : postProcessorErrorContent.hashCode());
+        result = prime * result
+                + ((processedRaw == null) ? 0 : processedRaw.hashCode());
+        result = prime * result + ((processedResponse == null) ? 0
+                : processedResponse.hashCode());
+        result = prime * result + ((processingErrorContent == null) ? 0
+                : processingErrorContent.hashCode());
+        result = prime * result + ((raw == null) ? 0 : raw.hashCode());
+        result = prime * result
+                + ((receivedDate == null) ? 0 : receivedDate.hashCode());
+        result = prime * result
+                + ((response == null) ? 0 : response.hashCode());
+        result = prime * result
+                + ((responseDate == null) ? 0 : responseDate.hashCode());
+        result = prime * result + ((responseErrorContent == null) ? 0
+                : responseErrorContent.hashCode());
+        result = prime * result + ((responseMapContent == null) ? 0
+                : responseMapContent.hashCode());
+        result = prime * result + ((responseTransformed == null) ? 0
+                : responseTransformed.hashCode());
+        result = prime * result + sendAttempts;
+        result = prime * result
+                + ((sendDate == null) ? 0 : sendDate.hashCode());
+        result = prime * result + ((sent == null) ? 0 : sent.hashCode());
+        result = prime * result
+                + ((serverId == null) ? 0 : serverId.hashCode());
+        result = prime * result + ((sourceMapContent == null) ? 0
+                : sourceMapContent.hashCode());
+        result = prime * result + ((status == null) ? 0 : status.hashCode());
+        result = prime * result
+                + ((transformed == null) ? 0 : transformed.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
         }
-        
-        return cstatus;
+        if (obj == null) {
+            return false;
+        }
+//        if (getClass() != obj.getClass()) {
+//            return false;
+//        }
+        ConnectorMessage other = (ConnectorMessage) obj;
+        if (chainId != other.chainId) {
+            return false;
+        }
+        if (channelId == null) {
+            if (other.channelId != null) {
+                return false;
+            }
+        } else if (!channelId.equals(other.channelId)) {
+            return false;
+        }
+        if (channelMapContent == null) {
+            if (other.channelMapContent != null) {
+                return false;
+            }
+        } else if (!channelMapContent.equals(other.channelMapContent)) {
+            return false;
+        }
+        if (channelName == null) {
+            if (other.channelName != null) {
+                return false;
+            }
+        } else if (!channelName.equals(other.channelName)) {
+            return false;
+        }
+        if (connectorMapContent == null) {
+            if (other.connectorMapContent != null) {
+                return false;
+            }
+        } else if (!connectorMapContent.equals(other.connectorMapContent)) {
+            return false;
+        }
+        if (connectorName == null) {
+            if (other.connectorName != null) {
+                return false;
+            }
+        } else if (!connectorName.equals(other.connectorName)) {
+            return false;
+        }
+        if (encoded == null) {
+            if (other.encoded != null) {
+                return false;
+            }
+        } else if (!encoded.equals(other.encoded)) {
+            return false;
+        }
+        if (errorCode != other.errorCode) {
+            return false;
+        }
+        if (messageId != other.messageId) {
+            return false;
+        }
+        if (metaDataId != other.metaDataId) {
+            return false;
+        }
+        if (metaDataMap == null) {
+            if (other.metaDataMap != null) {
+                return false;
+            }
+        } else if (!metaDataMap.equals(other.metaDataMap)) {
+            return false;
+        }
+        if (orderId != other.orderId) {
+            return false;
+        }
+        if (postProcessorErrorContent == null) {
+            if (other.postProcessorErrorContent != null) {
+                return false;
+            }
+        } else if (!postProcessorErrorContent
+                .equals(other.postProcessorErrorContent)) {
+            return false;
+        }
+        if (processedRaw == null) {
+            if (other.processedRaw != null) {
+                return false;
+            }
+        } else if (!processedRaw.equals(other.processedRaw)) {
+            return false;
+        }
+        if (processedResponse == null) {
+            if (other.processedResponse != null) {
+                return false;
+            }
+        } else if (!processedResponse.equals(other.processedResponse)) {
+            return false;
+        }
+        if (processingErrorContent == null) {
+            if (other.processingErrorContent != null) {
+                return false;
+            }
+        } else if (!processingErrorContent
+                .equals(other.processingErrorContent)) {
+            return false;
+        }
+        if (raw == null) {
+            if (other.raw != null) {
+                return false;
+            }
+        } else if (!raw.equals(other.raw)) {
+            return false;
+        }
+        if (receivedDate == null) {
+            if (other.receivedDate != null) {
+                return false;
+            }
+        } else if (!receivedDate.equals(other.receivedDate)) {
+            return false;
+        }
+        if (response == null) {
+            if (other.response != null) {
+                return false;
+            }
+        } else if (!response.equals(other.response)) {
+            return false;
+        }
+        if (responseDate == null) {
+            if (other.responseDate != null) {
+                return false;
+            }
+        } else if (!responseDate.equals(other.responseDate)) {
+            return false;
+        }
+        if (responseErrorContent == null) {
+            if (other.responseErrorContent != null) {
+                return false;
+            }
+        } else if (!responseErrorContent.equals(other.responseErrorContent)) {
+            return false;
+        }
+        if (responseMapContent == null) {
+            if (other.responseMapContent != null) {
+                return false;
+            }
+        } else if (!responseMapContent.equals(other.responseMapContent)) {
+            return false;
+        }
+        if (responseTransformed == null) {
+            if (other.responseTransformed != null) {
+                return false;
+            }
+        } else if (!responseTransformed.equals(other.responseTransformed)) {
+            return false;
+        }
+        if (sendAttempts != other.sendAttempts) {
+            return false;
+        }
+        if (sendDate == null) {
+            if (other.sendDate != null) {
+                return false;
+            }
+        } else if (!sendDate.equals(other.sendDate)) {
+            return false;
+        }
+        if (sent == null) {
+            if (other.sent != null) {
+                return false;
+            }
+        } else if (!sent.equals(other.sent)) {
+            return false;
+        }
+        if (serverId == null) {
+            if (other.serverId != null) {
+                return false;
+            }
+        } else if (!serverId.equals(other.serverId)) {
+            return false;
+        }
+        if (sourceMapContent == null) {
+            if (other.sourceMapContent != null) {
+                return false;
+            }
+        } else if (!sourceMapContent.equals(other.sourceMapContent)) {
+            return false;
+        }
+        if (status != other.status) {
+            return false;
+        }
+        if (transformed == null) {
+            if (other.transformed != null) {
+                return false;
+            }
+        } else if (!transformed.equals(other.transformed)) {
+            return false;
+        }
+        return true;
     }
 }

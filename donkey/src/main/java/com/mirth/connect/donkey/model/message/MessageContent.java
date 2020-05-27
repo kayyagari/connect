@@ -77,4 +77,65 @@ public class MessageContent extends Content {
     public void setMetaDataId(Integer metaDataId) {
         this.metaDataId = metaDataId;
     }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result
+                + ((channelId == null) ? 0 : channelId.hashCode());
+        result = prime * result + ((content == null) ? 0 : content.hashCode());
+        result = prime * result
+                + ((contentType == null) ? 0 : contentType.hashCode());
+        result = prime * result
+                + ((dataType == null) ? 0 : dataType.hashCode());
+        result = prime * result + (int) (messageId ^ (messageId >>> 32));
+        result = prime * result + metaDataId;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!super.equals(obj)) {
+            return false;
+        }
+//        if (getClass() != obj.getClass()) {
+//            return false;
+//        }
+        MessageContent other = (MessageContent) obj;
+        if (channelId == null) {
+            if (other.channelId != null) {
+                return false;
+            }
+        } else if (!channelId.equals(other.channelId)) {
+            return false;
+        }
+        if (content == null) {
+            if (other.content != null) {
+                return false;
+            }
+        } else if (!content.equals(other.content)) {
+            return false;
+        }
+        if (contentType != other.contentType) {
+            return false;
+        }
+        if (dataType == null) {
+            if (other.dataType != null) {
+                return false;
+            }
+        } else if (!dataType.equals(other.dataType)) {
+            return false;
+        }
+        if (messageId != other.messageId) {
+            return false;
+        }
+        if (metaDataId != other.metaDataId) {
+            return false;
+        }
+        return true;
+    }
 }

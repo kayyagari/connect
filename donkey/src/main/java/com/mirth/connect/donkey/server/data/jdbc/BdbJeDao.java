@@ -23,7 +23,6 @@ import static com.mirth.connect.donkey.util.SerializerUtil.readMessage;
 import static com.mirth.connect.donkey.util.SerializerUtil.writeMessageToEntry;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -39,20 +38,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
-import org.capnproto.ArrayInputStream;
-import org.capnproto.ArrayOutputStream;
 import org.capnproto.MessageReader;
-import org.capnproto.SerializePacked;
 import org.capnproto.StructList;
 
 import com.mirth.connect.donkey.model.channel.MetaDataColumn;
 import com.mirth.connect.donkey.model.channel.MetaDataColumnType;
-import com.mirth.connect.donkey.model.message.BdbJeConnectorMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
@@ -64,13 +58,11 @@ import com.mirth.connect.donkey.model.message.CapnpModel.CapStatistics;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.model.message.ErrorContent;
-import com.mirth.connect.donkey.model.message.JeMessage;
 import com.mirth.connect.donkey.model.message.MapContent;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
-import com.mirth.connect.donkey.model.message.attachment.BdbJeAttachment;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.Encryptor;
 import com.mirth.connect.donkey.server.channel.Channel;
@@ -199,13 +191,19 @@ public class BdbJeDao implements DonkeyDao {
             if(message.getImportChannelId() != null) {
                 mb.setImportChannelId(message.getImportChannelId());
             }
-            if(message.getImportId() != null) {
+            if(message.getImportId() == null) {
+                mb.setImportId(-1);
+            }
+            else {
                 mb.setImportId(message.getImportId());
             }
             mb.setMessageId(message.getMessageId());
+            long originalId = -1;
             if(message.getOriginalId() != null) {
-                mb.setOriginalId(message.getOriginalId());
+                originalId = message.getOriginalId();
             }
+            mb.setOriginalId(originalId);
+
             mb.setProcessed(message.isProcessed());
             mb.setReceivedDate(message.getReceivedDate().getTimeInMillis());
             mb.setServerId(message.getServerId());
@@ -499,7 +497,7 @@ public class BdbJeDao implements DonkeyDao {
             rmb = objectPool.borrowObject(CapAttachment.class);
             CapAttachment.Builder cab = (CapAttachment.Builder)rmb.getSb();
             cab.setContent(attachment.getContent());
-            cab.setId(attachment.getAttachmentId());
+            cab.setId(attachment.getId());
             cab.setType(attachment.getType());
             cab.setAttachmentSize(attachment.getContent().length);
             cab.setMessageId(messageId);
@@ -557,6 +555,9 @@ public class BdbJeDao implements DonkeyDao {
                 for (MetaDataColumn metaDataColumn : metaDataColumns) {
                     CapMetadataColumn.Builder column = colLstBuilder.get(n);
                     Object value = metaDataMap.get(metaDataColumn.getName());
+                    if(value == null) {
+                        continue;
+                    }
 
                     column.setName(metaDataColumn.getName());
                     // @formatter:off
@@ -951,7 +952,7 @@ public class BdbJeDao implements DonkeyDao {
 
                 if(reset) {
                     mb.setImportChannelId((String)null);
-                    mb.setImportId(0);
+                    mb.setImportId(-1);
                 }
 
                 writeMessageToEntry(rmb.getMb(), bufAlloc.buffer(), data);
@@ -1237,7 +1238,12 @@ public class BdbJeDao implements DonkeyDao {
                     }
                     MessageReader mr = readMessage(data.getData());
                     CapAttachment.Reader at = mr.getRoot(CapAttachment.factory);
-                    BdbJeAttachment mcAt = new BdbJeAttachment(at);
+                    Attachment mcAt = new Attachment();
+                    if(at.hasContent()) {
+                        mcAt.setContent(at.getContent().toArray());
+                    }
+                    mcAt.setId(at.getId().toString());
+                    mcAt.setType(at.getType().toString());
                     attachments.add(mcAt);
                 }
                 while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
@@ -1266,7 +1272,12 @@ public class BdbJeDao implements DonkeyDao {
             if(os == OperationStatus.SUCCESS) {
                 MessageReader mr = readMessage(data.getData());
                 CapAttachment.Reader at = mr.getRoot(CapAttachment.factory);
-                attachment = new BdbJeAttachment(at);
+                attachment = new Attachment();
+                if(at.hasContent()) {
+                    attachment.setContent(at.getContent().toArray());
+                }
+                attachment.setId(at.getId().toString());
+                attachment.setType(at.getType().toString());
             }
             else {
                 attachment = new Attachment();
@@ -1326,7 +1337,7 @@ public class BdbJeDao implements DonkeyDao {
                                 break;
                             }
                             
-                            Message jm = new JeMessage(m);
+                            Message jm = getMessageFromResultSet(channelId, m);
                             messageList.add(jm);
                             tmpMsg = jm;
                             limit--;
@@ -1448,6 +1459,11 @@ public class BdbJeDao implements DonkeyDao {
             conMsgCursor = conMsgDb.openCursor(txn, null);
             DatabaseEntry key = new DatabaseEntry();
             DatabaseEntry data = new DatabaseEntry();
+
+            Database conMsgStatus = dbMap.get("d_mm_status" + cid);
+            DatabaseEntry statusKey = new DatabaseEntry();
+            DatabaseEntry statusData = new DatabaseEntry();
+
             ConnectorMessage sourceConnectorMessage = null;
             for(long mid : messageIds) {
                 key.setData(longToBytes(mid));
@@ -1468,6 +1484,12 @@ public class BdbJeDao implements DonkeyDao {
                         CapConnectorMessage.Reader cm = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                         // Create the connector from the result set without content or metadata map
                         ConnectorMessage connectorMessage = getConnectorMessageFromResultSet(channelId, cm, false, false);
+                        statusKey.setData(key.getData());
+                        conMsgStatus.get(txn, statusKey, statusData, LockMode.READ_COMMITTED);
+                        char statusChar = (char)statusData.getData()[0];
+                        Status s = Status.fromChar(statusChar);
+                        connectorMessage.setStatus(s);
+
                         // Store the reference to the connector in the message
                         message.getConnectorMessages().put(connectorMessage.getMetaDataId(), connectorMessage);
                         
@@ -2282,9 +2304,17 @@ public class BdbJeDao implements DonkeyDao {
 
     private Message getMessageFromResultSet(String channelId, byte[] data) {
         try {
-                        MessageReader mr = readMessage(data);
+            MessageReader mr = readMessage(data);
             CapMessage.Reader msgReader = mr.getRoot(CapMessage.factory);
-
+            return getMessageFromResultSet(channelId, msgReader);
+        }
+        catch (Exception e) {
+            throw new DonkeyDaoException(e);
+        }
+    }
+    
+    private Message getMessageFromResultSet(String channelId, CapMessage.Reader msgReader) {
+        try {
             Message message = new Message();
             message.setMessageId(msgReader.getMessageId());
             Calendar receivedDate = Calendar.getInstance();
@@ -2298,24 +2328,61 @@ public class BdbJeDao implements DonkeyDao {
                 message.setImportChannelId(msgReader.getImportChannelId().toString());
             }
 
-            message.setImportId(msgReader.getImportId());
-            message.setOriginalId(msgReader.getOriginalId());
+            long importId = msgReader.getImportId();
+            if(importId != -1) {
+                message.setImportId(importId);
+            }
+
+            long originalId = msgReader.getOriginalId();
+            if(originalId != -1) {
+                message.setOriginalId(originalId);
+            }
 
             return message;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new DonkeyDaoException(e);
         }
     }
 
     private ConnectorMessage getConnectorMessageFromResultSet(String channelId, CapConnectorMessage.Reader cm, boolean includeContent, boolean includeMetaDataMap) {
         try {
-            BdbJeConnectorMessage connectorMessage = new BdbJeConnectorMessage(cm);
-
+            ConnectorMessage connectorMessage = new ConnectorMessage();
             connectorMessage.setChannelName(getDeployedChannelName(channelId));
             connectorMessage.setChannelId(channelId);
 
-            int metaDataId = connectorMessage.getMetaDataId();
-            long messageId = connectorMessage.getMessageId();
+            int metaDataId = cm.getId();
+            long messageId = cm.getMessageId();
+            Calendar receivedDate = Calendar.getInstance();
+            receivedDate.setTimeInMillis(cm.getReceivedDate());
+
+            Calendar sendDate = null;
+            if (cm.getSendDate() != 0) {
+                sendDate = Calendar.getInstance();
+                sendDate.setTimeInMillis(cm.getSendDate());
+            }
+
+            Calendar responseDate = null;
+            if (cm.getResponseDate() != 0) {
+                responseDate = Calendar.getInstance();
+                responseDate.setTimeInMillis(cm.getResponseDate());
+            }
+
+            connectorMessage.setChannelName(getDeployedChannelName(channelId));
+            connectorMessage.setMessageId(messageId);
+            connectorMessage.setMetaDataId(metaDataId);
+            connectorMessage.setChannelId(channelId);
+            connectorMessage.setServerId(cm.getServerId().toString());
+            connectorMessage.setConnectorName(cm.getConnectorName().toString());
+            connectorMessage.setReceivedDate(receivedDate);
+            //status is set in the caller connectorMessage.setStatus()
+            connectorMessage.setSendAttempts(cm.getSendAttempts());
+            connectorMessage.setSendDate(sendDate);
+            connectorMessage.setResponseDate(responseDate);
+            connectorMessage.setErrorCode(cm.getErrorCode());
+            connectorMessage.setChainId(cm.getChainId());
+            connectorMessage.setOrderId(cm.getOrderId());
+            
             if (includeContent) {
                 if (metaDataId > 0) {
                     // For destination connectors, retrieve and load any content that is stored on the source connector

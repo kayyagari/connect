@@ -167,4 +167,111 @@ public class Message implements Serializable {
     public String toString() {
         return "message " + messageId;
     }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result
+                + ((attachments == null) ? 0 : attachments.hashCode());
+        result = prime * result
+                + ((channelId == null) ? 0 : channelId.hashCode());
+        result = prime * result + ((connectorMessages == null) ? 0
+                : connectorMessages.hashCode());
+        result = prime * result
+                + ((importChannelId == null) ? 0 : importChannelId.hashCode());
+        result = prime * result
+                + ((importId == null) ? 0 : importId.hashCode());
+        result = prime * result
+                + ((messageId == null) ? 0 : messageId.hashCode());
+        result = prime * result
+                + ((originalId == null) ? 0 : originalId.hashCode());
+        result = prime * result + (processed ? 1231 : 1237);
+        result = prime * result
+                + ((receivedDate == null) ? 0 : receivedDate.hashCode());
+        result = prime * result
+                + ((serverId == null) ? 0 : serverId.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+//        if (getClass() != obj.getClass()) {
+//            return false;
+//        }
+        Message other = (Message) obj;
+        if (attachments == null) {
+            if (other.attachments != null) {
+                return false;
+            }
+        } else if (!attachments.equals(other.attachments)) {
+            return false;
+        }
+        if (channelId == null) {
+            if (other.channelId != null) {
+                return false;
+            }
+        } else if (!channelId.equals(other.channelId)) {
+            return false;
+        }
+        if (connectorMessages == null) {
+            if (other.connectorMessages != null) {
+                return false;
+            }
+        } else if (!connectorMessages.equals(other.connectorMessages)) {
+            return false;
+        }
+        if (importChannelId == null) {
+            if (other.importChannelId != null) {
+                return false;
+            }
+        } else if (!importChannelId.equals(other.importChannelId)) {
+            return false;
+        }
+        if (importId == null) {
+            if (other.importId != null) {
+                return false;
+            }
+        } else if (!importId.equals(other.importId)) {
+            return false;
+        }
+        if (messageId == null) {
+            if (other.messageId != null) {
+                return false;
+            }
+        } else if (!messageId.equals(other.messageId)) {
+            return false;
+        }
+        if (originalId == null) {
+            if (other.originalId != null) {
+                return false;
+            }
+        } else if (!originalId.equals(other.originalId)) {
+            return false;
+        }
+        if (processed != other.processed) {
+            return false;
+        }
+        if (receivedDate == null) {
+            if (other.receivedDate != null) {
+                return false;
+            }
+        } else if (!receivedDate.equals(other.receivedDate)) {
+            return false;
+        }
+        if (serverId == null) {
+            if (other.serverId != null) {
+                return false;
+            }
+        } else if (!serverId.equals(other.serverId)) {
+            return false;
+        }
+        return true;
+    }
 }

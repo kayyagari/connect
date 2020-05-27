@@ -99,33 +99,4 @@ public class BdbJeConnectorMessage extends ConnectorMessage {
         }
         return orderId;
     }
-    
-    public static Status toConnectorMessageStatus(CapConnectorMessage.CapStatus cstatus) {
-        Status s = null;
-        switch (cstatus) {
-        case ERROR:
-            s = Status.ERROR;
-            break;
-        case FILTERED:
-            s = Status.FILTERED;
-            break;
-        case PENDING:
-            s = Status.PENDING;
-            break;
-        case QUEUED:
-            s = Status.QUEUED;
-            break;
-        case RECEIVED:
-            s = Status.RECEIVED;
-            break;
-        case SENT:
-            s = Status.SENT;
-            break;
-        case TRANSFORMED:
-            s = Status.TRANSFORMED;
-            break;
-        }
-        
-        return s;
-    }
 }

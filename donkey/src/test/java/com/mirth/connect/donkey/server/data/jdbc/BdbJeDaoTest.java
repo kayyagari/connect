@@ -1,6 +1,7 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.InputStream;
@@ -9,23 +10,23 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.mirth.connect.donkey.model.channel.MetaDataColumn;
+import com.mirth.connect.donkey.model.channel.MetaDataColumnType;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConfiguration;
 import com.mirth.connect.donkey.server.StartException;
+import com.mirth.connect.donkey.server.channel.Channel;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.test.util.TestUtils;
@@ -37,11 +38,23 @@ public class BdbJeDaoTest {
 
     private static final String serverId = "85965adc-b131-4c0d-bd4c-b5d18c234ff9";
     private static final String channelId = "47efbe21-ed1c-4d85-a2dd-b8f0eefdc251";
+    private static final String channelName = "bdbje-test";
     private static final long localChannelId = 1;
 
     private static final Map<Long, Message> injectedMessages = new HashMap<>();
+    private static final List<MetaDataColumn> metaDataColumns = new ArrayList<>();
 
     private DonkeyDao dao;
+
+    static {
+        metaDataColumns.add(new MetaDataColumn("DRAW_TIME", MetaDataColumnType.TIMESTAMP, "DRAW_TIME"));
+        metaDataColumns.add(new MetaDataColumn("HASEDGES", MetaDataColumnType.BOOLEAN, "HASEDGES"));
+        metaDataColumns.add(new MetaDataColumn("MESSAGE_ID", MetaDataColumnType.NUMBER, "MESSAGE_ID"));
+        metaDataColumns.add(new MetaDataColumn("SOURCE", MetaDataColumnType.STRING, "SOURCE"));
+        metaDataColumns.add(new MetaDataColumn("METADATA_ID", MetaDataColumnType.NUMBER, "METADATA_ID"));
+        metaDataColumns.add(new MetaDataColumn("HEIGHT", MetaDataColumnType.NUMBER, "HEIGHT"));
+        metaDataColumns.add(new MetaDataColumn("TYPE", MetaDataColumnType.STRING, "TYPE"));
+    }
 
     @BeforeClass
     final public static void beforeClass() throws Exception {
@@ -52,6 +65,12 @@ public class BdbJeDaoTest {
 //        DonkeyConnectionPools.getInstance().init(dconf.getDonkeyProperties());
         jeDonkey.startEngine(dconf);
         
+        Channel channel = new Channel();
+        channel.setChannelId(channelId);
+        channel.setName(channelName);
+        channel.setLocalChannelId(localChannelId);
+        jeDonkey.getDeployedChannels().put(channelId, channel);
+
         List<String> dbNames = jeDonkey.getBdbJeEnv().getDatabaseNames();
         assertTrue(dbNames.contains(BdbJeDao.TABLE_D_CHANNELS));
         assertTrue(dbNames.contains(BdbJeDao.TABLE_D_MESSAGE_SEQ));
@@ -81,7 +100,7 @@ public class BdbJeDaoTest {
 
     private static void injectMessages() throws Exception {
         Serializer s = Donkey.getInstance().getSerializer();
-        for(int i = 1; i <= 7; i++ ) {
+        for(int i = 1; i <= 3; i++ ) {
             InputStream in = BdbJeDaoTest.class.getResourceAsStream("sample-messages/message_" + i + ".xml");
             StringWriter sw = new StringWriter();
             IOUtils.copy(in, sw);
@@ -102,6 +121,7 @@ public class BdbJeDaoTest {
             }
             for(ConnectorMessage cm : m.getConnectorMessages().values()) {
                 dao.insertConnectorMessage(cm, true, true);
+                dao.insertMetaData(cm, metaDataColumns);
             }
             
             dao.commit();
@@ -124,10 +144,16 @@ public class BdbJeDaoTest {
     public void testMessageInsert() {
         List<Message> lst = dao.getMessages(channelId, new ArrayList<Long>(injectedMessages.keySet()));
         assertEquals(injectedMessages.size(), lst.size());
-        for(Message m : lst) {
-            Message clone = injectedMessages.get(m.getMessageId());
-            assertNotNull(clone);
-            EqualsBuilder.reflectionEquals(clone, m, false);
+        for(Message clone : lst) {
+            Message original = injectedMessages.get(clone.getMessageId());
+            assertNotNull(original);
+            if(original.getAttachments() != null) {
+                List<Attachment> attachments = dao.getMessageAttachment(channelId, original.getMessageId());
+                clone.setAttachments(attachments);
+            }
+            boolean result = original.equals(clone);
+            System.out.println("compared message " + clone.getMessageId() + " " + result);
+            assertTrue(result);
         }
     }
 }
