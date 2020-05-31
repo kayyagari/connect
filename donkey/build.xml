@@ -104,4 +104,21 @@
 		<delete dir="${classes}" />
 		<delete dir="${test_classes}" />
 	</target>
+
+    <target name="test-dao-perf" depends="build, test-compile">
+    	<junit haltonfailure="false" fork="false" forkmode="once" printsummary="no" showoutput="true">
+    		<sysproperty key="db" value="${db}"/>
+    		<sysproperty key="ic" value="${ic}"/>
+            <jvmarg value="-Xms1024m" />
+            <jvmarg value="-Xmx1024m" />
+            <classpath>
+                <path refid="testclasspath" />
+                <dirset dir="${test_classes}"/>
+            	<path location="${basedir}/conf"/>
+            	<path location="${basedir}/donkeydbconf"/>
+            	<path location="${test}/com/mirth/connect/donkey/server/data/jdbc"/>
+            </classpath>
+    		<test name="com.mirth.connect.donkey.server.data.jdbc.DaoPerformanceTest"/>
+    	</junit>
+    </target>
 </project>
