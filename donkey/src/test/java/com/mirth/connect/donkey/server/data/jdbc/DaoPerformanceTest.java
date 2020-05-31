@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
@@ -25,9 +26,10 @@ import com.mirth.connect.donkey.server.channel.Channel;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.test.util.TestUtils;
+import com.mirth.connect.donkey.util.ResourceUtil;
 import com.mirth.connect.donkey.util.Serializer;
 
-public class DaoPerformanceTestBase {
+public class DaoPerformanceTest {
     protected static DonkeyDaoFactory factory;
     
     private static final String serverId = UUID.randomUUID().toString();
@@ -36,15 +38,28 @@ public class DaoPerformanceTestBase {
     private static final String channelName = "bdbje-test";
 
     private static Message realMessage;
+    
+    private static String dbEngineName = "JE";
 
     @BeforeClass
     final public static void beforeClass() throws Exception {
         Donkey jeDonkey = Donkey.getInstance();
-        DonkeyConfiguration dconf = TestUtils.getDonkeyTestConfigurationForJE(true);
+        DonkeyConfiguration dconf = null;
+        if("pg".equalsIgnoreCase(System.getProperty("db"))) {
+            System.out.println("using PostgreSQL database engine");
+            dbEngineName = "PG";
+            dconf = TestUtils.getDonkeyTestConfiguration();
+            DonkeyConnectionPools.getInstance().init(dconf.getDonkeyProperties());
+        }
+        else {
+            System.out.println("using BDB JE database engine");
+            dconf = TestUtils.getDonkeyTestConfigurationForJE(true);
+        }
+
         dconf.setServerId(serverId);
-//        dconf = TestUtils.getDonkeyTestConfiguration();
-//        DonkeyConnectionPools.getInstance().init(dconf.getDonkeyProperties());
+        System.out.println("instantiated Donkey");
         jeDonkey.startEngine(dconf);
+        System.out.println("started Donkey");
         
         Channel channel = new Channel();
         channel.setChannelId(channelId);
@@ -58,25 +73,35 @@ public class DaoPerformanceTestBase {
         dao.commit();        
 
         Serializer s = Donkey.getInstance().getSerializer();
-        InputStream in = BdbJeDaoTest.class.getResourceAsStream("sample-messages/message_1.xml");
+        InputStream in = ResourceUtil.getResourceStream(BdbJeDaoTest.class, "sample-messages/message_1.xml");
         StringWriter sw = new StringWriter();
         IOUtils.copy(in, sw);
         realMessage = s.deserialize(sw.toString(), Message.class);
+        System.out.println("read message file message_1.xml");
     }
 
     @Test
     public void testInsertMessagePerf() {
+        System.out.println("running testInsertMessagePerf");
+        String icParam = System.getProperty("ic", "10000");
+        int insertCount = 10000;
+        try {
+            insertCount = Integer.parseInt(icParam);
+        }
+        catch(NumberFormatException e) {
+            // ignore, ant sends ${ic} when property is not set on command line
+        }
         DonkeyDao dao = factory.getDao();
         long start = System.currentTimeMillis();
-        int count = 100000;
-        for(int i = 0; i < count; i++) {
+        for(int i = 0; i < insertCount; i++) {
             //_insertMessage(dao);
             _insertRealMessage(dao);
         }
         dao.commit();
         long end = System.currentTimeMillis();
         
-        System.out.println("time taken to insert " + count + " entries " + (end - start) + "msec");
+        String msg = String.format("[%s] time taken to insert %d entries %dmsec", dbEngineName, insertCount, (end - start));
+        System.out.println(msg);
         testReadMessagePerf();
     }
 
@@ -94,9 +119,11 @@ public class DaoPerformanceTestBase {
         assertEquals(count, lst.size());
         long end = System.currentTimeMillis();
         
-        System.out.println("time taken to read " + count + " entries " + (end - start) + "msec");
+        String msg = String.format("[%s] time taken to read %d entries %dmsec", dbEngineName, count, (end - start));
+        System.out.println(msg);
     }
 
+    @Ignore
     @Test
     public void testInsertMessageContentPerf() {
         DonkeyDao dao = factory.getDao();
