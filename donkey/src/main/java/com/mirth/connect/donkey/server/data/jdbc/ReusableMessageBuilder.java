@@ -32,4 +32,8 @@ public class ReusableMessageBuilder {
     public MessageBuilder getMb() {
         return mb;
     }
+    
+    public int getInitBufSize() {
+        return backingBuf.capacity();
+    }
 }

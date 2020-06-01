@@ -13,6 +13,7 @@ import org.capnproto.MessageReader;
 import org.capnproto.ReaderOptions;
 import org.capnproto.SerializePacked;
 
+import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.sleepycat.je.DatabaseEntry;
 
 import io.netty.buffer.ByteBuf;
@@ -87,19 +88,19 @@ public class SerializerUtil {
         buf[offset+3] = (byte)(n >> 24);
     }
     
-    public static void writeMessageToEntry(MessageBuilder mb, DatabaseEntry data) throws IOException {
-        ByteBuffer buf = ByteBuffer.allocate(10 * 1024);
+    public static void writeMessageToEntry(ReusableMessageBuilder rmb, DatabaseEntry data) throws IOException {
+        ByteBuffer buf = ByteBuffer.allocate(rmb.getInitBufSize());
         ArrayOutputStream output = new ArrayOutputStream(buf);
-        SerializePacked.write(output, mb);
+        SerializePacked.write(output, rmb.getMb());
         buf = output.getWriteBuffer();
         buf.flip();
         data.setData(buf.array(), 0, buf.remaining());
     }
 
-    public static void writeMessageToEntry(MessageBuilder mb, ByteBuf buf, DatabaseEntry data) throws IOException {
+    public static void writeMessageToEntry(ReusableMessageBuilder rmb, ByteBuf buf, DatabaseEntry data) throws IOException {
         //writeMessage(mb, buf);
         //data.setData(buf.array(), buf.readerIndex(), buf.readableBytes());
-        writeMessageToEntry(mb, data);
+        writeMessageToEntry(rmb, data);
     }
 
     public static void writeMessage(MessageBuilder mb, ByteBuf buf) throws IOException {
