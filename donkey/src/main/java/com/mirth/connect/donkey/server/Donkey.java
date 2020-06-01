@@ -257,7 +257,7 @@ public class Donkey {
         EnvironmentConfig ec = new EnvironmentConfig();
         ec.setAllowCreate(true);
         ec.setTransactional(true);
-        ec.setDurability(Durability.COMMIT_NO_SYNC);
+        ec.setDurability(Durability.COMMIT_WRITE_NO_SYNC);
         //ec.setCachePercent(70);
         bdbJeEnv = new Environment(envDir, ec);
         dbMap = new ConcurrentHashMap<>();
