@@ -61,8 +61,6 @@ public class BdbJeDaoTest {
         Donkey jeDonkey = Donkey.getInstance();
         DonkeyConfiguration dconf = TestUtils.getDonkeyTestConfigurationForJE(true);
         dconf.setServerId(serverId);
-//        dconf = TestUtils.getDonkeyTestConfiguration();
-//        DonkeyConnectionPools.getInstance().init(dconf.getDonkeyProperties());
         jeDonkey.startEngine(dconf);
         
         Channel channel = new Channel();
