@@ -70,10 +70,15 @@ public class DaoPerformanceTest {
         factory = jeDonkey.getDaoFactory();
         DonkeyDao dao = factory.getDao();
         dao.createChannel(channelId, localChannelId);
-        dao.commit();        
+        dao.commit();
 
         Serializer s = Donkey.getInstance().getSerializer();
-        InputStream in = ResourceUtil.getResourceStream(BdbJeDaoTest.class, "sample-messages/message_1.xml");
+        String resName = "sample-messages/message_1.xml";
+        
+        InputStream in = BdbJeDaoTest.class.getResourceAsStream(resName);
+        if(in == null) {
+            in = ResourceUtil.getResourceStream(BdbJeDaoTest.class, resName);
+        }
         StringWriter sw = new StringWriter();
         IOUtils.copy(in, sw);
         realMessage = s.deserialize(sw.toString(), Message.class);
@@ -163,9 +168,9 @@ public class DaoPerformanceTest {
     private void _insertRealMessage(DonkeyDao dao) {
         realMessage.setChannelId(channelId);
         realMessage.setMessageId(dao.getNextMessageId(channelId));
-        Calendar now = Calendar.getInstance();
-        now.setTimeInMillis(System.currentTimeMillis());
-        realMessage.setReceivedDate(now);
+//        Calendar now = Calendar.getInstance();
+//        now.setTimeInMillis(System.currentTimeMillis());
+//        realMessage.setReceivedDate(now);
         realMessage.setServerId(serverId);
         dao.insertMessage(realMessage);
         long mid = realMessage.getMessageId();
