@@ -9,7 +9,10 @@
 
 package com.mirth.connect.donkey.server;
 
+import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
+
 import java.io.File;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -42,10 +45,14 @@ import com.mirth.connect.donkey.util.Serializer;
 import com.mirth.connect.donkey.util.SerializerProvider;
 import com.mirth.connect.donkey.util.xstream.XStreamSerializer;
 import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Durability;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
 import com.sleepycat.je.Sequence;
+import com.sleepycat.je.SequenceConfig;
+import com.sleepycat.je.Transaction;
 
 import io.netty.buffer.PooledByteBufAllocator;
 
@@ -80,11 +87,14 @@ public class Donkey {
 
     private Environment bdbJeEnv;
     private Map<String, Database> dbMap;
-    private Map<Long, Sequence> seqMap;
+    private Map<Long, Sequence> channelSeqMap;
+    private Map<String, Sequence> serverSeqMap;
     private PooledByteBufAllocator bufAlloc;
     private GenericKeyedObjectPool<Class, ReusableMessageBuilder> objectPool;
+    private GenericKeyedObjectPool<Class, ReusableMessageBuilder> serverObjectPool;
     
     private static final String DB_BDB_JE = "bdbje";
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
 
     public void startEngine(DonkeyConfiguration donkeyConfiguration) throws StartException {
         this.donkeyConfiguration = donkeyConfiguration;
@@ -199,6 +209,21 @@ public class Donkey {
             statisticsUpdater.shutdown();
         }
 
+        if(bdbJeEnv != null) {
+            for(Sequence s : serverSeqMap.values()) {
+                s.close();
+            }
+            for(Sequence s : channelSeqMap.values()) {
+                s.close();
+            }
+            
+            for(Database db : dbMap.values()) {
+                db.close();
+            }
+            
+            bdbJeEnv.close();
+        }
+
         running = false;
     }
 
@@ -261,9 +286,12 @@ public class Donkey {
         //ec.setCachePercent(70);
         bdbJeEnv = new Environment(envDir, ec);
         dbMap = new ConcurrentHashMap<>();
-        seqMap = new ConcurrentHashMap<>();
+        channelSeqMap = new ConcurrentHashMap<>();
+        serverSeqMap = new ConcurrentHashMap<>();
         bufAlloc = new PooledByteBufAllocator();
         objectPool = new GenericKeyedObjectPool<Class, ReusableMessageBuilder>(new CapnpStructBuilderFactory());
+        serverObjectPool = new GenericKeyedObjectPool<Class, ReusableMessageBuilder>(new CapnpStructBuilderFactory());
+        createServerControllerDatabases();
     }
 
     public Environment getBdbJeEnv() {
@@ -275,7 +303,11 @@ public class Donkey {
     }
 
     public Map<Long, Sequence> getSeqMap() {
-        return seqMap;
+        return channelSeqMap;
+    }
+
+    public Map<String, Sequence> getServerSeqMap() {
+        return serverSeqMap;
     }
 
     public PooledByteBufAllocator getBufAlloc() {
@@ -284,5 +316,37 @@ public class Donkey {
 
     public GenericKeyedObjectPool<Class, ReusableMessageBuilder> getObjectPool() {
         return objectPool;
+    }
+
+    public GenericKeyedObjectPool<Class, ReusableMessageBuilder> getServerObjectPool() {
+        return serverObjectPool;
+    }
+    
+    private void createServerControllerDatabases() {
+        Transaction txn = bdbJeEnv.beginTransaction(null, null);
+        DatabaseConfig dc = new DatabaseConfig();
+        // the below two config options are same for all Databases
+        // and MUST be set or overwritten
+        dc.setTransactional(true);
+        dc.setAllowCreate(true);
+        
+        String[] tableNames = {"person", "code_template_library", "channel_group", 
+                "code_template", "channel", "configuration", "script", "alert", "server_seq"};
+        for(String name : tableNames) {
+            Database db = bdbJeEnv.openDatabase(txn, name, dc);
+            dbMap.put(name, db);
+        }
+        
+        String personSeqKey = "person";
+        DatabaseEntry key = new DatabaseEntry(personSeqKey.getBytes(UTF_8));
+        SequenceConfig seqConfig = new SequenceConfig();
+        seqConfig.setAllowCreate(true);
+        seqConfig.setInitialValue(1);
+        seqConfig.setCacheSize(50);
+
+        Sequence seq = dbMap.get("server_seq").openSequence(txn, key, seqConfig);
+        serverSeqMap.put(personSeqKey, seq);
+        
+        txn.commit();
     }
 }

@@ -2,11 +2,14 @@ package com.mirth.connect.donkey.server.data.jdbc;
 
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.collections.MapUtils;
@@ -45,6 +48,28 @@ public class SerializerUtilTest {
     
     @After
     public void returnObj() {
+    }
+
+    @Test
+    public void testMapUtil() throws Exception {
+        MapContent mc = new MapContent();
+        for(int i=0; i<10000; i++) {
+            mc.getMap().put(String.valueOf(i), UUID.randomUUID().toString());
+        }
+
+        long start = System.currentTimeMillis();
+        MapUtil.serializeMap(serializer, mc.getMap());
+        long end = System.currentTimeMillis();
+        
+        String msg = String.format("time taken to serialize map using XStream %dmsec", (end - start));
+        System.out.println(msg);
+        
+        start = System.currentTimeMillis();
+        ObjectOutputStream out = new ObjectOutputStream(new ByteArrayOutputStream());
+        out.writeObject(mc.getMap());
+        end = System.currentTimeMillis();
+        msg = String.format("time taken to serialize map using Java %dmsec", (end - start));
+        System.out.println(msg);
     }
 
     @Test

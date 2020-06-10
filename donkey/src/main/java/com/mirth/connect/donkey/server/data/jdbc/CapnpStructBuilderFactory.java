@@ -13,6 +13,7 @@ import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadata;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadataColumn;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapPerson;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapStatistics;
 
 @SuppressWarnings("rawtypes")
@@ -25,6 +26,8 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
     public static final int CapMetadata_Size = 1024;
     public static final int CapMetadataColumn_Size = 256;
     public static final int CapStatistics_Size = 256;
+
+    public static final int CapPerson_Size = 2 * 1024;
 
     @Override
     public void activateObject(Class key, PooledObject<ReusableMessageBuilder> po)
@@ -61,12 +64,6 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
             buf = ByteBuffer.allocate(CapConnectorMessage_Size);
             factory = CapConnectorMessage.factory;
         }
-//        else if(key == CapMapContent.class) {
-//            sb = mb.initRoot(CapMapContent.factory);
-//        }
-//        else if(key == CapErrorContent.class) {
-//            sb = mb.initRoot(CapErrorContent.factory);
-//        }
         else if(key == CapMetadata.class) {
             buf = ByteBuffer.allocate(CapMetadata_Size);
             factory = CapMetadata.factory;
@@ -78,6 +75,10 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
         else if(key == CapStatistics.class) {
             buf = ByteBuffer.allocate(CapStatistics_Size);
             factory = CapStatistics.factory;
+        }
+        else if(key == CapPerson.class) {
+            buf = ByteBuffer.allocate(CapPerson_Size);
+            factory = CapPerson.factory;
         }
         else {
             throw new IllegalArgumentException("unknown message class " + key.getName());
