@@ -111,3 +111,69 @@ struct CapStatistics {
      error @8 :Int64;
      errorLifetime @9 :Int64;
 }
+
+# these are the structures for supporting the models present in Server module
+struct CapPerson {
+    id               @0 :Int32;
+    username         @1 :Text;
+    firstname        @2 :Text;
+    lastname         @3 :Text;
+    organization     @4 :Text;
+    industry         @5 :Text;
+    email            @6 :Text;
+    phonenumber      @7 :Text;
+    description      @8 :Text;
+    lastLogin        @9 :Int64;
+    gracePeriodStart @10 :Int64;
+    strikeCount      @11 :Int32;
+    lastStrikeTime   @12 :Int64;
+    loggedIn         @13 :Int32;
+    preferences      @14 :Map;
+    password         @15 :Text;
+    passwordDate     @16 :Int64;
+}
+
+struct CapCodeTemplateLibrary {
+    id       @0 :Text;
+    name     @1 :Text;
+    revision @2 :Int32;
+    library  @3 :Text;
+}
+
+struct CapChannelGroup {
+    id            @0 :Text;
+    name          @1 :Text;
+    revision      @2 :Int32;
+    channelGroup  @3 :Text;
+}
+
+struct CapCodeTemplate {
+    id            @0 :Text;
+    name          @1 :Text;
+    revision      @2 :Int32;
+    codeTemplate  @3 :Text;
+}
+
+struct CapChannel {
+    id        @0 :Text;
+    name      @1 :Text;
+    revision  @2 :Int32;
+    channel   @3 :Text;
+}
+
+struct CapConfiguration {
+    category  @0 :Text;
+    values    @1 :Map;
+}
+
+struct CapScript {
+    groupId  @0 :Text;
+    id       @1 :Text;
+    script   @2 :Text;
+}
+
+struct CapAlert {
+    id     @0 :Text;
+    name   @1 :Text;
+    alert  @2 :Text;
+}
