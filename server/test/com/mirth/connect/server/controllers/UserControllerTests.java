@@ -24,13 +24,13 @@ import com.mirth.connect.model.User;
 import com.mirth.connect.server.tools.ScriptRunner;
 
 public class UserControllerTests extends TestCase {
-    private UserController userController = ControllerFactory.getFactory().createUserController();
+    protected UserController userController;
     private List<User> sampleUserList;
 
     protected void setUp() throws Exception {
         super.setUp();
-        // clear all database tables
-        ScriptRunner.runScript(new File("conf/" + ControllerTestSuite.database + "/" + ControllerTestSuite.database + "-database.sql"));
+        setupDb();
+        setupController();
         sampleUserList = new ArrayList<User>();
 
         for (int i = 0; i < 10; i++) {
@@ -41,6 +41,15 @@ public class UserControllerTests extends TestCase {
             sampleUser.setEmail("user" + i + "@email.com");
             sampleUserList.add(sampleUser);
         }
+    }
+
+    protected void setupController() throws Exception {
+        userController = ControllerFactory.getFactory().createUserController();        
+    }
+
+    protected void setupDb() throws Exception {
+        // clear all database tables
+        ScriptRunner.runScript(new File("conf/" + ControllerTestSuite.database + "/" + ControllerTestSuite.database + "-database.sql"));
     }
 
     protected void tearDown() throws Exception {
