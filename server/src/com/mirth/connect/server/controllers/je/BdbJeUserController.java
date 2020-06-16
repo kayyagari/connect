@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
@@ -28,8 +29,9 @@ import org.joda.time.format.PeriodFormatterBuilder;
 
 import com.mirth.commons.encryption.Digester;
 import com.mirth.connect.client.core.ControllerException;
+import com.mirth.connect.donkey.model.message.CapnpModel;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapPerson;
-import com.mirth.connect.donkey.model.message.CapnpModel.Map;
+import com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.mirth.connect.model.Credentials;
@@ -647,20 +649,15 @@ public class BdbJeUserController extends UserController {
         Function<CapPerson.Reader, String> f = new Function<CapPerson.Reader, String>() {
             @Override
             public String apply(CapPerson.Reader pr) {
-                if(pr == null) {
+                if(pr == null || !pr.hasPreferences()) {
                     return null;
                 }
                 
-                com.mirth.connect.donkey.model.message.CapnpModel.Map.Reader r = pr.getPreferences();
-                if(!r.hasEntries()) {
-                    return null;
-                }
-                
-                StructList.Reader<com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader> lstReader = r.getEntries(CapPerson.listFactory);
-                Iterator<com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader> iter = lstReader.iterator();
+                StructList.Reader<CapnpModel.PreferenceEntry.Reader> r = pr.getPreferences();
+                Iterator<CapnpModel.PreferenceEntry.Reader> iter = r.iterator();
                 String val = null;
                 while(iter.hasNext()) {
-                    com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader entryReader = iter.next();
+                    CapnpModel.PreferenceEntry.Reader entryReader = iter.next();
                     if(name.equals(entryReader.getKey().toString())) {
                         Object tmp = entryReader.getValue();
                         if(tmp != null) {
@@ -682,63 +679,76 @@ public class BdbJeUserController extends UserController {
             @Override
             public Properties apply(CapPerson.Reader pr) {
                 Properties props = new Properties();
-                if(pr != null) {
-                    com.mirth.connect.donkey.model.message.CapnpModel.Map.Reader r = pr.getPreferences();
-                    if(r.hasEntries()) {
-                        StructList.Reader<com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader> lstReader = r.getEntries(CapPerson.listFactory);
-                        Iterator<com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader> iter = lstReader.iterator();
-                        while(iter.hasNext()) {
-                            com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader entryReader = iter.next();
-                            String key = entryReader.getKey().toString();
-                            if(names.contains(key)) {
-                                props.put(key, entryReader.getValue());
-                            }
-                        }
+
+                if(pr != null && pr.hasPreferences()) {
+                    StructList.Reader<CapnpModel.PreferenceEntry.Reader> r = pr.getPreferences();
+                    Iterator<CapnpModel.PreferenceEntry.Reader> iter = r.iterator();
+                    while(iter.hasNext()) {
+                        CapnpModel.PreferenceEntry.Reader entryReader = iter.next();
+                        String val = entryReader.getValue().toString();
+                        String key = entryReader.getKey().toString();
+                        props.put(key, val);
                     }
                 }
+
                 return props;
             }
         };
-        
+
         return execReadFunction(userId, f);
     }
 
     @Override
     public void setUserPreference(Integer userId, String name, String value) throws ControllerException {
-        /*
         Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
             @Override
             public Void apply(CapPerson.Builder pb) {
                 Properties props = new Properties();
-                Map.Builder mapBuilder = null;
-                if(pb != null) {
-                    com.mirth.connect.donkey.model.message.CapnpModel.Map.Reader r = pb.getPreferences();
-                    if(r.hasEntries()) {
-                        StructList.Reader<com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader> lstReader = r.getEntries(CapPerson.listFactory);
-                        Iterator<com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader> iter = lstReader.iterator();
-                        while(iter.hasNext()) {
-                            com.mirth.connect.donkey.model.message.CapnpModel.Map.Entry.Reader entryReader = iter.next();
-                            String key = entryReader.getKey().toString();
-                            if(names.contains(key)) {
-                                props.put(key, entryReader.getValue());
-                            }
-                        }
+                StructList.Builder<PreferenceEntry.Builder> lstBuilder = null;
+                int nextIndex = -1;
+                if(pb.hasPreferences()) {
+                    lstBuilder = pb.getPreferences();
+                    for(int i=0; i<lstBuilder.size(); i++) {
+                        PreferenceEntry.Builder b = lstBuilder.get(i);
+                        props.put(b.getKey().toString(), b.getValue().toString());
                     }
-                    else {
-                        mapBuilder = pb.initPreferences();
-                        mapBuilder.setEntries(factory, value);
-                    }
+                    nextIndex = props.size() - 1;
                 }
-                return props;
+                else {
+                    lstBuilder = pb.initPreferences(1);
+                    nextIndex = 0;
+                }
+
+                PreferenceEntry.Builder b = lstBuilder.get(nextIndex);
+                b.setKey(name);
+                b.setValue(value);
+                return null;
             }
         };
         
         execWriteFunction(userId, f);
-        */
     }
 
     @Override
     public void setUserPreferences(Integer userId, Properties properties) throws ControllerException {
+        Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
+            @Override
+            public Void apply(CapPerson.Builder pb) {
+                StructList.Builder<PreferenceEntry.Builder> lstBuilder = pb.initPreferences(properties.size());
+                int i = 0;
+                for(Map.Entry<Object, Object> e : properties.entrySet()) {
+                    PreferenceEntry.Builder b = lstBuilder.get(i);
+                    b.setKey(String.valueOf(e.getKey()));
+                    String val = "";
+                    if(e.getValue() != null) {
+                       val = String.valueOf(e.getValue());
+                    }
+                    b.setValue(val);
+                }
+                return null;
+            }
+        };
+        execWriteFunction(userId, f);
     }
 
     @Override
@@ -746,7 +756,7 @@ public class BdbJeUserController extends UserController {
         Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
             @Override
             public Void apply(CapPerson.Builder pb) {
-                pb.initPreferences();
+                pb.initPreferences(0);
                 return null;
             }
         };
