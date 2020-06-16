@@ -113,6 +113,12 @@ struct CapStatistics {
 }
 
 # these are the structures for supporting the models present in Server module
+
+struct PreferenceEntry {
+  key @0 :Text;
+  value @1 :Text;
+}
+
 struct CapPerson {
     id               @0 :Int32;
     username         @1 :Text;
@@ -128,7 +134,7 @@ struct CapPerson {
     strikeCount      @11 :Int32;
     lastStrikeTime   @12 :Int64;
     loggedIn         @13 :Int32;
-    preferences      @14 :Map;
+    preferences      @14 :List(PreferenceEntry);
     password         @15 :Text;
     passwordDate     @16 :Int64;
 }
