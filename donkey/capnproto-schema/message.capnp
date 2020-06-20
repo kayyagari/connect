@@ -168,8 +168,8 @@ struct CapChannel {
 }
 
 struct CapConfiguration {
-    category  @0 :Text;
-    values    @1 :Map;
+    category   @0 :Text;
+    props      @1 :Data;
 }
 
 struct CapScript {

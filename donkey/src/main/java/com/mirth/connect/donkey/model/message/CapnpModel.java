@@ -2252,14 +2252,20 @@ public final class CapnpModel {
       public final org.capnproto.Text.Builder initCategory(int size) {
         return _initPointerField(org.capnproto.Text.factory, 0, size);
       }
-      public final com.mirth.connect.donkey.model.message.CapnpModel.Map.Builder<org.capnproto.AnyPointer.Builder, org.capnproto.AnyPointer.Builder> getValues() {
-        return _getPointerField(com.mirth.connect.donkey.model.message.CapnpModel.Map.newFactory(org.capnproto.AnyPointer.factory,org.capnproto.AnyPointer.factory), 1, null, 0);
+      public final boolean hasProps() {
+        return !_pointerFieldIsNull(1);
       }
-      public final void setValues(org.capnproto.SetPointerBuilder<com.mirth.connect.donkey.model.message.CapnpModel.Map.Builder<org.capnproto.AnyPointer.Builder, org.capnproto.AnyPointer.Builder>, com.mirth.connect.donkey.model.message.CapnpModel.Map.Reader<org.capnproto.AnyPointer.Reader, org.capnproto.AnyPointer.Reader>> factory, com.mirth.connect.donkey.model.message.CapnpModel.Map.Reader<org.capnproto.AnyPointer.Reader, org.capnproto.AnyPointer.Reader> value) {
-        _setPointerField(factory, 1, value);
+      public final org.capnproto.Data.Builder getProps() {
+        return _getPointerField(org.capnproto.Data.factory, 1, null, 0, 0);
       }
-      public final com.mirth.connect.donkey.model.message.CapnpModel.Map.Builder<org.capnproto.AnyPointer.Builder, org.capnproto.AnyPointer.Builder> initValues() {
-        return _initPointerField(com.mirth.connect.donkey.model.message.CapnpModel.Map.newFactory(org.capnproto.AnyPointer.factory,org.capnproto.AnyPointer.factory),1, 0);
+      public final void setProps(org.capnproto.Data.Reader value) {
+        _setPointerField(org.capnproto.Data.factory, 1, value);
+      }
+      public final void setProps(byte [] value) {
+        _setPointerField(org.capnproto.Data.factory, 1, new org.capnproto.Data.Reader(value));
+      }
+      public final org.capnproto.Data.Builder initProps(int size) {
+        return _initPointerField(org.capnproto.Data.factory, 1, size);
       }
     }
 
@@ -2275,11 +2281,11 @@ public final class CapnpModel {
         return _getPointerField(org.capnproto.Text.factory, 0, null, 0, 0);
       }
 
-      public boolean hasValues() {
+      public boolean hasProps() {
         return !_pointerFieldIsNull(1);
       }
-      public com.mirth.connect.donkey.model.message.CapnpModel.Map.Reader<org.capnproto.AnyPointer.Reader, org.capnproto.AnyPointer.Reader> getValues() {
-        return _getPointerField(com.mirth.connect.donkey.model.message.CapnpModel.Map.newFactory(org.capnproto.AnyPointer.factory,org.capnproto.AnyPointer.factory),1,null, 0);
+      public org.capnproto.Data.Reader getProps() {
+        return _getPointerField(org.capnproto.Data.factory, 1, null, 0, 0);
       }
 
     }
@@ -4434,7 +4440,7 @@ public static final org.capnproto.SegmentReader b_b27a5fe6589f4b05 =
    "\u0001\u0000\u0000\u0000\u0001\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0031\u0000\u0000\u0000\u003a\u0000\u0000\u0000" +
+   "\u0031\u0000\u0000\u0000\u0032\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u002c\u0000\u0000\u0000\u0003\u0000\u0001\u0000" +
    "\u0038\u0000\u0000\u0000\u0002\u0000\u0001\u0000" +
@@ -4447,12 +4453,12 @@ public static final org.capnproto.SegmentReader b_b27a5fe6589f4b05 =
    "\u000c\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0076\u0061\u006c\u0075\u0065\u0073\u0000\u0000" +
-   "\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u00c0\u00bf\u00d6\u0033\u008f\u00f0\u0026\u00bc" +
+   "\u0070\u0072\u006f\u0070\u0073\u0000\u0000\u0000" +
+   "\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
+   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
+   "\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" + "");
 public static final org.capnproto.SegmentReader b_813ba31a3846044f =
