@@ -59,6 +59,7 @@ import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.RawMessage;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
+import com.mirth.connect.donkey.server.BdbJeDataSource;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConfiguration;
 import com.mirth.connect.donkey.server.channel.Channel;
@@ -1313,6 +1314,7 @@ public class TestUtils {
                 }
                 
                 dir.mkdirs();
+                BdbJeDataSource.create(databaseProperties);
             }
 
             return new DonkeyConfiguration(new File(".").getAbsolutePath(), databaseProperties, null, new EventDispatcher() {

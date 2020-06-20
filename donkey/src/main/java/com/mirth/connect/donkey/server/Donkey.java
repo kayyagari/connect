@@ -84,17 +84,7 @@ public class Donkey {
     private DonkeyStatisticsUpdater statisticsUpdater;
     private Logger logger = Logger.getLogger(getClass());
     private boolean running = false;
-
-    private Environment bdbJeEnv;
-    private Map<String, Database> dbMap;
-    private Map<Long, Sequence> channelSeqMap;
-    private Map<String, Sequence> serverSeqMap;
-    private PooledByteBufAllocator bufAlloc;
-    private GenericKeyedObjectPool<Class, ReusableMessageBuilder> objectPool;
-    private GenericKeyedObjectPool<Class, ReusableMessageBuilder> serverObjectPool;
-    
-    private static final String DB_BDB_JE = "bdbje";
-    private static final Charset UTF_8 = Charset.forName("UTF-8");
+    private BdbJeDataSource bdbJeDataSource;
 
     public void startEngine(DonkeyConfiguration donkeyConfiguration) throws StartException {
         this.donkeyConfiguration = donkeyConfiguration;
@@ -109,12 +99,13 @@ public class Donkey {
             }
         };
 
-        if(DB_BDB_JE.equalsIgnoreCase(database)) {
-            initBdbJeEnv(dbProperties);
+        bdbJeDataSource = BdbJeDataSource.getInstance();
+        if(bdbJeDataSource != null) {
             BdbJeDaoFactory bdbJedaoFactory = BdbJeDaoFactory.getInstance();
             bdbJedaoFactory.setStatsServerId(donkeyConfiguration.getServerId());
             bdbJedaoFactory.setSerializerProvider(serializerProvider);
             daoFactory = bdbJedaoFactory;
+            readOnlyDaoFactory = bdbJedaoFactory;
         }
         else {
             XmlQuerySource xmlQuerySource = new XmlQuerySource();
@@ -209,19 +200,8 @@ public class Donkey {
             statisticsUpdater.shutdown();
         }
 
-        if(bdbJeEnv != null) {
-            for(Sequence s : serverSeqMap.values()) {
-                s.close();
-            }
-            for(Sequence s : channelSeqMap.values()) {
-                s.close();
-            }
-            
-            for(Database db : dbMap.values()) {
-                db.close();
-            }
-            
-            bdbJeEnv.close();
+        if(bdbJeDataSource != null) {
+            bdbJeDataSource.close();
         }
 
         running = false;
@@ -276,77 +256,27 @@ public class Donkey {
         return eventDispatcher;
     }
     
-    private void initBdbJeEnv(Properties dbProperties) {
-        File envDir = new File((String)dbProperties.get("database.url"));
-        
-        EnvironmentConfig ec = new EnvironmentConfig();
-        ec.setAllowCreate(true);
-        ec.setTransactional(true);
-        ec.setDurability(Durability.COMMIT_WRITE_NO_SYNC);
-        //ec.setCachePercent(70);
-        bdbJeEnv = new Environment(envDir, ec);
-        dbMap = new ConcurrentHashMap<>();
-        channelSeqMap = new ConcurrentHashMap<>();
-        serverSeqMap = new ConcurrentHashMap<>();
-        bufAlloc = new PooledByteBufAllocator();
-        objectPool = new GenericKeyedObjectPool<Class, ReusableMessageBuilder>(new CapnpStructBuilderFactory());
-        serverObjectPool = new GenericKeyedObjectPool<Class, ReusableMessageBuilder>(new CapnpStructBuilderFactory());
-        createServerControllerDatabases();
-    }
-
     public Environment getBdbJeEnv() {
-        return bdbJeEnv;
+        return bdbJeDataSource.getBdbJeEnv();
     }
 
     public Map<String, Database> getDbMap() {
-        return dbMap;
+        return bdbJeDataSource.getDbMap();
     }
 
     public Map<Long, Sequence> getSeqMap() {
-        return channelSeqMap;
+        return bdbJeDataSource.getSeqMap();
     }
 
     public Map<String, Sequence> getServerSeqMap() {
-        return serverSeqMap;
-    }
-
-    public PooledByteBufAllocator getBufAlloc() {
-        return bufAlloc;
+        return bdbJeDataSource.getServerSeqMap();
     }
 
     public GenericKeyedObjectPool<Class, ReusableMessageBuilder> getObjectPool() {
-        return objectPool;
+        return bdbJeDataSource.getObjectPool();
     }
 
     public GenericKeyedObjectPool<Class, ReusableMessageBuilder> getServerObjectPool() {
-        return serverObjectPool;
-    }
-    
-    private void createServerControllerDatabases() {
-        Transaction txn = bdbJeEnv.beginTransaction(null, null);
-        DatabaseConfig dc = new DatabaseConfig();
-        // the below two config options are same for all Databases
-        // and MUST be set or overwritten
-        dc.setTransactional(true);
-        dc.setAllowCreate(true);
-        
-        String[] tableNames = {"person", "code_template_library", "channel_group", 
-                "code_template", "channel", "configuration", "script", "alert", "server_seq"};
-        for(String name : tableNames) {
-            Database db = bdbJeEnv.openDatabase(txn, name, dc);
-            dbMap.put(name, db);
-        }
-        
-        String personSeqKey = "person";
-        DatabaseEntry key = new DatabaseEntry(personSeqKey.getBytes(UTF_8));
-        SequenceConfig seqConfig = new SequenceConfig();
-        seqConfig.setAllowCreate(true);
-        seqConfig.setInitialValue(1);
-        seqConfig.setCacheSize(50);
-
-        Sequence seq = dbMap.get("server_seq").openSequence(txn, key, seqConfig);
-        serverSeqMap.put(personSeqKey, seq);
-        
-        txn.commit();
+        return bdbJeDataSource.getServerObjectPool();
     }
 }
