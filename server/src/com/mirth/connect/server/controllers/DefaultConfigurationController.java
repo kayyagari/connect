@@ -91,53 +91,53 @@ public class DefaultConfigurationController extends ConfigurationController {
     public static final String VACUUM_LOCK_STATEMENT_ID = "Configuration.vacuumConfigurationTable";
 
     private Logger logger = Logger.getLogger(this.getClass());
-    private String appDataDir = null;
-    private String baseDir = null;
-    private String configurationFile = null;
-    private static String serverId = null;
-    private String serverName = null;
-    private int status = ConfigurationController.STATUS_UNAVAILABLE;
-    private ScriptController scriptController = ControllerFactory.getFactory().createScriptController();
-    private PasswordRequirements passwordRequirements;
-    private int maxInactiveSessionInterval;
-    private String[] httpsClientProtocols;
-    private String[] httpsServerProtocols;
-    private String[] httpsCipherSuites;
-    private boolean startupDeploy;
-    private volatile Map<String, String> configurationMap = Collections.unmodifiableMap(new HashMap<String, String>());
-    private volatile Map<String, String> commentMap = Collections.unmodifiableMap(new HashMap<String, String>());
-    private static PropertiesConfiguration versionConfig = new PropertiesConfiguration();
-    private static PropertiesConfiguration mirthConfig = new PropertiesConfiguration();
-    private static EncryptionSettings encryptionConfig;
-    private static DatabaseSettings databaseConfig;
-    private static String apiBypassword;
-    private static int statsUpdateInterval;
-    private static Integer rhinoLanguageVersion;
-    private volatile boolean configMapLoaded = false;
+    protected String appDataDir = null;
+    protected String baseDir = null;
+    protected String configurationFile = null;
+    protected static String serverId = null;
+    protected String serverName = null;
+    protected int status = ConfigurationController.STATUS_UNAVAILABLE;
+    protected ScriptController scriptController = ControllerFactory.getFactory().createScriptController();
+    protected PasswordRequirements passwordRequirements;
+    protected int maxInactiveSessionInterval;
+    protected String[] httpsClientProtocols;
+    protected String[] httpsServerProtocols;
+    protected String[] httpsCipherSuites;
+    protected boolean startupDeploy;
+    protected volatile Map<String, String> configurationMap = Collections.unmodifiableMap(new HashMap<String, String>());
+    protected volatile Map<String, String> commentMap = Collections.unmodifiableMap(new HashMap<String, String>());
+    protected static PropertiesConfiguration versionConfig = new PropertiesConfiguration();
+    protected static PropertiesConfiguration mirthConfig = new PropertiesConfiguration();
+    protected static EncryptionSettings encryptionConfig;
+    protected static DatabaseSettings databaseConfig;
+    protected static String apiBypassword;
+    protected static int statsUpdateInterval;
+    protected static Integer rhinoLanguageVersion;
+    protected volatile boolean configMapLoaded = false;
 
-    private static KeyEncryptor encryptor = null;
-    private static Digester digester = null;
+    protected static KeyEncryptor encryptor = null;
+    protected static Digester digester = null;
 
-    private static final String CHARSET = "ca.uhn.hl7v2.llp.charset";
-    private static final String PROPERTY_TEMP_DIR = "dir.tempdata";
-    private static final String PROPERTY_APP_DATA_DIR = "dir.appdata";
-    private static final String CONFIGURATION_MAP_PATH = "configurationmap.path";
-    private static final String CONFIGURATION_MAP_LOCATION = "configurationmap.location";
-    private static final String MAX_INACTIVE_SESSION_INTERVAL = "server.api.sessionmaxinactiveinterval";
-    private static final String HTTPS_CLIENT_PROTOCOLS = "https.client.protocols";
-    private static final String HTTPS_SERVER_PROTOCOLS = "https.server.protocols";
-    private static final String HTTPS_CIPHER_SUITES = "https.ciphersuites";
-    private static final String STARTUP_DEPLOY = "server.startupdeploy";
-    private static final String API_BYPASSWORD = "server.api.bypassword";
-    private static final String STATS_UPDATE_INTERVAL = "donkey.statsupdateinterval";
-    private static final String RHINO_LANGUAGE_VERSION = "rhino.languageversion";
+    public static final String CHARSET = "ca.uhn.hl7v2.llp.charset";
+    public static final String PROPERTY_TEMP_DIR = "dir.tempdata";
+    public static final String PROPERTY_APP_DATA_DIR = "dir.appdata";
+    public static final String CONFIGURATION_MAP_PATH = "configurationmap.path";
+    public static final String CONFIGURATION_MAP_LOCATION = "configurationmap.location";
+    public static final String MAX_INACTIVE_SESSION_INTERVAL = "server.api.sessionmaxinactiveinterval";
+    public static final String HTTPS_CLIENT_PROTOCOLS = "https.client.protocols";
+    public static final String HTTPS_SERVER_PROTOCOLS = "https.server.protocols";
+    public static final String HTTPS_CIPHER_SUITES = "https.ciphersuites";
+    public static final String STARTUP_DEPLOY = "server.startupdeploy";
+    public static final String API_BYPASSWORD = "server.api.bypassword";
+    public static final String STATS_UPDATE_INTERVAL = "donkey.statsupdateinterval";
+    public static final String RHINO_LANGUAGE_VERSION = "rhino.languageversion";
 
-    private static final String DEFAULT_STOREPASS = "81uWxplDtB";
+    public static final String DEFAULT_STOREPASS = "81uWxplDtB";
 
     // singleton pattern
-    private static ConfigurationController instance = null;
+    protected static ConfigurationController instance = null;
 
-    DefaultConfigurationController() {
+    protected DefaultConfigurationController() {
 
     }
 
@@ -156,7 +156,7 @@ public class DefaultConfigurationController extends ConfigurationController {
         }
     }
 
-    private void initialize() {
+    protected void initialize() {
         try {
             // Disable delimiter parsing so getString() returns the whole
             // property, even if there are commas

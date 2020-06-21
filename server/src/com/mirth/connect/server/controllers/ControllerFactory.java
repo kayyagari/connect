@@ -10,6 +10,8 @@
 package com.mirth.connect.server.controllers;
 
 import com.google.inject.Inject;
+import com.mirth.connect.donkey.server.BdbJeDataSource;
+import com.mirth.connect.server.controllers.je.BdbJeControllerFactory;
 
 public abstract class ControllerFactory {
     @Inject
@@ -18,7 +20,12 @@ public abstract class ControllerFactory {
     public static ControllerFactory getFactory() {
         synchronized (ControllerFactory.class) {
             if (factory == null) {
-                factory = new DefaultControllerFactory();
+                if(BdbJeDataSource.getInstance() != null) {
+                    factory = new BdbJeControllerFactory();
+                }
+                else {
+                    factory = new DefaultControllerFactory();
+                }
             }
 
             return factory;

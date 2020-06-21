@@ -40,7 +40,7 @@ public class DefaultAlertController extends AlertController {
 
     private Logger logger = Logger.getLogger(this.getClass());
 
-    private static AlertController instance = null;
+    protected static AlertController instance = null;
     private static Map<Class<?>, AlertWorker> alertWorkers = new HashMap<Class<?>, AlertWorker>();
     private EventController eventController = ControllerFactory.getFactory().createEventController();
     private Map<String, Protocol> alertActionProtocols = new LinkedHashMap<String, Protocol>();

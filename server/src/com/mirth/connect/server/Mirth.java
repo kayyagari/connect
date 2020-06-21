@@ -23,9 +23,11 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -37,6 +39,8 @@ import org.apache.velocity.runtime.RuntimeConstants;
 
 import com.mirth.connect.client.core.ConnectServiceUtil;
 import com.mirth.connect.client.core.ControllerException;
+import com.mirth.connect.donkey.model.DatabaseConstants;
+import com.mirth.connect.donkey.server.BdbJeDataSource;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConnectionPools;
 import com.mirth.connect.model.LibraryProperties;
@@ -76,7 +80,7 @@ public class Mirth extends Thread {
     private PropertiesConfiguration versionProperties = new PropertiesConfiguration();
     private MirthWebServer webServer;
     private CommandQueue commandQueue = CommandQueue.getInstance();
-    private EngineController engineController = ControllerFactory.getFactory().createEngineController();
+    private EngineController engineController;
     private ConfigurationController configurationController = ControllerFactory.getFactory().createConfigurationController();
     private UserController userController = ControllerFactory.getFactory().createUserController();
     private ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
@@ -88,6 +92,12 @@ public class Mirth extends Thread {
     private UsageController usageController = ControllerFactory.getFactory().createUsageController();
 
     private static List<Thread> shutdownHooks = new ArrayList<Thread>();
+
+    static {
+        // to make MC work with BDB JE, the Donkey instance MUST be initialized first
+        // so that rest of the controller implementation can have access to the DB
+        ControllerFactory.getFactory().createEngineController();
+    }
 
     public static void main(String[] args) {
         Mirth mirth = new Mirth();
@@ -203,6 +213,29 @@ public class Mirth extends Thread {
             ObjectXMLSerializer.getInstance().init(versionProperties.getString("mirth.version"));
         } catch (Exception e) {
         }
+
+        String database = mirthProperties.getString(DatabaseConstants.DATABASE);
+        BdbJeDataSource bdbJeDs = null;
+        if(BdbJeDataSource.DB_BDB_JE.equalsIgnoreCase(database)) {
+            // slight initial cost to copy the config when BDB JE is used
+            // because the DataSource must be configured first to instantiate suitable Controllers
+            PropertiesConfiguration configClone = new PropertiesConfiguration();
+            mirthProperties.copy(configClone);
+            Properties props = ConfigurationConverter.getProperties(configClone);
+            bdbJeDs = BdbJeDataSource.create(props);
+        }
+
+        configurationController = ControllerFactory.getFactory().createConfigurationController();
+        engineController = ControllerFactory.getFactory().createEngineController();
+        userController = ControllerFactory.getFactory().createUserController();
+        extensionController = ControllerFactory.getFactory().createExtensionController();
+        migrationController = ControllerFactory.getFactory().createMigrationController();
+        eventController = ControllerFactory.getFactory().createEventController();
+        scriptController = ControllerFactory.getFactory().createScriptController();
+        contextFactoryController = ControllerFactory.getFactory().createContextFactoryController();
+        alertController = ControllerFactory.getFactory().createAlertController();
+        usageController = ControllerFactory.getFactory().createUsageController();
+        
         Donkey.getInstance().setSerializer(ObjectXMLSerializer.getInstance());
 
         configurationController.initializeSecuritySettings();
@@ -213,30 +246,36 @@ public class Mirth extends Thread {
 
         try {
             DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties());
-            SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
-            SqlConfig.getInstance().getSqlSessionManager().getConnection();
-
-            if (SqlConfig.getInstance().isSplitReadWrite()) {
-                SqlConfig.getInstance().getReadOnlySqlSessionManager().startManagedSession();
-                SqlConfig.getInstance().getReadOnlySqlSessionManager().getConnection();
+            if(bdbJeDs == null) {
+                SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
+                SqlConfig.getInstance().getSqlSessionManager().getConnection();
+                
+                if (SqlConfig.getInstance().isSplitReadWrite()) {
+                    SqlConfig.getInstance().getReadOnlySqlSessionManager().startManagedSession();
+                    SqlConfig.getInstance().getReadOnlySqlSessionManager().getConnection();
+                }
             }
         } catch (Exception e) {
             // the getCause is needed since the wrapper exception is from the connection pool
             logger.error("Error establishing connection to database, aborting startup. " + e.getCause().getMessage());
             System.exit(0);
         } finally {
-            if (SqlConfig.getInstance().getSqlSessionManager().isManagedSessionStarted()) {
-                SqlConfig.getInstance().getSqlSessionManager().close();
-            }
-            if (SqlConfig.getInstance().isSplitReadWrite() && SqlConfig.getInstance().getReadOnlySqlSessionManager().isManagedSessionStarted()) {
-                SqlConfig.getInstance().getReadOnlySqlSessionManager().close();
+            if(bdbJeDs == null) {
+                if (SqlConfig.getInstance().getSqlSessionManager().isManagedSessionStarted()) {
+                    SqlConfig.getInstance().getSqlSessionManager().close();
+                }
+                if (SqlConfig.getInstance().isSplitReadWrite() && SqlConfig.getInstance().getReadOnlySqlSessionManager().isManagedSessionStarted()) {
+                    SqlConfig.getInstance().getReadOnlySqlSessionManager().close();
+                }
             }
         }
 
         extensionController.removePropertiesForUninstalledExtensions();
 
         try {
-            migrationController.migrate();
+            if(bdbJeDs == null) {
+                migrationController.migrate();
+            }
         } catch (MigrationException e) {
             logger.error("Failed to migrate database schema", e);
             stopDatabase();
@@ -327,16 +366,20 @@ public class Mirth extends Thread {
         stopEngine();
 
         try {
-            // check for database connection before trying to log shutdown event
-            SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
-            SqlConfig.getInstance().getSqlSessionManager().getConnection();
+            if(BdbJeDataSource.getInstance() == null) {
+                // check for database connection before trying to log shutdown event
+                SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
+                SqlConfig.getInstance().getSqlSessionManager().getConnection();
+            }
             // add event after stopping the engine, but before stopping the plugins
             eventController.dispatchEvent(new ServerEvent(configurationController.getServerId(), "Server shutdown"));
         } catch (Exception e) {
             logger.debug("could not log shutdown even since database is unavailable", e);
         } finally {
-            if (SqlConfig.getInstance().getSqlSessionManager().isManagedSessionStarted()) {
-                SqlConfig.getInstance().getSqlSessionManager().close();
+            if(BdbJeDataSource.getInstance() == null) {
+                if (SqlConfig.getInstance().getSqlSessionManager().isManagedSessionStarted()) {
+                    SqlConfig.getInstance().getSqlSessionManager().close();
+                }
             }
         }
 

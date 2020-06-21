@@ -9,6 +9,8 @@
 
 package com.mirth.connect.server.controllers;
 
-public abstract class Controller {
+import java.nio.charset.Charset;
 
+public abstract class Controller {
+    protected final Charset utf8 = Charset.forName("utf-8");
 }
