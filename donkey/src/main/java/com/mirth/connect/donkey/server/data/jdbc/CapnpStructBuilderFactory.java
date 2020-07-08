@@ -7,7 +7,9 @@ import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.capnproto.StructFactory;
 
+import com.mirth.connect.donkey.model.message.CapnpModel.CapAlert;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapConfiguration;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
@@ -28,6 +30,8 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
     public static final int CapStatistics_Size = 256;
 
     public static final int CapPerson_Size = 2 * 1024;
+    public static final int CapConfiguration_Size = 2 * 1024;
+    public static final int CapAlert_Size = 2 * 1024;
 
     @Override
     public void activateObject(Class key, PooledObject<ReusableMessageBuilder> po)
@@ -79,6 +83,14 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
         else if(key == CapPerson.class) {
             buf = ByteBuffer.allocate(CapPerson_Size);
             factory = CapPerson.factory;
+        }
+        else if(key == CapAlert.class) {
+            buf = ByteBuffer.allocate(CapAlert_Size);
+            factory = CapAlert.factory;
+        }
+        else if(key == CapConfiguration.class) {
+            buf = ByteBuffer.allocate(CapConfiguration_Size);
+            factory = CapConfiguration.factory;
         }
         else {
             throw new IllegalArgumentException("unknown message class " + key.getName());
