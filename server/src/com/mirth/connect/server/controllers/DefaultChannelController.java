@@ -54,21 +54,22 @@ import com.mirth.connect.server.ExtensionLoader;
 import com.mirth.connect.server.util.DatabaseUtil;
 import com.mirth.connect.server.util.SqlConfig;
 import com.mirth.connect.server.util.StatementLock;
+import com.sleepycat.je.Transaction;
 
 public class DefaultChannelController extends ChannelController {
     public static final String VACUUM_LOCK_CHANNEL_STATEMENT_ID = "Channel.vacuumChannelTable";
     public static final String VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID = "Channel.vacuumChannelGroupTable";
 
     private Logger logger = Logger.getLogger(this.getClass());
-    private ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
-    private CodeTemplateController codeTemplateController = ControllerFactory.getFactory().createCodeTemplateController();
+    protected ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
+    protected CodeTemplateController codeTemplateController = ControllerFactory.getFactory().createCodeTemplateController();
 
-    private ChannelCache channelCache = new ChannelCache();
-    private DeployedChannelCache deployedChannelCache = new DeployedChannelCache();
-    private Cache<ChannelGroup> channelGroupCache = new Cache<ChannelGroup>("Channel Group", "Channel.getChannelGroupRevision", "Channel.getChannelGroup");
-    private Donkey donkey;
+    protected ChannelCache channelCache;
+    protected DeployedChannelCache deployedChannelCache = new DeployedChannelCache();
+    protected Cache<ChannelGroup> channelGroupCache;
+    protected Donkey donkey;
 
-    private static ChannelController instance = null;
+    protected static ChannelController instance = null;
 
     protected DefaultChannelController() {
 
@@ -80,7 +81,10 @@ public class DefaultChannelController extends ChannelController {
                 instance = ExtensionLoader.getInstance().getControllerInstance(ChannelController.class);
 
                 if (instance == null) {
-                    instance = new DefaultChannelController();
+                    DefaultChannelController i = new DefaultChannelController();
+                    i.channelCache = new ChannelCache();
+                    i.channelGroupCache = new Cache<ChannelGroup>("Channel Group", "Channel.getChannelGroupRevision", "Channel.getChannelGroup");
+                    instance = i;
                 }
             }
 
@@ -303,15 +307,9 @@ public class DefaultChannelController extends ChannelController {
                     channel.setRevision(channel.getRevision() + 1);
 
                     try {
-                        Map<String, Object> params = new HashMap<String, Object>();
-                        params.put("id", channel.getId());
-                        params.put("name", channel.getName());
-                        params.put("revision", channel.getRevision());
-                        params.put("channel", channel);
-
                         // Update the new channel in the database
                         logger.debug("updating channel");
-                        SqlConfig.getInstance().getSqlSessionManager().update("Channel.updateChannel", params);
+                        updateChannel_db(channel);
 
                         // invoke the channel plugins
                         for (ChannelPlugin channelPlugin : extensionController.getChannelPlugins().values()) {
@@ -412,19 +410,13 @@ public class DefaultChannelController extends ChannelController {
             updateChannelMetadata(channel.getId(), exportData.getMetadata());
             updateChannelTags(channel.getId(), exportData.getChannelTags());
 
-            Map<String, Object> params = new HashMap<String, Object>();
-            params.put("id", channel.getId());
-            params.put("name", channel.getName());
-            params.put("revision", channel.getRevision());
-            params.put("channel", channel);
-
             // Put the new channel in the database
             if (getChannelById(channel.getId()) == null) {
                 logger.debug("adding channel");
-                SqlConfig.getInstance().getSqlSessionManager().insert("Channel.insertChannel", params);
+                addChannel_db(channel);
             } else {
                 logger.debug("updating channel");
-                SqlConfig.getInstance().getSqlSessionManager().update("Channel.updateChannel", params);
+                updateChannel_db(channel);
             }
 
             // invoke the channel plugins
@@ -771,6 +763,10 @@ public class DefaultChannelController extends ChannelController {
 
     @Override
     public synchronized boolean updateChannelGroups(Set<ChannelGroup> channelGroups, Set<String> removedChannelGroupIds, boolean override) throws ControllerException {
+        return updateChannelGroups(null, channelGroups, removedChannelGroupIds, override);
+    }
+
+    protected synchronized boolean updateChannelGroups(Transaction txn, Set<ChannelGroup> channelGroups, Set<String> removedChannelGroupIds, boolean override) throws ControllerException {
         // If override is disabled, first check all channel groups to make sure they haven't been modified already
         if (!override) {
             Map<String, ChannelGroup> channelGroupMap = channelGroupCache.getAllItems();
@@ -868,58 +864,7 @@ public class DefaultChannelController extends ChannelController {
             }
         }
 
-        // Remove groups
-        StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readLock();
-        try {
-            for (ChannelGroup group : groupsToRemove) {
-                SqlConfig.getInstance().getSqlSessionManager().delete("Channel.deleteChannelGroup", group.getId());
-            }
-        } catch (Exception e) {
-            throw new ControllerException(e);
-        } finally {
-            StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readUnlock();
-        }
-
-        // Vacuum
-        StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).writeLock();
-        try {
-            if (DatabaseUtil.statementExists("Channel.vacuumChannelGroupTable")) {
-                vacuumChannelGroupTable();
-            }
-        } catch (Exception e) {
-            throw new ControllerException(e);
-        } finally {
-            StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).writeUnlock();
-        }
-
-        // Insert or update groups
-        StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readLock();
-        try {
-            for (ChannelGroup group : channelGroups) {
-                if (!unchangedGroupIds.contains(group.getId())) {
-                    group.setLastModified(Calendar.getInstance());
-
-                    Map<String, Object> params = new HashMap<String, Object>();
-                    params.put("id", group.getId());
-                    params.put("name", group.getName());
-                    params.put("revision", group.getRevision());
-                    params.put("channelGroup", group);
-
-                    // If its a new group, insert it, otherwise, update it
-                    if (channelGroupCache.getCachedItemById(group.getId()) == null) {
-                        logger.debug("Inserting channel group");
-                        SqlConfig.getInstance().getSqlSessionManager().insert("Channel.insertChannelGroup", params);
-                    } else {
-                        logger.debug("Updating channel group");
-                        SqlConfig.getInstance().getSqlSessionManager().update("Channel.updateChannelGroup", params);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            throw new ControllerException(e);
-        } finally {
-            StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readUnlock();
-        }
+        updateChannelGroups_db(txn, channelGroups, groupsToRemove, unchangedGroupIds);
 
         return true;
     }
@@ -931,7 +876,7 @@ public class DefaultChannelController extends ChannelController {
      * should call refreshCache() to update any outdated, missing, or removed channels in the cache
      * before performing its function. No two threads should refresh the cache simultaneously.
      */
-    private class ChannelCache extends Cache<Channel> {
+    public static class ChannelCache extends Cache<Channel> {
 
         public ChannelCache() {
             super("Channel", "Channel.getChannelRevision", "Channel.getChannel");
@@ -1088,6 +1033,81 @@ public class DefaultChannelController extends ChannelController {
             } finally {
                 readLock.unlock();
             }
+        }
+    }
+    
+    protected void addChannel_db(Channel channel) throws Exception {
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("id", channel.getId());
+        params.put("name", channel.getName());
+        params.put("revision", channel.getRevision());
+        params.put("channel", channel);
+
+        SqlConfig.getInstance().getSqlSessionManager().insert("Channel.insertChannel", params);
+    }
+
+    protected void updateChannel_db(Channel channel) throws Exception {
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("id", channel.getId());
+        params.put("name", channel.getName());
+        params.put("revision", channel.getRevision());
+        params.put("channel", channel);
+
+        SqlConfig.getInstance().getSqlSessionManager().update("Channel.updateChannel", params);
+    }
+    
+    protected void updateChannelGroups_db(Transaction txn, Set<ChannelGroup> channelGroups, List<ChannelGroup> groupsToRemove, Set<String> unchangedGroupIds) throws ControllerException {
+        // Remove groups
+        StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readLock();
+        try {
+            for (ChannelGroup group : groupsToRemove) {
+                SqlConfig.getInstance().getSqlSessionManager().delete("Channel.deleteChannelGroup", group.getId());
+            }
+        } catch (Exception e) {
+            throw new ControllerException(e);
+        } finally {
+            StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readUnlock();
+        }
+
+        // Vacuum
+        StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).writeLock();
+        try {
+            if (DatabaseUtil.statementExists("Channel.vacuumChannelGroupTable")) {
+                vacuumChannelGroupTable();
+            }
+        } catch (Exception e) {
+            throw new ControllerException(e);
+        } finally {
+            StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).writeUnlock();
+        }
+
+        // Insert or update groups
+        StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readLock();
+        try {
+            for (ChannelGroup group : channelGroups) {
+                if (!unchangedGroupIds.contains(group.getId())) {
+                    group.setLastModified(Calendar.getInstance());
+
+                    Map<String, Object> params = new HashMap<String, Object>();
+                    params.put("id", group.getId());
+                    params.put("name", group.getName());
+                    params.put("revision", group.getRevision());
+                    params.put("channelGroup", group);
+
+                    // If its a new group, insert it, otherwise, update it
+                    if (channelGroupCache.getCachedItemById(group.getId()) == null) {
+                        logger.debug("Inserting channel group");
+                        SqlConfig.getInstance().getSqlSessionManager().insert("Channel.insertChannelGroup", params);
+                    } else {
+                        logger.debug("Updating channel group");
+                        SqlConfig.getInstance().getSqlSessionManager().update("Channel.updateChannelGroup", params);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new ControllerException(e);
+        } finally {
+            StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readUnlock();
         }
     }
 }

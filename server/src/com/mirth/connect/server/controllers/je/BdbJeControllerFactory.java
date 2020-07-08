@@ -41,7 +41,7 @@ public class BdbJeControllerFactory extends ControllerFactory {
     }
 
     public ChannelController createChannelController() {
-        return DefaultChannelController.create();
+        return BdbJeChannelController.create();
     }
 
     public CodeTemplateController createCodeTemplateController() {

@@ -115,6 +115,10 @@ public class Cache<V extends Cacheable<V>> {
         }
     }
 
+    public boolean isNameUnique() {
+        return nameUnique;
+    }
+
     protected synchronized void refreshCache() {
         try {
             // Get the current revisions in the database
