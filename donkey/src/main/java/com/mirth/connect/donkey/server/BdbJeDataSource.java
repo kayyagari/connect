@@ -89,23 +89,28 @@ public class BdbJeDataSource {
         dc.setAllowCreate(true);
         
         String[] tableNames = {"person", "code_template_library", "channel_group", 
-                "code_template", "channel", "configuration", "script", "alert", "server_seq"};
+                "code_template", "channel", "configuration", "script", "alert", "event", "server_seq"};
         for(String name : tableNames) {
             Database db = bdbJeEnv.openDatabase(txn, name, dc);
             dbMap.put(name, db);
         }
         
-        String personSeqKey = "person";
-        DatabaseEntry key = new DatabaseEntry(personSeqKey.getBytes(UTF_8));
+        Database serverSeqDb = dbMap.get("server_seq");
+        createSequence("person", serverSeqDb, txn);
+        createSequence("event", serverSeqDb, txn);
+        
+        txn.commit();
+    }
+
+    private void createSequence(String seqKey, Database seqDb, Transaction txn) {
+        DatabaseEntry key = new DatabaseEntry(seqKey.getBytes(UTF_8));
         SequenceConfig seqConfig = new SequenceConfig();
         seqConfig.setAllowCreate(true);
         seqConfig.setInitialValue(1);
         seqConfig.setCacheSize(50);
-
-        Sequence seq = dbMap.get("server_seq").openSequence(txn, key, seqConfig);
-        serverSeqMap.put(personSeqKey, seq);
         
-        txn.commit();
+        Sequence seq = seqDb.openSequence(txn, key, seqConfig);
+        serverSeqMap.put(seqKey, seq);
     }
 
     public void close() {
@@ -143,6 +148,29 @@ public class BdbJeDataSource {
 
     public PooledByteBufAllocator getBufAlloc() {
         return bufAlloc;
+    }
+
+    public Database truncateAndReopen(Database db) {
+        String name = db.getDatabaseName();
+        synchronized(name) {
+            db.close();
+            Transaction txn = bdbJeEnv.beginTransaction(null, null);
+            bdbJeEnv.truncateDatabase(txn, name, false);
+            txn.commit();
+            
+            DatabaseConfig dc = new DatabaseConfig();
+            // the below two config options are same for all Databases
+            // and MUST be set or overwritten
+            dc.setTransactional(true);
+            dc.setAllowCreate(true);
+
+            txn = bdbJeEnv.beginTransaction(null, null);
+            db = bdbJeEnv.openDatabase(txn, name, dc);
+            txn.commit();
+            dbMap.put(name, db);
+            
+            return db;
+        }
     }
 
     public GenericKeyedObjectPool<Class, ReusableMessageBuilder> getObjectPool() {
