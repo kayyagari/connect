@@ -31,11 +31,51 @@ public class ServerEvent extends Event implements Serializable {
     public static final String ATTR_EXCEPTION = "Exception";
 
     public enum Level {
-        INFORMATION, WARNING, ERROR
+        INFORMATION(0), WARNING(1), ERROR(2);
+        private int val;
+        private Level(int val) {
+            this.val = val;
+        }
+        
+        public int getVal() {
+            return val;
+        }
+        
+        public static Level byVal(int i) {
+            switch(i) {
+                case 0:
+                return INFORMATION;
+                case 1:
+                    return WARNING;
+                case 2:
+                    return ERROR;
+                default:
+                    throw new IllegalArgumentException("unknown level value " + i);    
+            }
+        }
     }
 
     public enum Outcome {
-        SUCCESS, FAILURE
+        SUCCESS(0), FAILURE(1);
+        private int val;
+        private Outcome(int val) {
+            this.val = val;
+        }
+
+        public int getVal() {
+            return val;
+        }
+
+        public static Outcome byVal(int i) {
+            switch(i) {
+                case 0:
+                return SUCCESS;
+                case 1:
+                    return FAILURE;
+                default:
+                    throw new IllegalArgumentException("unknown outcome value " + i);    
+            }
+        }
     }
 
     private int id;
