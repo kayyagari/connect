@@ -50,7 +50,7 @@ public class BdbJeChannelController extends DefaultChannelController {
     }
 
     public static ChannelController create() {
-        synchronized (DefaultChannelController.class) {
+        synchronized (BdbJeChannelController.class) {
             if (instance == null) {
                 instance = ExtensionLoader.getInstance()
                         .getControllerInstance(ChannelController.class);

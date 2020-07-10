@@ -8,7 +8,7 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapChannel;
-import com.mirth.connect.model.ChannelGroup;
+import com.mirth.connect.model.codetemplates.CodeTemplateLibrary;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseEntry;
@@ -16,11 +16,11 @@ import com.sleepycat.je.Environment;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 
-public class BdbJeChannelGroupCache extends BdbJeObjectCache<ChannelGroup> {
-    private static Logger logger = Logger.getLogger(BdbJeChannelGroupCache.class);
+public class BdbJeCodeTemplateCache extends BdbJeObjectCache<CodeTemplateLibrary> {
+    private static Logger logger = Logger.getLogger(BdbJeCodeTemplateCache.class);
 
-    public BdbJeChannelGroupCache(Environment env, Database db) {
-        super(env, db);
+    public BdbJeCodeTemplateCache(Environment env, Database db) {
+        super(env, db, false);
     }
     
     @Override
@@ -42,8 +42,8 @@ public class BdbJeChannelGroupCache extends BdbJeObjectCache<ChannelGroup> {
 
                 if (!cacheById.containsKey(id) || revision > cacheById.get(id).getRevision()) {
                     String name = cr.getName().toString();
-                    ChannelGroup oldItem = cacheById.get(id);
-                    ChannelGroup item = objectSerializer.deserialize(cr.getChannel().toString(), ChannelGroup.class);
+                    CodeTemplateLibrary oldItem = cacheById.get(id);
+                    CodeTemplateLibrary item = objectSerializer.deserialize(cr.getChannel().toString(), CodeTemplateLibrary.class);
                     cacheById.put(id, item);
                     
                     if (isNameUnique()) {
@@ -65,7 +65,7 @@ public class BdbJeChannelGroupCache extends BdbJeObjectCache<ChannelGroup> {
             for (String id : cacheById.keySet()) {
                 if (!databaseRevisions.containsKey(id)) {
                     // Remove from cache
-                    ChannelGroup item = cacheById.remove(id);
+                    CodeTemplateLibrary item = cacheById.remove(id);
                     if (isNameUnique()) {
                         cacheByName.remove(item.getName());
                     }
@@ -80,7 +80,7 @@ public class BdbJeChannelGroupCache extends BdbJeObjectCache<ChannelGroup> {
             if(txn != null) {
                 txn.abort();
             }
-            logger.error("Error refreshing ChannelGroup cache", e);
+            logger.error("Error refreshing CodeTemplateLibrary cache", e);
         }
     }
 }

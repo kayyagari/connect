@@ -41,21 +41,22 @@ import com.mirth.connect.server.util.DatabaseUtil;
 import com.mirth.connect.server.util.SqlConfig;
 import com.mirth.connect.server.util.StatementLock;
 import com.mirth.connect.util.JavaScriptSharedUtil;
+import com.sleepycat.je.Transaction;
 
 public class DefaultCodeTemplateController extends CodeTemplateController {
 
-    private static CodeTemplateController instance = null;
-    private static final String VACUUM_LOCK_CODE_TEMPLATE_STATEMENT_ID = "CodeTemplate.vacuumCodeTemplateTable";
-    private static final String VACUUM_LOCK_LIBRARY_STATEMENT_ID = "CodeTemplate.vacuumLibraryTable";
+    protected static CodeTemplateController instance = null;
+    public static final String VACUUM_LOCK_CODE_TEMPLATE_STATEMENT_ID = "CodeTemplate.vacuumCodeTemplateTable";
+    public static final String VACUUM_LOCK_LIBRARY_STATEMENT_ID = "CodeTemplate.vacuumLibraryTable";
 
     private Logger logger = Logger.getLogger(getClass());
-    private ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
+    protected ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
     private ScriptController scriptController = ControllerFactory.getFactory().createScriptController();
     private ContextFactoryController contextFactoryController = ControllerFactory.getFactory().createContextFactoryController();
-    private Cache<CodeTemplateLibrary> libraryCache = new Cache<CodeTemplateLibrary>("Code Template Library", "CodeTemplate.getLibraryRevision", "CodeTemplate.getLibrary");
-    private Cache<CodeTemplate> codeTemplateCache = new Cache<CodeTemplate>("Code Template", "CodeTemplate.getCodeTemplateRevision", "CodeTemplate.getCodeTemplate", false);
+    protected Cache<CodeTemplateLibrary> libraryCache;
+    protected Cache<CodeTemplate> codeTemplateCache;
 
-    private DefaultCodeTemplateController() {}
+    protected DefaultCodeTemplateController() {}
 
     public static CodeTemplateController create() {
         synchronized (DefaultCodeTemplateController.class) {
@@ -63,7 +64,10 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
                 instance = ExtensionLoader.getInstance().getControllerInstance(CodeTemplateController.class);
 
                 if (instance == null) {
-                    instance = new DefaultCodeTemplateController();
+                    DefaultCodeTemplateController i = new DefaultCodeTemplateController();
+                    i.libraryCache = new Cache<CodeTemplateLibrary>("Code Template Library", "CodeTemplate.getLibraryRevision", "CodeTemplate.getLibrary");
+                    i.codeTemplateCache = new Cache<CodeTemplate>("Code Template", "CodeTemplate.getCodeTemplateRevision", "CodeTemplate.getCodeTemplate", false);
+                    instance = i;
                 }
             }
 
@@ -139,6 +143,10 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
 
     @Override
     public synchronized boolean updateLibraries(List<CodeTemplateLibrary> libraries, ServerEventContext context, boolean override) throws ControllerException {
+        return updateLibraries(null, libraries, context, override);
+    }
+    
+    protected synchronized boolean updateLibraries(Transaction txn, List<CodeTemplateLibrary> libraries, ServerEventContext context, boolean override) throws ControllerException {
         Map<String, CodeTemplateLibrary> libraryMap = libraryCache.getAllItems();
         List<CodeTemplateLibrary> librariesToRemove = new ArrayList<CodeTemplateLibrary>(libraryMap.values());
         Map<String, String> codeTemplateMap = new HashMap<String, String>();
@@ -194,69 +202,7 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
             }
         }
 
-        // Remove libraries
-        StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readLock();
-        try {
-            for (CodeTemplateLibrary library : librariesToRemove) {
-                SqlConfig.getInstance().getSqlSessionManager().delete("CodeTemplate.deleteLibrary", library.getId());
-
-                // Invoke the code template plugins
-                for (CodeTemplateServerPlugin codeTemplateServerPlugin : extensionController.getCodeTemplateServerPlugins().values()) {
-                    codeTemplateServerPlugin.remove(library, context);
-                }
-            }
-        } catch (Exception e) {
-            throw new ControllerException(e);
-        } finally {
-            StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readUnlock();
-        }
-
-        // Vacuum
-        StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).writeLock();
-        try {
-            if (DatabaseUtil.statementExists("CodeTemplate.vacuumLibraryTable")) {
-                vacuumLibraryTable();
-            }
-        } catch (Exception e) {
-            throw new ControllerException(e);
-        } finally {
-            StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).writeUnlock();
-        }
-
-        // Insert or update libraries
-        StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readLock();
-        try {
-            for (CodeTemplateLibrary library : libraries) {
-                // Only if it actually changed
-                if (!unchangedLibraryIds.contains(library.getId())) {
-                    library.setLastModified(Calendar.getInstance());
-
-                    Map<String, Object> params = new HashMap<String, Object>();
-                    params.put("id", library.getId());
-                    params.put("name", library.getName());
-                    params.put("revision", library.getRevision());
-                    params.put("library", library);
-
-                    // Put the new library in the database
-                    if (getLibraryById(library.getId()) == null) {
-                        logger.debug("Inserting code template library");
-                        SqlConfig.getInstance().getSqlSessionManager().insert("CodeTemplate.insertLibrary", params);
-                    } else {
-                        logger.debug("Updating code template library");
-                        SqlConfig.getInstance().getSqlSessionManager().update("CodeTemplate.updateLibrary", params);
-                    }
-
-                    // Invoke the code template plugins
-                    for (CodeTemplateServerPlugin codeTemplateServerPlugin : extensionController.getCodeTemplateServerPlugins().values()) {
-                        codeTemplateServerPlugin.save(library, context);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            throw new ControllerException(e);
-        } finally {
-            StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readUnlock();
-        }
+        updateLibraries_db(txn, librariesToRemove, context, librariesToRemove, unchangedLibraryIds);
 
         return true;
     }
@@ -414,6 +360,10 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
 
     @Override
     public synchronized boolean updateCodeTemplate(CodeTemplate codeTemplate, ServerEventContext context, boolean override) throws ControllerException {
+        return updateCodeTemplate(null, codeTemplate, context, override);
+    }
+
+    protected synchronized boolean updateCodeTemplate(Transaction txn, CodeTemplate codeTemplate, ServerEventContext context, boolean override) throws ControllerException {
         CodeTemplate matchingCodeTemplate = getCodeTemplateById(codeTemplate.getId());
         int currentRevision = 0;
 
@@ -480,20 +430,7 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
 
             codeTemplate.setLastModified(Calendar.getInstance());
 
-            Map<String, Object> params = new HashMap<String, Object>();
-            params.put("id", codeTemplate.getId());
-            params.put("name", codeTemplate.getName());
-            params.put("revision", codeTemplate.getRevision());
-            params.put("codeTemplate", codeTemplate);
-
-            // Put the new code template in the database
-            if (getCodeTemplateById(codeTemplate.getId()) == null) {
-                logger.debug("Inserting code template");
-                SqlConfig.getInstance().getSqlSessionManager().insert("CodeTemplate.insertCodeTemplate", params);
-            } else {
-                logger.debug("Updating code template");
-                SqlConfig.getInstance().getSqlSessionManager().update("CodeTemplate.updateCodeTemplate", params);
-            }
+            updateCodeTemplate_db(txn, codeTemplate);
 
             // Invoke the code template plugins
             for (CodeTemplateServerPlugin codeTemplateServerPlugin : extensionController.getCodeTemplateServerPlugins().values()) {
@@ -516,6 +453,10 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
 
     @Override
     public synchronized void removeCodeTemplate(String codeTemplateId, ServerEventContext context) throws ControllerException {
+        removeCodeTemplate(null, codeTemplateId, context);
+    }
+    
+    protected synchronized void removeCodeTemplate(Transaction txn, String codeTemplateId, ServerEventContext context) throws ControllerException {
         // Do a lookup to get the latest model object
         CodeTemplate codeTemplate = getCodeTemplateById(codeTemplateId);
         if (codeTemplate == null) {
@@ -524,12 +465,7 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
 
         StatementLock.getInstance(VACUUM_LOCK_CODE_TEMPLATE_STATEMENT_ID).writeLock();
         try {
-            SqlConfig.getInstance().getSqlSessionManager().delete("CodeTemplate.deleteCodeTemplate", codeTemplate.getId());
-
-            if (DatabaseUtil.statementExists("CodeTemplate.vacuumCodeTemplateTable")) {
-                vacuumCodeTemplateTable();
-            }
-
+            removeCodeTemplate_db(txn, codeTemplate);
             // Invoke the code template plugins
             for (CodeTemplateServerPlugin codeTemplateServerPlugin : extensionController.getCodeTemplateServerPlugins().values()) {
                 codeTemplateServerPlugin.remove(codeTemplate, context);
@@ -557,12 +493,16 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
         }
 
         if (changed) {
-            updateLibraries(libraries, context, true);
+            updateLibraries(txn, libraries, context, true);
         }
     }
 
     @Override
     public synchronized CodeTemplateLibrarySaveResult updateLibrariesAndTemplates(List<CodeTemplateLibrary> libraries, Set<String> removedLibraryIds, List<CodeTemplate> updatedCodeTemplates, Set<String> removedCodeTemplateIds, ServerEventContext context, boolean override) {
+        return updateLibrariesAndTemplates(null, libraries, removedLibraryIds, updatedCodeTemplates, removedCodeTemplateIds, context, override);
+    }
+
+    protected synchronized CodeTemplateLibrarySaveResult updateLibrariesAndTemplates(Transaction txn, List<CodeTemplateLibrary> libraries, Set<String> removedLibraryIds, List<CodeTemplate> updatedCodeTemplates, Set<String> removedCodeTemplateIds, ServerEventContext context, boolean override) {
         // If override is disabled, first check all libraries and templates to make sure they haven't been modified already
         if (!override) {
             Map<String, CodeTemplateLibrary> libraryMap = libraryCache.getAllItems();
@@ -622,7 +562,7 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
         CodeTemplateLibrarySaveResult updateSummary = new CodeTemplateLibrarySaveResult();
 
         try {
-            updateSummary.setLibrariesSuccess(updateLibraries(libraries, context, override));
+            updateSummary.setLibrariesSuccess(updateLibraries(txn, libraries, context, override));
 
             for (CodeTemplateLibrary library : libraries) {
                 LibraryUpdateResult result = new LibraryUpdateResult();
@@ -643,7 +583,7 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
             CodeTemplateUpdateResult result = new CodeTemplateUpdateResult();
 
             try {
-                result.setSuccess(updateCodeTemplate(codeTemplate, context, override));
+                result.setSuccess(updateCodeTemplate(txn, codeTemplate, context, override));
                 result.setNewRevision(codeTemplate.getRevision());
                 result.setNewLastModified(codeTemplate.getLastModified());
             } catch (Throwable t) {
@@ -684,5 +624,96 @@ public class DefaultCodeTemplateController extends CodeTemplateController {
         }
 
         return t;
+    }
+    
+    protected void updateLibraries_db(Transaction txn, List<CodeTemplateLibrary> librariesToRemove, ServerEventContext context, List<CodeTemplateLibrary> libraries, Set<String> unchangedLibraryIds) throws ControllerException {
+        // Remove libraries
+        StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readLock();
+        try {
+            for (CodeTemplateLibrary library : librariesToRemove) {
+                SqlConfig.getInstance().getSqlSessionManager().delete("CodeTemplate.deleteLibrary", library.getId());
+
+                // Invoke the code template plugins
+                for (CodeTemplateServerPlugin codeTemplateServerPlugin : extensionController.getCodeTemplateServerPlugins().values()) {
+                    codeTemplateServerPlugin.remove(library, context);
+                }
+            }
+        } catch (Exception e) {
+            throw new ControllerException(e);
+        } finally {
+            StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readUnlock();
+        }
+
+        // Vacuum
+        StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).writeLock();
+        try {
+            if (DatabaseUtil.statementExists("CodeTemplate.vacuumLibraryTable")) {
+                vacuumLibraryTable();
+            }
+        } catch (Exception e) {
+            throw new ControllerException(e);
+        } finally {
+            StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).writeUnlock();
+        }
+
+        // Insert or update libraries
+        StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readLock();
+        try {
+            for (CodeTemplateLibrary library : libraries) {
+                // Only if it actually changed
+                if (!unchangedLibraryIds.contains(library.getId())) {
+                    library.setLastModified(Calendar.getInstance());
+
+                    Map<String, Object> params = new HashMap<String, Object>();
+                    params.put("id", library.getId());
+                    params.put("name", library.getName());
+                    params.put("revision", library.getRevision());
+                    params.put("library", library);
+
+                    // Put the new library in the database
+                    if (getLibraryById(library.getId()) == null) {
+                        logger.debug("Inserting code template library");
+                        SqlConfig.getInstance().getSqlSessionManager().insert("CodeTemplate.insertLibrary", params);
+                    } else {
+                        logger.debug("Updating code template library");
+                        SqlConfig.getInstance().getSqlSessionManager().update("CodeTemplate.updateLibrary", params);
+                    }
+
+                    // Invoke the code template plugins
+                    for (CodeTemplateServerPlugin codeTemplateServerPlugin : extensionController.getCodeTemplateServerPlugins().values()) {
+                        codeTemplateServerPlugin.save(library, context);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new ControllerException(e);
+        } finally {
+            StatementLock.getInstance(VACUUM_LOCK_LIBRARY_STATEMENT_ID).readUnlock();
+        }
+    }
+    
+    protected void removeCodeTemplate_db(Transaction txn, CodeTemplate codeTemplate) throws ControllerException{
+        SqlConfig.getInstance().getSqlSessionManager().delete("CodeTemplate.deleteCodeTemplate", codeTemplate.getId());
+
+        if (DatabaseUtil.statementExists("CodeTemplate.vacuumCodeTemplateTable")) {
+            vacuumCodeTemplateTable();
+        }
+    }
+    
+    protected void updateCodeTemplate_db(Transaction txn, CodeTemplate codeTemplate) throws ControllerException {
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("id", codeTemplate.getId());
+        params.put("name", codeTemplate.getName());
+        params.put("revision", codeTemplate.getRevision());
+        params.put("codeTemplate", codeTemplate);
+
+        // Put the new code template in the database
+        if (getCodeTemplateById(codeTemplate.getId()) == null) {
+            logger.debug("Inserting code template");
+            SqlConfig.getInstance().getSqlSessionManager().insert("CodeTemplate.insertCodeTemplate", params);
+        } else {
+            logger.debug("Updating code template");
+            SqlConfig.getInstance().getSqlSessionManager().update("CodeTemplate.updateCodeTemplate", params);
+        }
     }
 }

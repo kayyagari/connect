@@ -32,6 +32,7 @@ import com.mirth.connect.client.core.ControllerException;
 import com.mirth.connect.donkey.model.message.CapnpModel;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapPerson;
 import com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry;
+import com.mirth.connect.donkey.server.BdbJeDataSource;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.mirth.connect.model.Credentials;
@@ -76,13 +77,13 @@ public class BdbJeUserController extends UserController {
     public static UserController create() {
         synchronized (BdbJeUserController.class) {
             if (instance == null) {
-                Donkey donkey = Donkey.getInstance();
+                BdbJeDataSource ds = BdbJeDataSource.getInstance();
                 BdbJeUserController i = new BdbJeUserController();
-                i.env = donkey.getBdbJeEnv();
+                i.env = ds.getBdbJeEnv();
                 String name = "person";
-                i.db = donkey.getDbMap().get(name);
-                i.seq = donkey.getServerSeqMap().get(name);
-                i.serverObjectPool = donkey.getServerObjectPool();
+                i.db = ds.getDbMap().get(name);
+                i.seq = ds.getServerSeqMap().get(name);
+                i.serverObjectPool = ds.getServerObjectPool();
                 instance = i;
             }
 

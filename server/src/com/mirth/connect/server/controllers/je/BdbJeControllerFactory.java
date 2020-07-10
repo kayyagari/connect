@@ -32,7 +32,6 @@ import com.mirth.connect.server.controllers.UserController;
 
 public class BdbJeControllerFactory extends ControllerFactory {
     public AuthorizationController createAuthorizationController() {
-        // no SQL in this, so use default impl
         return DefaultAuthorizationController.create();
     }
 
@@ -45,7 +44,7 @@ public class BdbJeControllerFactory extends ControllerFactory {
     }
 
     public CodeTemplateController createCodeTemplateController() {
-        return DefaultCodeTemplateController.create();
+        return BdbJeCodeTemplateController.create();
     }
 
     public ConfigurationController createConfigurationController() {
@@ -57,7 +56,7 @@ public class BdbJeControllerFactory extends ControllerFactory {
     }
 
     public EventController createEventController() {
-        return DefaultEventController.create();
+        return BdbJeEventController.create();
     }
 
     public ExtensionController createExtensionController() {
@@ -65,15 +64,15 @@ public class BdbJeControllerFactory extends ControllerFactory {
     }
 
     public MessageController createMessageController() {
-        return DonkeyMessageController.create();
+        return BdbJeMessageController.create();
     }
 
     public MigrationController createMigrationController() {
-        return DefaultMigrationController.create();
+        return BdbJeMigrationController.create();
     }
 
     public ScriptController createScriptController() {
-        return DefaultScriptController.create();
+        return BdbJeScriptController.create();
     }
 
     public UsageController createUsageController() {
@@ -81,11 +80,11 @@ public class BdbJeControllerFactory extends ControllerFactory {
     }
 
     public UserController createUserController() {
-        return DefaultUserController.create();
+        return BdbJeUserController.create();
     }
 
     public DatabaseTaskController createDatabaseTaskController() {
-        return DefaultDatabaseTaskController.create();
+        return BdbJeDatabaseTaskController.create();
     }
 
     public ContextFactoryController createContextFactoryController() {

@@ -77,7 +77,7 @@ import com.mirth.connect.util.messagewriter.MessageWriterFactory;
 import com.mirth.connect.util.messagewriter.MessageWriterOptions;
 
 public class DonkeyMessageController extends MessageController {
-    private static MessageController instance = null;
+    protected static MessageController instance = null;
 
     public static MessageController create() {
         synchronized (DonkeyMessageController.class) {
@@ -93,10 +93,10 @@ public class DonkeyMessageController extends MessageController {
         }
     }
 
-    private Donkey donkey = Donkey.getInstance();
+    protected Donkey donkey = Donkey.getInstance();
     private Logger logger = Logger.getLogger(this.getClass());
 
-    private DonkeyMessageController() {}
+    protected DonkeyMessageController() {}
 
     private Map<String, Object> getBasicParameters(MessageFilter filter, Long localChannelId) {
         Map<String, Object> params = new HashMap<String, Object>();
@@ -1126,7 +1126,7 @@ public class DonkeyMessageController extends MessageController {
         }
     }
 
-    private class FilterOptions {
+    protected class FilterOptions {
         private long minMessageId;
         private long maxMessageId;
         private boolean searchCustomMetaData;

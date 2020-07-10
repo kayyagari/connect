@@ -42,7 +42,7 @@ import com.mirth.connect.server.util.SqlConfig;
 public class DefaultEventController extends EventController {
     private Logger logger = Logger.getLogger(this.getClass());
 
-    private static EventController instance = null;
+    protected static EventController instance = null;
 
     private static Map<Object, BlockingQueue<Event>> messageEventQueues = new ConcurrentHashMap<Object, BlockingQueue<Event>>();
     private static Map<Object, BlockingQueue<Event>> errorEventQueues = new ConcurrentHashMap<Object, BlockingQueue<Event>>();
@@ -51,7 +51,7 @@ public class DefaultEventController extends EventController {
     private static Map<Object, BlockingQueue<Event>> serverEventQueues = new ConcurrentHashMap<Object, BlockingQueue<Event>>();
     private static Map<Object, BlockingQueue<Event>> genericEventQueues = new ConcurrentHashMap<Object, BlockingQueue<Event>>();
 
-    private DefaultEventController() {
+    protected DefaultEventController() {
         addListener(new AuditableEventListener());
     }
 
