@@ -183,3 +183,14 @@ struct CapAlert {
     name   @1 :Text;
     alert  @2 :Text;
 }
+
+struct CapEvent {
+    id         @0 :Int32;
+    created    @1 :Int64;
+    name       @2 :Text;
+    level      @3 :Int32;
+    outcome    @4 :Int32;
+    attributes @5 :Text;
+    userId     @6 :Int32;
+    ipAddress  @7 :Text;
+}
