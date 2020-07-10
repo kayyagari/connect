@@ -39,6 +39,8 @@ import com.sleepycat.je.EnvironmentConfig;
 import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Sequence;
 import com.sleepycat.je.SequenceConfig;
+import com.sleepycat.je.SequenceStats;
+import com.sleepycat.je.StatsConfig;
 import com.sleepycat.persist.EntityStore;
 import com.sleepycat.persist.PrimaryIndex;
 import com.sleepycat.persist.StoreConfig;
@@ -202,22 +204,31 @@ public class GeneralJETest {
         sc.setInitialValue(1);
         sc.setCacheSize(1000);
         
+        StatsConfig statsConfig = new StatsConfig();
+        statsConfig.setFast(true);
+
         DatabaseConfig dc = new DatabaseConfig();
         dc.setAllowCreate(true);
         Database seDb = env.openDatabase(null, "seq_db", dc);
         DatabaseEntry key = new DatabaseEntry(longToBytes(1));
-        Sequence s = seDb.openSequence(null, key, sc);
+        Sequence seq = seDb.openSequence(null, key, sc);
+        SequenceStats ss = seq.getStats(statsConfig);
+        System.out.println("seq initial " + ss.getValue());
         
         long start = System.currentTimeMillis();
         for(int i = 0; i < 10; i++) {
-            long l = s.get(null, 1);
+            long l = seq.get(null, 1);
             System.out.println(l);
         }
         long end = System.currentTimeMillis();
         
-        long l = s.get(null, 1);
-        System.out.println(l);
-        s.close();
+        long l = seq.get(null, 1);
+        System.out.println("seq get " + l);
+        
+        ss = seq.getStats(statsConfig);
+        System.out.println("seq current " + ss.getValue());
+
+        seq.close();
         seDb.close();
         
         System.out.println("\ntime taken " + (end-start) + "msec");
