@@ -9,8 +9,13 @@ import org.capnproto.StructFactory;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAlert;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapChannel;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapChannelGroup;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapCodeTemplate;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapCodeTemplateLibrary;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConfiguration;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapConnectorMessage;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapEvent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMetadata;
@@ -32,6 +37,11 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
     public static final int CapPerson_Size = 2 * 1024;
     public static final int CapConfiguration_Size = 2 * 1024;
     public static final int CapAlert_Size = 2 * 1024;
+    public static final int CapChannel_Size = 2 * 1024;
+    public static final int CapChannelGroup_Size = 2 * 1024;
+    public static final int CapCodeTemplate_Size = 2 * 1024;
+    public static final int CapCodeTemplateLibrary_Size = 2 * 1024;
+    public static final int CapEvent_Size = 2 * 1024;
 
     @Override
     public void activateObject(Class key, PooledObject<ReusableMessageBuilder> po)
@@ -91,6 +101,26 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
         else if(key == CapConfiguration.class) {
             buf = ByteBuffer.allocate(CapConfiguration_Size);
             factory = CapConfiguration.factory;
+        }
+        else if(key == CapChannel.class) {
+            buf = ByteBuffer.allocate(CapChannel_Size);
+            factory = CapChannel.factory;
+        }
+        else if(key == CapChannelGroup.class) {
+            buf = ByteBuffer.allocate(CapChannelGroup_Size);
+            factory = CapChannelGroup.factory;
+        }
+        else if(key == CapCodeTemplate.class) {
+            buf = ByteBuffer.allocate(CapCodeTemplate_Size);
+            factory = CapCodeTemplate.factory;
+        }
+        else if(key == CapCodeTemplateLibrary.class) {
+            buf = ByteBuffer.allocate(CapCodeTemplateLibrary_Size);
+            factory = CapCodeTemplateLibrary.factory;
+        }
+        else if(key == CapEvent.class) {
+            buf = ByteBuffer.allocate(CapEvent_Size);
+            factory = CapEvent.factory;
         }
         else {
             throw new IllegalArgumentException("unknown message class " + key.getName());
