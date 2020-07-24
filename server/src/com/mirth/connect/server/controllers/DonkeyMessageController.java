@@ -1059,7 +1059,7 @@ public class DonkeyMessageController extends MessageController {
         }
     }
 
-    private void addMessageToMap(Map<Long, MessageSearchResult> messages, Long messageId, Integer metaDataId) {
+    protected void addMessageToMap(Map<Long, MessageSearchResult> messages, Long messageId, Integer metaDataId) {
         MessageSearchResult result = messages.get(messageId);
 
         if (result == null) {
@@ -1074,7 +1074,7 @@ public class DonkeyMessageController extends MessageController {
     /**
      * Removes all message and metadata ids from messages that do not exist in newMessages
      */
-    private void joinMessages(Map<Long, MessageSearchResult> messages, Map<Long, MessageSearchResult> newMessages) {
+    protected void joinMessages(Map<Long, MessageSearchResult> messages, Map<Long, MessageSearchResult> newMessages) {
         Iterator<Entry<Long, MessageSearchResult>> iterator = messages.entrySet().iterator();
 
         while (iterator.hasNext()) {
@@ -1126,7 +1126,7 @@ public class DonkeyMessageController extends MessageController {
         }
     }
 
-    protected class FilterOptions {
+    public class FilterOptions {
         private long minMessageId;
         private long maxMessageId;
         private boolean searchCustomMetaData;

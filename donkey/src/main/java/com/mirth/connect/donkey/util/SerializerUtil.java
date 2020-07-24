@@ -1,5 +1,8 @@
 package com.mirth.connect.donkey.util;
 
+import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
+import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -13,6 +16,9 @@ import org.capnproto.MessageReader;
 import org.capnproto.ReaderOptions;
 import org.capnproto.SerializePacked;
 
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
+import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType;
+import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.sleepycat.je.DatabaseEntry;
 
@@ -87,7 +93,15 @@ public class SerializerUtil {
         buf[offset+2] = (byte)(n >> 16);
         buf[offset+3] = (byte)(n >> 24);
     }
-    
+
+    public static byte[] buildPrimaryKeyOfConnectorMessage(long messageId, int metaDataId) {
+        byte[] buf = new byte[12]; // MESSAGE_ID, METADATA_ID
+        longToBytes(messageId, buf, 0);
+        intToBytes(metaDataId, buf, 8);
+        
+        return buf;
+    }
+
     public static void writeMessageToEntry(ReusableMessageBuilder rmb, DatabaseEntry data) throws IOException {
         ByteBuffer buf = ByteBuffer.allocate(rmb.getInitBufSize());
         ArrayOutputStream output = new ArrayOutputStream(buf);
@@ -211,5 +225,61 @@ public class SerializerUtil {
             }
             // TODO check for r == 0 ?.
         }
+    }
+
+    public static ContentType fromCapContentType(CapMessageContent.CapContentType cct) {
+        ContentType contentType = null;
+        switch (cct) {
+        case CHANNELMAP:
+            contentType = ContentType.CHANNEL_MAP;
+            break;
+        case CONNECTORMAP:
+            contentType = ContentType.CONNECTOR_MAP;
+            break;
+        case ENCODED:
+            contentType = ContentType.ENCODED;
+            break;
+        case POSTPROCESSORERROR:
+            contentType = ContentType.POSTPROCESSOR_ERROR;
+            break;
+        case PROCESSEDRAW:
+            contentType = ContentType.PROCESSED_RAW;
+            break;
+        case PROCESSEDRESPONSE:
+            contentType = ContentType.PROCESSED_RESPONSE;
+            break;
+        case PROCESSINGERROR:
+            contentType = ContentType.PROCESSING_ERROR;
+            break;
+        case RAW:
+            contentType = ContentType.RAW;
+            break;
+        case RESPONSE:
+            contentType = ContentType.RESPONSE;
+            break;
+        case RESPONSEERROR:
+            contentType = ContentType.RESPONSE_ERROR;
+            break;
+        case RESPONSEMAP:
+            contentType = ContentType.RESPONSE_MAP;
+            break;
+        case RESPONSETRANSFORMED:
+            contentType = ContentType.RESPONSE_TRANSFORMED;
+            break;
+        case SENT:
+            contentType = ContentType.SENT;
+            break;
+        case SOURCEMAP:
+            contentType = ContentType.SOURCE_MAP;
+            break;
+        case TRANSFORMED:
+            contentType = ContentType.TRANSFORMED;
+            break;
+    
+        default:
+            throw new IllegalArgumentException("unknown Cap content type " + cct);
+        }
+        
+        return contentType;
     }
 }

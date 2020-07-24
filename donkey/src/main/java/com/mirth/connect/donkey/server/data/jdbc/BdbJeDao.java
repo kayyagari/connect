@@ -15,6 +15,7 @@ import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageConten
 import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.SENT;
 import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.SOURCEMAP;
 import static com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType.TRANSFORMED;
+import static com.mirth.connect.donkey.util.SerializerUtil.buildPrimaryKeyOfConnectorMessage;
 import static com.mirth.connect.donkey.util.SerializerUtil.bytesToInt;
 import static com.mirth.connect.donkey.util.SerializerUtil.bytesToLong;
 import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
@@ -2548,7 +2549,7 @@ public class BdbJeDao implements DonkeyDao {
     private MessageContent _getMessageContent(String channelId, byte[] data) throws Exception {
         MessageReader mr = readMessage(data);
         CapMessageContent.Reader mcr = mr.getRoot(CapMessageContent.factory);
-        ContentType contentType = fromCapContentType(mcr.getContentType());
+        ContentType contentType = SerializerUtil.fromCapContentType(mcr.getContentType());
         String content = mcr.getContent().toString();
         boolean encrypted = mcr.getEncrypted();
         if ((decryptData || alwaysDecrypt.contains(contentType)) && encrypted && encryptor != null) {
@@ -2859,14 +2860,6 @@ public class BdbJeDao implements DonkeyDao {
         return buf;
     }
     
-    private byte[] buildPrimaryKeyOfConnectorMessage(long messageId, int metaDataId) {
-        byte[] buf = new byte[12]; // MESSAGE_ID, METADATA_ID
-        longToBytes(messageId, buf, 0);
-        intToBytes(metaDataId, buf, 8);
-        
-        return buf;
-    }
-
     private byte[] buildPrimaryKeyOfMetadata(long messageId, int metaDataId) {
         byte[] buf = new byte[12]; // MESSAGE_ID, METADATA_ID
         longToBytes(messageId, buf, 0);
@@ -2999,61 +2992,5 @@ public class BdbJeDao implements DonkeyDao {
         }
         
         return cct;
-    }
-    
-    private ContentType fromCapContentType(CapMessageContent.CapContentType cct) {
-        ContentType contentType = null;
-        switch (cct) {
-        case CHANNELMAP:
-            contentType = ContentType.CHANNEL_MAP;
-            break;
-        case CONNECTORMAP:
-            contentType = ContentType.CONNECTOR_MAP;
-            break;
-        case ENCODED:
-            contentType = ContentType.ENCODED;
-            break;
-        case POSTPROCESSORERROR:
-            contentType = ContentType.POSTPROCESSOR_ERROR;
-            break;
-        case PROCESSEDRAW:
-            contentType = ContentType.PROCESSED_RAW;
-            break;
-        case PROCESSEDRESPONSE:
-            contentType = ContentType.PROCESSED_RESPONSE;
-            break;
-        case PROCESSINGERROR:
-            contentType = ContentType.PROCESSING_ERROR;
-            break;
-        case RAW:
-            contentType = ContentType.RAW;
-            break;
-        case RESPONSE:
-            contentType = ContentType.RESPONSE;
-            break;
-        case RESPONSEERROR:
-            contentType = ContentType.RESPONSE_ERROR;
-            break;
-        case RESPONSEMAP:
-            contentType = ContentType.RESPONSE_MAP;
-            break;
-        case RESPONSETRANSFORMED:
-            contentType = ContentType.RESPONSE_TRANSFORMED;
-            break;
-        case SENT:
-            contentType = ContentType.SENT;
-            break;
-        case SOURCEMAP:
-            contentType = ContentType.SOURCE_MAP;
-            break;
-        case TRANSFORMED:
-            contentType = ContentType.TRANSFORMED;
-            break;
-
-        default:
-            throw new IllegalArgumentException("unknown Cap content type " + cct);
-        }
-        
-        return contentType;
     }    
 }

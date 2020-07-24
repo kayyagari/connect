@@ -1,5 +1,7 @@
 package com.mirth.connect.server.controllers.je;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -7,27 +9,43 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.log4j.Logger;
 
+import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.server.BdbJeDataSource;
 import com.mirth.connect.donkey.server.controllers.ChannelController;
 import com.mirth.connect.model.filters.MessageFilter;
+import com.mirth.connect.model.filters.elements.ContentSearchElement;
+import com.mirth.connect.model.filters.elements.MetaDataSearchElement;
 import com.mirth.connect.server.ExtensionLoader;
 import com.mirth.connect.server.controllers.DonkeyMessageController;
 import com.mirth.connect.server.controllers.MessageController;
+import com.mirth.connect.server.controllers.je.msgsearch.CustomeMetadataSelector;
+import com.mirth.connect.server.controllers.je.msgsearch.MessageContentSelector;
+import com.mirth.connect.server.controllers.je.msgsearch.MessageSelector;
+import com.mirth.connect.server.controllers.je.msgsearch.MetadataSelector;
 import com.mirth.connect.server.controllers.DonkeyMessageController.FilterOptions;
 import com.mirth.connect.server.mybatis.MessageSearchResult;
 import com.mirth.connect.server.mybatis.MessageTextResult;
-import com.sleepycat.je.Database;
 import com.sleepycat.je.Environment;
+import com.sleepycat.je.Transaction;
 
 public class BdbJeMessageController extends DonkeyMessageController {
     private Environment env;
-    private Database db;
+    public BdbJeDataSource ds;
 
     private Logger logger = Logger.getLogger(BdbJeMessageController.class);
     
+    private static final Field[] MSG_FILTER_FIELDS;
+    static {
+        MSG_FILTER_FIELDS = MessageFilter.class.getDeclaredFields();
+        for(Field f : MSG_FILTER_FIELDS) {
+            f.setAccessible(true);
+        }
+    }
+
     protected BdbJeMessageController() {
     }
 
@@ -39,6 +57,7 @@ public class BdbJeMessageController extends DonkeyMessageController {
                 if (instance == null) {
                     BdbJeMessageController i = new BdbJeMessageController();
                     BdbJeDataSource ds = BdbJeDataSource.getInstance();
+                    i.ds = ds;
                     i.env = ds.getBdbJeEnv();
 
                     instance = i;
@@ -63,6 +82,7 @@ public class BdbJeMessageController extends DonkeyMessageController {
 
         Long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId, true);
 
+        Transaction txn = env.beginTransaction(null, null);
         try {
             long count = 0;
             long batchSize = 50000;
@@ -76,23 +96,27 @@ public class BdbJeMessageController extends DonkeyMessageController {
                 
                 maxMessageId -= batchSize;
 
-                Map<Long, MessageSearchResult> foundMessages = searchAll(filter, localChannelId, false, filterOptions, currentMinMessageId, maxMessageId);
+                Map<Long, MessageSearchResult> foundMessages = searchAll(txn, filter, localChannelId, false, filterOptions, currentMinMessageId, maxMessageId);
 
                 count += foundMessages.size();
             }
 
             return count;
         } finally {
+            if(txn != null) {
+                txn.commit();
+            }
             long endTime = System.currentTimeMillis();
             logger.debug("Count executed in " + (endTime - startTime) + "ms");
         }
     }
 
-    private Map<Long, MessageSearchResult> searchAll(MessageFilter filter, Long localChannelId, boolean includeMessageData, FilterOptions filterOptions, long minMessageId, long maxMessageId) {
+    private Map<Long, MessageSearchResult> searchAll(Transaction txn, MessageFilter filter, Long localChannelId, boolean includeMessageData, FilterOptions filterOptions, long minMessageId, long maxMessageId) {
         Map<Long, MessageSearchResult> foundMessages = new HashMap<Long, MessageSearchResult>();
 
+        List<Field> nonNullFilterfields = getNonNullFields(filter);
         // Search the message table to find which message ids meet the search criteria.
-        List<MessageTextResult> messageResults = session.selectList("Message.searchMessageTable", params);
+        List<MessageTextResult> messageResults = MessageSelector.searchMessageTable(txn, filter, nonNullFilterfields, localChannelId, filterOptions, minMessageId, maxMessageId);
         /*
          * If the message table search provided no records then there is no need to perform any more
          * searches on this range of message ids.
@@ -109,7 +133,9 @@ public class BdbJeMessageController extends DonkeyMessageController {
              * column while we're at it.
              */
 
-            List<MessageTextResult> metaDataResults = session.selectList("Message.searchMetaDataTable", params);
+            //session.selectList("Message.searchMetaDataTable", params);
+            List<MessageTextResult> metaDataResults = MetadataSelector.searchMetaDataTable(txn, filter, nonNullFilterfields, localChannelId, filterOptions, minMessageId, maxMessageId);
+
             /*
              * Messages that matched the text search criteria. Since text search spans across
              * multiple tables (metadata, content, custom metadata), the map is created it can be
@@ -196,7 +222,8 @@ public class BdbJeMessageController extends DonkeyMessageController {
                 if (searchCustomMetaData) {
                     tempMessages = new HashMap<Long, MessageSearchResult>();
                     // Perform the custom metadata search
-                    searchCustomMetaData(session, new HashMap<String, Object>(contentParams), potentialMessages, tempMessages, filter.getMetaDataSearch());
+                    //searchCustomMetaData(session, new HashMap<String, Object>(contentParams), potentialMessages, tempMessages, filter.getMetaDataSearch());
+                    searchCustomMetaData(txn, filter, nonNullFilterfields, potentialMessages, tempMessages, filter.getMetaDataSearch(), localChannelId, potentialMin, potentialMax);
 
                     /*
                      * If tempMessages is empty, there is no need to search on either the content or
@@ -210,7 +237,7 @@ public class BdbJeMessageController extends DonkeyMessageController {
                 if (searchContent) {
                     Map<Long, MessageSearchResult> contentMessages = new HashMap<Long, MessageSearchResult>();
                     // Perform the content search
-                    searchContent(session, new HashMap<String, Object>(contentParams), potentialMessages, contentMessages, filter.getContentSearch());
+                    searchContent(txn, potentialMessages, contentMessages, filter.getContentSearch(), localChannelId, potentialMin, potentialMax);
 
                     if (tempMessages == null) {
                         /*
@@ -291,5 +318,139 @@ public class BdbJeMessageController extends DonkeyMessageController {
         }
 
         return foundMessages;
+    }
+
+    private void searchCustomMetaData(Transaction txn, MessageFilter filter, List<Field> nonNullFilterfields, Map<Long, MessageSearchResult> potentialMessages, Map<Long, MessageSearchResult> customMetaDataMessages, List<MetaDataSearchElement> metaDataSearchElements, long localChannelId, long minMessageId, long maxMessageId) throws Exception {
+        /*
+         * Search the custom meta data table for message and metadata ids matching the metadata
+         * search criteria
+         */
+        //session.selectList("Message.searchCustomMetaDataTable", params);
+        List<MessageTextResult> results = CustomeMetadataSelector.searchCustomMetaDataTable(txn, filter, nonNullFilterfields, localChannelId, minMessageId, maxMessageId);
+
+        for (MessageTextResult result : results) {
+            Long messageId = result.getMessageId();
+            Integer metaDataId = result.getMetaDataId();
+
+            if (potentialMessages.containsKey(messageId)) {
+                Set<Integer> allowedMetaDataIds = potentialMessages.get(messageId).getMetaDataIdSet();
+                /*
+                 * Ignore the message and metadata id if they are not allowed because they were
+                 * already filtered in a previous step
+                 */
+                if (allowedMetaDataIds.contains(metaDataId)) {
+                    addMessageToMap(customMetaDataMessages, messageId, metaDataId);
+                }
+            }
+        }
+    }
+
+    private void searchContent(Transaction txn, Map<Long, MessageSearchResult> potentialMessages, Map<Long, MessageSearchResult> contentMessages, List<ContentSearchElement> contentSearchElements, long localChannelId, long minMessageId, long maxMessageId) throws Exception {
+        int index = 0;
+
+        while (index < contentSearchElements.size() && (index == 0 || !contentMessages.isEmpty())) {
+            ContentSearchElement element = contentSearchElements.get(index);
+
+            if (CollectionUtils.isNotEmpty(element.getSearches())) {
+
+                /*
+                 * Search the content table for message and metadata ids matching the content search
+                 * criteria
+                 */
+                //List<MessageTextResult> results = session.selectList("Message.searchContentTable", params);
+                List<MessageTextResult> results = MessageContentSelector.searchContentTable(txn, element, null, element.getContentCode(), localChannelId, minMessageId, maxMessageId);
+
+                Map<Long, MessageSearchResult> tempMessages = new HashMap<Long, MessageSearchResult>();
+
+                for (MessageTextResult result : results) {
+                    Long messageId = result.getMessageId();
+                    Integer metaDataId = result.getMetaDataId();
+
+                    if (potentialMessages.containsKey(messageId)) {
+                        Set<Integer> allowedMetaDataIds = potentialMessages.get(messageId).getMetaDataIdSet();
+                        /*
+                         * Ignore the message and metadata id if they are not allowed because they
+                         * were already filtered in a previous step
+                         */
+                        if (allowedMetaDataIds.contains(metaDataId)) {
+                            if (index == 0) {
+                                /*
+                                 * For the first search, add the results to the final result map
+                                 * since there is nothing to join from
+                                 */
+                                addMessageToMap(contentMessages, messageId, metaDataId);
+                            } else {
+                                /*
+                                 * For other searches, add the results to the temp result map so
+                                 * they can be joined with the final result map
+                                 */
+                                addMessageToMap(tempMessages, messageId, metaDataId);
+                            }
+                        }
+                    }
+                }
+
+                /*
+                 * If the raw content is being searched, perform an additional search on the source
+                 * encoded content since the destination
+                 */
+                if (ContentType.fromCode(element.getContentCode()) == ContentType.RAW) {
+
+                    //results = session.selectList("Message.searchContentTable", params);
+                    results = MessageContentSelector.searchContentTable(txn, element, 0, ContentType.ENCODED.getContentTypeCode(), localChannelId, minMessageId, maxMessageId);
+
+                    for (MessageTextResult result : results) {
+                        Long messageId = result.getMessageId();
+
+                        if (potentialMessages.containsKey(messageId)) {
+                            Set<Integer> allowedMetaDataIds = potentialMessages.get(messageId).getMetaDataIdSet();
+                            for (Integer allowedMetaDataId : allowedMetaDataIds) {
+                                if (allowedMetaDataId != 0) {
+                                    /*
+                                     * If the source encoded is found, then all destinations have
+                                     * matched on the raw content, so all allowed metadata ids other
+                                     * than 0 (source) need to be added
+                                     */
+                                    if (index == 0) {
+                                        /*
+                                         * For the first search, add the results to the final result
+                                         * map since there is nothing to join from
+                                         */
+                                        addMessageToMap(contentMessages, messageId, allowedMetaDataId);
+                                    } else {
+                                        /*
+                                         * For other searches, add the results to the temp result
+                                         * map so they can be joined with the final result map
+                                         */
+                                        addMessageToMap(tempMessages, messageId, allowedMetaDataId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (index > 0) {
+                    /*
+                     * If there are more than one searches performed, join the results since the
+                     * message and metadata ids must be found in all searches in order to be
+                     * considered "found"
+                     */
+                    joinMessages(contentMessages, tempMessages);
+                }
+            }
+
+            index++;
+        }
+    }
+
+    private static List<Field> getNonNullFields(MessageFilter filter) throws IllegalAccessException {
+        List<Field> lst = new ArrayList<>();
+        for(Field f : MSG_FILTER_FIELDS) {
+            if(f.get(filter) != null) {
+                lst.add(f);
+            }
+        }
+        return lst;
     }
 }

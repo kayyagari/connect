@@ -48,10 +48,6 @@ public class BdbJeEventController extends DefaultEventController {
     private StatsConfig sc = new StatsConfig();
     private String serverId;
 
-    enum EvalResult {
-        SELECTED, DROPPED, NO_MORE;
-    }
-
     private static final Field[] EVENT_FILTER_FIELDS;
     
     private Logger logger = Logger.getLogger(BdbJeEventController.class);
