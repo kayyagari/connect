@@ -22,6 +22,7 @@ import org.capnproto.MessageBuilder;
 import org.capnproto.MessageReader;
 import org.capnproto.SerializePacked;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
@@ -50,7 +51,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 
 public class GeneralJETest {
     private Environment env;
-    private EntityStore st;
 
     @Before
     public void setup() {
@@ -64,29 +64,8 @@ public class GeneralJETest {
         File envHome = new File("/tmp/bdb");
         envHome.mkdir();
         env = new Environment(envHome, myEnvConfig);
-        st = new EntityStore(env, "D_M", storeConfig);
     }
 
-    @Test
-    public void testStoreMessage() {
-        PrimaryIndex pi = st.getPrimaryIndex(Long.class, Message.class);
-        Message m1 = new Message();
-        m1.setMessageId(1L);
-        m1.setServerId(UUID.randomUUID().toString());
-        m1.setChannelId(UUID.randomUUID().toString());
-        m1.setImportId(1L);
-        Attachment a1 = new Attachment(UUID.randomUUID().toString(), "test content attached to m1".getBytes(), "text");
-        List<Attachment> lst = new ArrayList<>();
-        lst.add(a1);
-        m1.setAttachments(lst);
-        
-        pi.put(m1);
-        
-        Message retrieved = (Message)pi.get(1L);
-        System.out.println(retrieved);
-        assertNotNull(retrieved);
-    }
-    
     @Test
     public void testStoreCapnpMessage() throws Exception {
         MessageBuilder mb = new MessageBuilder();
@@ -100,7 +79,7 @@ public class GeneralJETest {
             at.setType("text");
             SerializePacked.write(bw, mb);
             mb.clearFirstSegment();
-            System.out.println(i);
+            //System.out.println(i);
         }
         bw.flush();
         bw.close();
@@ -304,6 +283,7 @@ public class GeneralJETest {
         return total;
     }
     
+    @Ignore
     @Test
     public void testDecodeMessageContent() throws Exception {
         String[] hexStrings = new String[] {

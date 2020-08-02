@@ -48,6 +48,7 @@ public class BdbJeConfigurationController extends DefaultConfigurationController
                     String name = "configuration";
                     i.db = ds.getDbMap().get(name);
                     i.serverObjectPool = ds.getServerObjectPool();
+                    i.initialize();
                     instance = i;
                 }
             }

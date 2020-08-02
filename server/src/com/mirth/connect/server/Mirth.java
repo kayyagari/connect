@@ -61,6 +61,7 @@ import com.mirth.connect.server.controllers.MigrationController;
 import com.mirth.connect.server.controllers.ScriptController;
 import com.mirth.connect.server.controllers.UsageController;
 import com.mirth.connect.server.controllers.UserController;
+import com.mirth.connect.server.controllers.je.BdbJeUserController;
 import com.mirth.connect.server.logging.JuliToLog4JService;
 import com.mirth.connect.server.logging.LogOutputStream;
 import com.mirth.connect.server.logging.MirthLog4jFilter;
@@ -81,23 +82,17 @@ public class Mirth extends Thread {
     private MirthWebServer webServer;
     private CommandQueue commandQueue = CommandQueue.getInstance();
     private EngineController engineController;
-    private ConfigurationController configurationController = ControllerFactory.getFactory().createConfigurationController();
-    private UserController userController = ControllerFactory.getFactory().createUserController();
-    private ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
-    private MigrationController migrationController = ControllerFactory.getFactory().createMigrationController();
-    private EventController eventController = ControllerFactory.getFactory().createEventController();
-    private ScriptController scriptController = ControllerFactory.getFactory().createScriptController();
-    private ContextFactoryController contextFactoryController = ControllerFactory.getFactory().createContextFactoryController();
-    private AlertController alertController = ControllerFactory.getFactory().createAlertController();
-    private UsageController usageController = ControllerFactory.getFactory().createUsageController();
+    private ConfigurationController configurationController;
+    private UserController userController;
+    private ExtensionController extensionController;
+    private MigrationController migrationController;
+    private EventController eventController;
+    private ScriptController scriptController;
+    private ContextFactoryController contextFactoryController;
+    private AlertController alertController;
+    private UsageController usageController;
 
     private static List<Thread> shutdownHooks = new ArrayList<Thread>();
-
-    static {
-        // to make MC work with BDB JE, the Donkey instance MUST be initialized first
-        // so that rest of the controller implementation can have access to the DB
-        ControllerFactory.getFactory().createEngineController();
-    }
 
     public static void main(String[] args) {
         Mirth mirth = new Mirth();
@@ -220,7 +215,7 @@ public class Mirth extends Thread {
             // slight initial cost to copy the config when BDB JE is used
             // because the DataSource must be configured first to instantiate suitable Controllers
             PropertiesConfiguration configClone = new PropertiesConfiguration();
-            mirthProperties.copy(configClone);
+            configClone.copy(mirthProperties);
             Properties props = ConfigurationConverter.getProperties(configClone);
             bdbJeDs = BdbJeDataSource.create(props);
         }
@@ -245,8 +240,8 @@ public class Mirth extends Thread {
         configurationController.updatePropertiesConfiguration(mirthProperties);
 
         try {
-            DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties());
             if(bdbJeDs == null) {
+                DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties());
                 SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
                 SqlConfig.getInstance().getSqlSessionManager().getConnection();
                 
@@ -254,6 +249,9 @@ public class Mirth extends Thread {
                     SqlConfig.getInstance().getReadOnlySqlSessionManager().startManagedSession();
                     SqlConfig.getInstance().getReadOnlySqlSessionManager().getConnection();
                 }
+            }
+            else {
+                ((BdbJeUserController)userController).createDefaultUser();
             }
         } catch (Exception e) {
             // the getCause is needed since the wrapper exception is from the connection pool

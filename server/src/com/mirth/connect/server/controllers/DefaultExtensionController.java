@@ -93,7 +93,7 @@ public class DefaultExtensionController extends ExtensionController {
     private ExtensionStatuses extensionStatuses = ExtensionStatuses.getInstance();
 
     // singleton pattern
-    private static ExtensionController instance = null;
+    protected static ExtensionController instance = null;
 
     public static ExtensionController create() {
         synchronized (DefaultExtensionController.class) {
@@ -109,7 +109,7 @@ public class DefaultExtensionController extends ExtensionController {
         }
     }
 
-    DefaultExtensionController() {
+    protected DefaultExtensionController() {
 
     }
 

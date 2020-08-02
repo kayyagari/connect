@@ -23,6 +23,7 @@ import com.mirth.connect.donkey.model.channel.MetaDataColumnType;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
+import com.mirth.connect.donkey.server.BdbJeDataSource;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConfiguration;
 import com.mirth.connect.donkey.server.StartException;
@@ -71,7 +72,7 @@ public class BdbJeDaoTest {
 
         List<String> dbNames = jeDonkey.getBdbJeEnv().getDatabaseNames();
         assertTrue(dbNames.contains(BdbJeDao.TABLE_D_CHANNELS));
-        assertTrue(dbNames.contains(BdbJeDao.TABLE_D_MESSAGE_SEQ));
+        assertTrue(dbNames.contains(BdbJeDataSource.TABLE_D_MESSAGE_SEQ));
         assertTrue(dbNames.contains(BdbJeDao.TABLE_D_META_COLUMNS));
 
         factory = jeDonkey.getDaoFactory();

@@ -64,6 +64,7 @@ import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
+import com.mirth.connect.donkey.server.BdbJeDataSource;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.Encryptor;
 import com.mirth.connect.donkey.server.channel.Channel;
@@ -115,21 +116,13 @@ public class BdbJeDao implements DonkeyDao {
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
     public static final String TABLE_D_CHANNELS = "d_channels";
-    public static final String TABLE_D_MESSAGE_SEQ = "d_msq";
     public static final String TABLE_D_META_COLUMNS = "d_mcm_columns";
 
     private Map<String, Database> dbMap;
     private Map<Long, Sequence> seqMap;
     private GenericKeyedObjectPool<Class, ReusableMessageBuilder> objectPool;
 
-    private static final SequenceConfig SEQ_CONF = new SequenceConfig();
     private static final byte DELIM_BYTE = '\\';
-
-    static {
-        SEQ_CONF.setAllowCreate(true);
-        SEQ_CONF.setInitialValue(1);
-        SEQ_CONF.setCacheSize(1000);
-    }
 
     protected BdbJeDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
         this.donkey = donkey;
@@ -295,7 +288,7 @@ public class BdbJeDao implements DonkeyDao {
             cb.setMetaDataId(metaDataId);
 
             long localChannelId = getLocalChannelId(channelId);
-            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
+            DatabaseEntry key = new DatabaseEntry(SerializerUtil.buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
             DatabaseEntry data = new DatabaseEntry();
             writeMessageToEntry(rmb, data);
             Database msgContentDb = dbMap.get("d_mc" + localChannelId);
@@ -945,7 +938,7 @@ public class BdbJeDao implements DonkeyDao {
                 rmb = objectPool.borrowObject(CapMessage.class);
                 rmb.getMb().setRoot(CapMessage.factory, atReader);
                 CapMessage.Builder mb = (CapMessage.Builder)rmb.getSb();
-                mb.setProcessed(true);
+                mb.setProcessed(!reset);
 
                 if(reset) {
                     mb.setImportChannelId((String)null);
@@ -1028,7 +1021,7 @@ public class BdbJeDao implements DonkeyDao {
 
             DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
             seqMap.remove(localChannelId).close();
-            dbMap.get(TABLE_D_MESSAGE_SEQ).removeSequence(txn, key);
+            dbMap.get(BdbJeDataSource.TABLE_D_MESSAGE_SEQ).removeSequence(txn, key);
             
             dbMap.get(TABLE_D_CHANNELS).delete(txn, key);
             removedChannelIds.add(channelId);
@@ -1110,7 +1103,7 @@ public class BdbJeDao implements DonkeyDao {
 
         try {
             long localChannelId = getLocalChannelId(channelId);
-            DatabaseEntry key = new DatabaseEntry(buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
+            DatabaseEntry key = new DatabaseEntry(SerializerUtil.buildPrimaryKeyOfMessageContent(messageId, metaDataId, contentType));
             Database msgContentDb = dbMap.get("d_mc" + localChannelId);
             msgContentDb.delete(txn, key);
         } catch (DatabaseException e) {
@@ -1327,6 +1320,7 @@ public class BdbJeDao implements DonkeyDao {
                     }
 
                     foundMsgId = bytesToLong(key.getData());
+                    int metaDataId = bytesToInt(key.getData(), 8);
                     if(tmpMsgId != foundMsgId) {
                         longToBytes(foundMsgId, msgKey, 0);
                         key.setData(msgKey);
@@ -1347,7 +1341,6 @@ public class BdbJeDao implements DonkeyDao {
                     }
 
                     if(tmpMsg != null) {
-                        int metaDataId = bytesToInt(key.getData(), 8);
                         longToBytes(foundMsgId, conMsgKey, 0);
                         intToBytes(metaDataId, conMsgKey, 8);
                         key.setData(conMsgKey);
@@ -1944,7 +1937,8 @@ public class BdbJeDao implements DonkeyDao {
 
             // createMessageSequence
             DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
-            Sequence seq = dbMap.get(TABLE_D_MESSAGE_SEQ).openSequence(txn, key, SEQ_CONF);
+            SequenceConfig seqConf = BdbJeDataSource.getInstance().getDefaultSeqConf();
+            Sequence seq = dbMap.get(BdbJeDataSource.TABLE_D_MESSAGE_SEQ).openSequence(txn, key, seqConf);
             seqMap.put(localChannelId, seq);
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
@@ -1977,7 +1971,7 @@ public class BdbJeDao implements DonkeyDao {
         Map<String, Long> channelIds = getLocalChannelIds();
         List<String> channelTablesLst = new ArrayList<>();
 
-        Database msq = dbMap.get(TABLE_D_MESSAGE_SEQ);
+        Database msq = dbMap.get(BdbJeDataSource.TABLE_D_MESSAGE_SEQ);
         DatabaseEntry seq = new DatabaseEntry(longToBytes(1));
         
         for (Long localChannelId : channelIds.values()) {
@@ -2319,7 +2313,7 @@ public class BdbJeDao implements DonkeyDao {
         if (!tableExists(TABLE_D_CHANNELS)) {
             logger.debug("Creating channels table");
             createTable(TABLE_D_CHANNELS);
-            createTable(TABLE_D_MESSAGE_SEQ);
+            createTable(BdbJeDataSource.TABLE_D_MESSAGE_SEQ);
             createTable(TABLE_D_META_COLUMNS);
             return true;
         } else {
@@ -2450,7 +2444,7 @@ public class BdbJeDao implements DonkeyDao {
         List<MessageContent> messageContents = new ArrayList<MessageContent>();
         try {
             
-            byte[] msgContKey = buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.RAW);
+            byte[] msgContKey = SerializerUtil.buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.RAW);
             DatabaseEntry key = new DatabaseEntry(msgContKey);
             DatabaseEntry data = new DatabaseEntry();
             
@@ -2514,7 +2508,7 @@ public class BdbJeDao implements DonkeyDao {
         try {
             long cid = getLocalChannelId(channelId);
             Database msgContentDb = dbMap.get("d_mc" + cid);
-            byte[] msgContKey = buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.ENCODED);
+            byte[] msgContKey = SerializerUtil.buildPrimaryKeyOfMessageContent(messageId, metaDataId, ContentType.ENCODED);
             DatabaseEntry key = new DatabaseEntry(msgContKey);
             DatabaseEntry data = new DatabaseEntry();
             OperationStatus os = msgContentDb.get(txn, key, data, LockMode.READ_COMMITTED);
@@ -2849,15 +2843,6 @@ public class BdbJeDao implements DonkeyDao {
     protected String getDeployedChannelName(String channelId) {
         Channel channel = donkey.getDeployedChannels().get(channelId);
         return channel != null ? channel.getName() : "";
-    }
-    
-    private byte[] buildPrimaryKeyOfMessageContent(long messageId, int metaDataId, ContentType ct) {
-        byte[] buf = new byte[16]; // MESSAGE_ID, METADATA_ID, CONTENT_TYPE
-        longToBytes(messageId, buf, 0);
-        intToBytes(metaDataId, buf, 8);
-        intToBytes(ct.getContentTypeCode(), buf, 12);
-        
-        return buf;
     }
     
     private byte[] buildPrimaryKeyOfMetadata(long messageId, int metaDataId) {

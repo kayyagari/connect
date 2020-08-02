@@ -14,6 +14,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import com.mirth.connect.donkey.server.BdbJeDataSource;
+
 public class StatementLock {
     private boolean vacuumLockRequired;
     private ReadWriteLock vacuumLock;
@@ -42,7 +44,12 @@ public class StatementLock {
                 return statementLock;
             }
 
-            statementLock = new StatementLock(DatabaseUtil.statementExists(statementId));
+            if(BdbJeDataSource.getInstance() != null) {
+                statementLock = new StatementLock(false);
+            }
+            else {
+                statementLock = new StatementLock(DatabaseUtil.statementExists(statementId));
+            }
             instances.put(statementId, statementLock);
             return statementLock;
         }

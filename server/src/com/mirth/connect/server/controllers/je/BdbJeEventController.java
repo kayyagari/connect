@@ -25,6 +25,7 @@ import com.mirth.connect.model.ServerEvent.Outcome;
 import com.mirth.connect.model.converters.ObjectXMLSerializer;
 import com.mirth.connect.model.filters.EventFilter;
 import com.mirth.connect.server.ExtensionLoader;
+import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.DefaultEventController;
 import com.mirth.connect.server.controllers.EventController;
 import com.sleepycat.je.Cursor;
@@ -46,7 +47,7 @@ public class BdbJeEventController extends DefaultEventController {
     private ObjectXMLSerializer objectSerializer;
     
     private StatsConfig sc = new StatsConfig();
-    private String serverId;
+    private String _serverId;
 
     private static final Field[] EVENT_FILTER_FIELDS;
     
@@ -77,7 +78,6 @@ public class BdbJeEventController extends DefaultEventController {
                     i.seq = ds.getServerSeqMap().get(name);
                     i.serverObjectPool = ds.getServerObjectPool();
                     i.objectSerializer = ObjectXMLSerializer.getInstance();
-                    i.serverId = Donkey.getInstance().getConfiguration().getServerId();
                     i.sc.setFast(true);
 
                     instance = i;
@@ -105,7 +105,10 @@ public class BdbJeEventController extends DefaultEventController {
             ceb.setCreated(serverEvent.getEventTime().getTimeInMillis());
             int eventId = (int)seq.get(txn, 1);
             ceb.setId(eventId);
-            ceb.setIpAddress(serverEvent.getIpAddress());
+            String ip = serverEvent.getIpAddress();
+            if(ip != null) {
+                ceb.setIpAddress(ip);
+            }
             ceb.setLevel(serverEvent.getLevel().getVal());
             ceb.setName(serverEvent.getName());
             ceb.setOutcome(serverEvent.getOutcome().getVal());
@@ -201,10 +204,10 @@ public class BdbJeEventController extends DefaultEventController {
             throw new ControllerException(e);
         }
         finally {
-            txn.commit();
             if(cursor != null) {
                 cursor.close();
             }
+            txn.commit();
         }
         
         return seList;
@@ -322,7 +325,7 @@ public class BdbJeEventController extends DefaultEventController {
                 break;
 
             case "serverId":
-                if(serverId.equals(filter.getServerId())) {
+                if(getServerId().equals(filter.getServerId())) {
                     selected = true;
                 }
                 else {
@@ -370,7 +373,7 @@ public class BdbJeEventController extends DefaultEventController {
         }
         
         se.setOutcome(Outcome.byVal(cr.getOutcome()));
-        se.setServerId(serverId);
+        se.setServerId(getServerId());
         se.setUserId(cr.getUserId());
         
         return se;
@@ -384,5 +387,13 @@ public class BdbJeEventController extends DefaultEventController {
             }
         }
         return lst;
+    }
+
+    private String getServerId() {
+        if(_serverId == null) {
+            _serverId = ConfigurationController.getInstance().getServerId();            
+        }
+        
+        return _serverId;
     }
 }

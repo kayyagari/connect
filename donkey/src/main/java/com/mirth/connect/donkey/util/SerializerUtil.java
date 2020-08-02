@@ -282,4 +282,13 @@ public class SerializerUtil {
         
         return contentType;
     }
+
+    public static byte[] buildPrimaryKeyOfMessageContent(long messageId, int metaDataId, ContentType ct) {
+        byte[] buf = new byte[16]; // MESSAGE_ID, METADATA_ID, CONTENT_TYPE
+        longToBytes(messageId, buf, 0);
+        intToBytes(metaDataId, buf, 8);
+        intToBytes(ct.getContentTypeCode(), buf, 12);
+        
+        return buf;
+    }
 }

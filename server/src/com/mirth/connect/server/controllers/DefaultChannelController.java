@@ -623,13 +623,7 @@ public class DefaultChannelController extends ChannelController {
     public Map<String, Integer> getChannelRevisions() throws ControllerException {
         StatementLock.getInstance(VACUUM_LOCK_CHANNEL_STATEMENT_ID).readLock();
         try {
-            List<Map<String, Object>> results = SqlConfig.getInstance().getReadOnlySqlSessionManager().selectList("Channel.getChannelRevision");
-
-            Map<String, Integer> channelRevisions = new HashMap<String, Integer>();
-            for (Map<String, Object> result : results) {
-                channelRevisions.put((String) result.get("id"), (Integer) result.get("revision"));
-            }
-
+            Map<String, Integer> channelRevisions = getChannelRevisions_db();
             return channelRevisions;
         } catch (Exception e) {
             throw new ControllerException(e);
@@ -1109,5 +1103,15 @@ public class DefaultChannelController extends ChannelController {
         } finally {
             StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readUnlock();
         }
+    }
+    
+    protected Map<String, Integer> getChannelRevisions_db() {
+        List<Map<String, Object>> results = SqlConfig.getInstance().getReadOnlySqlSessionManager().selectList("Channel.getChannelRevision");
+        Map<String, Integer> channelRevisions = new HashMap<String, Integer>();
+        for (Map<String, Object> result : results) {
+            channelRevisions.put((String) result.get("id"), (Integer) result.get("revision"));
+        }
+        
+        return channelRevisions;
     }
 }

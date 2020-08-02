@@ -41,7 +41,7 @@ public class MetadataSelector {
             // step back
             cursor.getPrev(key, data, null);
             
-            while(cursor.getSearchKeyRange(key, data, null) == OperationStatus.SUCCESS) {
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
                 CapConnectorMessage.Reader cr = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                 EvalResult er = evalConnectorMessage(txn, cr, conMsgStatusDb, nonNullFilterfields, filter, minMessageId, maxMessageId);
                 if(er == EvalResult.SELECTED) {

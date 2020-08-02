@@ -1,8 +1,9 @@
 package com.mirth.connect.server.controllers.je;
 
-import static com.mirth.connect.donkey.util.SerializerUtil.writeMessageToEntry;
+import static com.mirth.connect.donkey.util.SerializerUtil.*;
 
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -31,9 +32,11 @@ import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.server.controllers.DefaultChannelController;
 import com.mirth.connect.server.util.StatementLock;
+import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Environment;
+import com.sleepycat.je.OperationStatus;
 import com.sleepycat.je.Transaction;
 
 public class BdbJeChannelController extends DefaultChannelController {
@@ -272,6 +275,35 @@ public class BdbJeChannelController extends DefaultChannelController {
         } finally {
             StatementLock.getInstance(VACUUM_LOCK_CHANNEL_GROUP_STATEMENT_ID).readUnlock();
         }
+    }
+    
+    @Override
+    protected Map<String, Integer> getChannelRevisions_db() {
+        Map<String, Integer> revisions = new HashMap<>();
+        Cursor cursor = null;
+        Transaction txn = null;
+        try {
+            txn = env.beginTransaction(null, null);
+            cursor = channelDb.openCursor(txn, null);
+            DatabaseEntry key = new DatabaseEntry();
+            DatabaseEntry data = new DatabaseEntry();
+            
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+                CapChannel.Reader cr = (CapChannel.Reader)readMessage(data.getData()).getRoot(CapChannel.factory);
+                revisions.put(cr.getId().toString(), cr.getRevision());
+            }
+        }
+        catch(Exception e) {
+            logger.warn("", e);
+        }
+        finally {
+            if(cursor != null) {
+                cursor.close();
+            }
+            txn.commit();
+        }
+
+        return revisions;
     }
 
     @Override

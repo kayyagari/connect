@@ -112,16 +112,15 @@ public class BdbJeUserController extends UserController {
                 db.put(txn, key, data);
                 serverObjectPool.returnObject(CapPerson.class, rmb);
             }
+            cursor.close();
             txn.commit();
         }
         catch(Exception e) {
-            txn.abort();
-            logger.error("couldn't reset login status of all users", e);
-        }
-        finally {
             if(cursor != null) {
                 cursor.close();
             }
+            txn.abort();
+            logger.error("couldn't reset login status of all users", e);
         }
     }
 
@@ -473,22 +472,24 @@ public class BdbJeUserController extends UserController {
                 LoginStatus.Status status = LoginStatus.Status.FAIL;
                 String failMessage = "Incorrect username or password.";
 
-                pb.setStrikeCount(pb.getStrikeCount() + 1);
-                
-                if (passwordRequirements.getRetryLimit() > 0) {
-                    int retryLimit = passwordRequirements.getRetryLimit();
-                    int attemptsRemaining = (retryLimit + 1 - pb.getStrikeCount());
-
-                    Duration lockoutPeriod = Duration.standardHours(passwordRequirements.getLockoutPeriod());
-                    long lastStrikeTime = System.currentTimeMillis();
-                    long strikeTimeRemaining = lockoutPeriod.minus(lastStrikeTime).getMillis();
-
-                    if (attemptsRemaining <= 0 && strikeTimeRemaining > 0) {
-                        status = LoginStatus.Status.FAIL_LOCKED_OUT;
-                        failMessage += " User account \"" + username + "\" has been locked. You may attempt to login again in " + getPrintableStrikeTimeRemaining(strikeTimeRemaining) + ".";
-                    } else {
-                        String printableLockoutPeriod = PeriodFormat.getDefault().print(Period.hours(passwordRequirements.getLockoutPeriod()));
-                        failMessage += " " + attemptsRemaining + " login attempt(s) remaining for \"" + username + "\" until the account is locked for " + printableLockoutPeriod + ".";
+                if(pb != null) {
+                    pb.setStrikeCount(pb.getStrikeCount() + 1);
+                    
+                    if (passwordRequirements.getRetryLimit() > 0) {
+                        int retryLimit = passwordRequirements.getRetryLimit();
+                        int attemptsRemaining = (retryLimit + 1 - pb.getStrikeCount());
+                        
+                        Duration lockoutPeriod = Duration.standardHours(passwordRequirements.getLockoutPeriod());
+                        long lastStrikeTime = System.currentTimeMillis();
+                        long strikeTimeRemaining = lockoutPeriod.minus(lastStrikeTime).getMillis();
+                        
+                        if (attemptsRemaining <= 0 && strikeTimeRemaining > 0) {
+                            status = LoginStatus.Status.FAIL_LOCKED_OUT;
+                            failMessage += " User account \"" + username + "\" has been locked. You may attempt to login again in " + getPrintableStrikeTimeRemaining(strikeTimeRemaining) + ".";
+                        } else {
+                            String printableLockoutPeriod = PeriodFormat.getDefault().print(Period.hours(passwordRequirements.getLockoutPeriod()));
+                            failMessage += " " + attemptsRemaining + " login attempt(s) remaining for \"" + username + "\" until the account is locked for " + printableLockoutPeriod + ".";
+                        }
                     }
                 }
 
@@ -547,7 +548,7 @@ public class BdbJeUserController extends UserController {
                     pb.setLoggedIn(0);
                 }
                 
-                DatabaseEntry key = new DatabaseEntry(buildPk(user.getId(), user.getUsername()));
+                DatabaseEntry key = new DatabaseEntry(buildPk(pb.getId(), pb.getUsername().toString()));
                 DatabaseEntry val = new DatabaseEntry();
                 writeMessageToEntry(rmb, val);
                 db.put(txn, key, val);
@@ -1043,5 +1044,17 @@ public class BdbJeUserController extends UserController {
         }
         c.close();
         txn.commit();
+    }
+    
+    public void createDefaultUser() throws ControllerException {
+        String username = "admin";
+        User admin = getUser(null, username);
+        if(admin == null) {
+            logger.info("creating default user account");
+            admin = new User();
+            admin.setUsername(username);
+            updateUser(admin);
+            checkOrUpdateUserPassword(admin.getId(), username);
+        }
     }
 }

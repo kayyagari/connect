@@ -535,7 +535,7 @@ public class DonkeyMessageController extends MessageController {
         return new MessageImporter().importMessages(path, includeSubfolders, messageWriter, System.getProperty("user.dir"));
     }
 
-    private List<MessageSearchResult> searchMessages(MessageFilter filter, String channelId, int offset, int limit) {
+    protected List<MessageSearchResult> searchMessages(MessageFilter filter, String channelId, int offset, int limit) {
         long startTime = System.currentTimeMillis();
 
         FilterOptions filterOptions = new FilterOptions(filter, channelId, true);
@@ -1185,7 +1185,7 @@ public class DonkeyMessageController extends MessageController {
         }
     }
 
-    private DonkeyDao getDao(boolean readOnly) {
+    protected DonkeyDao getDao(boolean readOnly) {
         return (readOnly ? donkey.getReadOnlyDaoFactory() : donkey.getDaoFactory()).getDao();
     }
 

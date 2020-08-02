@@ -32,7 +32,7 @@ public class DefaultScriptController extends ScriptController {
     public static final String VACUUM_LOCK_SCRIPT_STATEMENT_ID = "Script.vacuumScriptTable";
 
     private Logger logger = Logger.getLogger(this.getClass());
-    private static ScriptController instance = null;
+    protected static ScriptController instance = null;
 
     protected DefaultScriptController() {
 

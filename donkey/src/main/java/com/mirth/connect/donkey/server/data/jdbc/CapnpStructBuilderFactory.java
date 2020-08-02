@@ -37,7 +37,7 @@ public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class
     public static final int CapPerson_Size = 2 * 1024;
     public static final int CapConfiguration_Size = 2 * 1024;
     public static final int CapAlert_Size = 2 * 1024;
-    public static final int CapChannel_Size = 2 * 1024;
+    public static final int CapChannel_Size = 25 * 1024;
     public static final int CapChannelGroup_Size = 2 * 1024;
     public static final int CapCodeTemplate_Size = 2 * 1024;
     public static final int CapCodeTemplateLibrary_Size = 2 * 1024;

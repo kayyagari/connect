@@ -60,7 +60,7 @@ public class BdbJeControllerFactory extends ControllerFactory {
     }
 
     public ExtensionController createExtensionController() {
-        return DefaultExtensionController.create();
+        return BdbJeExtensionController.create();
     }
 
     public MessageController createMessageController() {
