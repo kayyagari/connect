@@ -82,7 +82,7 @@
 		<mkdir dir="${code-coverage-reports}" />
 		
 		<jacoco:coverage destfile="${code-coverage-reports}/jacoco.exec" xmlns:jacoco="antlib:org.jacoco.ant" exclclassloader="sun.reflect.DelegatingClassLoader:javassist.Loader" >
-			<junit haltonfailure="false" fork="true" forkmode="once">
+			<junit haltonfailure="false" fork="true" forkmode="once" showoutput="true">
 				<jvmarg value="-Xms128m" />
 				<jvmarg value="-Xmx1024m" />
 				<classpath>
@@ -93,6 +93,12 @@
 				<batchtest todir="${junit-reports}">
 					<fileset dir="${test_classes}">
 						<include name="**/*Test.class" />
+						<exclude name="**/GeneralJETest.class" />
+						<exclude name="**/BdbJeDaoTest.class" />
+						<exclude name="**/DaoPerformanceTest.class"/>
+						<exclude name="**/SerializerUtilPackingTest.class"/>
+						<exclude name="**/SerializerUtilTest.class"/>
+						<exclude name="**/BdbJeUserControllerTests.class"/>
 					</fileset>
 				</batchtest>
 			</junit>
