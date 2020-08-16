@@ -134,7 +134,7 @@ struct CapPerson {
     strikeCount      @11 :Int32;
     lastStrikeTime   @12 :Int64;
     loggedIn         @13 :Int32;
-    preferences      @14 :List(PreferenceEntry);
+    preferences      @14 :Data;
     password         @15 :Text;
     passwordDate     @16 :Int64;
 }

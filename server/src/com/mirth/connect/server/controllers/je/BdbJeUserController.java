@@ -1,16 +1,16 @@
 package com.mirth.connect.server.controllers.je;
 
 import static com.mirth.connect.donkey.util.SerializerUtil.bytesToInt;
+import static com.mirth.connect.donkey.util.SerializerUtil.deserializeProps;
 import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
 import static com.mirth.connect.donkey.util.SerializerUtil.readMessage;
+import static com.mirth.connect.donkey.util.SerializerUtil.serializeProps;
 import static com.mirth.connect.donkey.util.SerializerUtil.writeMessageToEntry;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
@@ -19,8 +19,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.ibatis.exceptions.PersistenceException;
 import org.apache.log4j.Logger;
+import org.capnproto.Data;
 import org.capnproto.MessageReader;
-import org.capnproto.StructList;
 import org.joda.time.Duration;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormat;
@@ -29,11 +29,8 @@ import org.joda.time.format.PeriodFormatterBuilder;
 
 import com.mirth.commons.encryption.Digester;
 import com.mirth.connect.client.core.ControllerException;
-import com.mirth.connect.donkey.model.message.CapnpModel;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapPerson;
-import com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry;
 import com.mirth.connect.donkey.server.BdbJeDataSource;
-import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.mirth.connect.model.Credentials;
 import com.mirth.connect.model.LoginStatus;
@@ -104,9 +101,8 @@ public class BdbJeUserController extends UserController {
                 ReusableMessageBuilder rmb = serverObjectPool.borrowObject(CapPerson.class);
                 MessageReader mr = readMessage(data.getData());
                 CapPerson.Reader pr = mr.getRoot(CapPerson.factory);
-                rmb.getMb().setRoot(CapPerson.factory, pr);
                 
-                CapPerson.Builder pb = (CapPerson.Builder)rmb.getMb().getRoot(CapPerson.factory);
+                CapPerson.Builder pb = (CapPerson.Builder)rmb.prepareForUpdate(pr);
                 pb.setLoggedIn(0);
                 writeMessageToEntry(rmb, data);
                 db.put(txn, key, data);
@@ -216,8 +212,7 @@ public class BdbJeUserController extends UserController {
                 MessageReader mr = readMessage(existingUserDataById);
                 CapPerson.Reader pr = mr.getRoot(CapPerson.factory);
                 rmb.reset();
-                rmb.getMb().setRoot(CapPerson.factory, pr);
-                CapPerson.Builder pb = (CapPerson.Builder) rmb.getMb().getRoot(CapPerson.factory);
+                CapPerson.Builder pb = (CapPerson.Builder) rmb.prepareForUpdate(pr);
 
                 String currentUsername = pb.getUsername().toString();
 
@@ -275,8 +270,7 @@ public class BdbJeUserController extends UserController {
             byte[] userData = _getUser(userId, null, txn);
             MessageReader mr = readMessage(userData);
             CapPerson.Reader pr = mr.getRoot(CapPerson.factory);
-            rmb.getMb().setRoot(CapPerson.factory, pr);
-            CapPerson.Builder pb = (CapPerson.Builder) rmb.getMb().getRoot(CapPerson.factory);
+            CapPerson.Builder pb = (CapPerson.Builder) rmb.prepareForUpdate(pr);
 
             pb.setPassword(digester.digest(plainPassword));
             pb.setPasswordDate(System.currentTimeMillis());
@@ -364,8 +358,7 @@ public class BdbJeUserController extends UserController {
                 rmb = serverObjectPool.borrowObject(CapPerson.class);
                 MessageReader mr = readMessage(userData);
                 CapPerson.Reader pr = mr.getRoot(CapPerson.factory);
-                rmb.getMb().setRoot(CapPerson.factory, pr);
-                pb = (CapPerson.Builder) rmb.getMb().getRoot(CapPerson.factory);
+                pb = (CapPerson.Builder) rmb.prepareForUpdate(pr);
 
                 if(digester == null) {
                     digester = ControllerFactory.getFactory().createConfigurationController().getDigester();
@@ -538,8 +531,7 @@ public class BdbJeUserController extends UserController {
             if(data != null) {
                 CapPerson.Reader pr = readMessage(data).getRoot(CapPerson.factory);
                 rmb = serverObjectPool.borrowObject(CapPerson.class);
-                rmb.getMb().setRoot(CapPerson.factory, pr);
-                CapPerson.Builder pb = (CapPerson.Builder)rmb.getMb().getRoot(CapPerson.factory);
+                CapPerson.Builder pb = (CapPerson.Builder) rmb.prepareForUpdate(pr);
                 if(login) {
                     pb.setLoggedIn(1);
                     pb.setLastLogin(System.currentTimeMillis());
@@ -654,21 +646,13 @@ public class BdbJeUserController extends UserController {
                 if(pr == null || !pr.hasPreferences()) {
                     return null;
                 }
-                
-                StructList.Reader<CapnpModel.PreferenceEntry.Reader> r = pr.getPreferences();
-                Iterator<CapnpModel.PreferenceEntry.Reader> iter = r.iterator();
-                String val = null;
-                while(iter.hasNext()) {
-                    CapnpModel.PreferenceEntry.Reader entryReader = iter.next();
-                    if(name.equals(entryReader.getKey().toString())) {
-                        Object tmp = entryReader.getValue();
-                        if(tmp != null) {
-                            val = String.valueOf(tmp);
-                        }
-                        break;
-                    }
+                Properties existingProps = deserializeProps(pr.getPreferences().toArray());
+
+                Object val = existingProps.get(name);
+                if(val == null) {
+                    val = "";
                 }
-                return val;
+                return val.toString();
             }
         };
         
@@ -683,14 +667,7 @@ public class BdbJeUserController extends UserController {
                 Properties props = new Properties();
 
                 if(pr != null && pr.hasPreferences()) {
-                    StructList.Reader<CapnpModel.PreferenceEntry.Reader> r = pr.getPreferences();
-                    Iterator<CapnpModel.PreferenceEntry.Reader> iter = r.iterator();
-                    while(iter.hasNext()) {
-                        CapnpModel.PreferenceEntry.Reader entryReader = iter.next();
-                        String val = entryReader.getValue().toString();
-                        String key = entryReader.getKey().toString();
-                        props.put(key, val);
-                    }
+                    props = deserializeProps(pr.getPreferences().toArray());
                 }
 
                 return props;
@@ -705,25 +682,16 @@ public class BdbJeUserController extends UserController {
         Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
             @Override
             public Void apply(CapPerson.Builder pb) {
-                Properties props = new Properties();
-                StructList.Builder<PreferenceEntry.Builder> lstBuilder = null;
-                int nextIndex = -1;
+                Properties props = null;
                 if(pb.hasPreferences()) {
-                    lstBuilder = pb.getPreferences();
-                    for(int i=0; i<lstBuilder.size(); i++) {
-                        PreferenceEntry.Builder b = lstBuilder.get(i);
-                        props.put(b.getKey().toString(), b.getValue().toString());
-                    }
-                    nextIndex = props.size() - 1;
+                    props = deserializeProps(pb.getPreferences().toArray());
                 }
                 else {
-                    lstBuilder = pb.initPreferences(1);
-                    nextIndex = 0;
+                    props = new Properties();
                 }
+                props.put(name, value);
 
-                PreferenceEntry.Builder b = lstBuilder.get(nextIndex);
-                b.setKey(name);
-                b.setValue(value);
+                pb.setPreferences(serializeProps(props));
                 return null;
             }
         };
@@ -736,17 +704,16 @@ public class BdbJeUserController extends UserController {
         Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
             @Override
             public Void apply(CapPerson.Builder pb) {
-                StructList.Builder<PreferenceEntry.Builder> lstBuilder = pb.initPreferences(properties.size());
-                int i = 0;
-                for(Map.Entry<Object, Object> e : properties.entrySet()) {
-                    PreferenceEntry.Builder b = lstBuilder.get(i);
-                    b.setKey(String.valueOf(e.getKey()));
-                    String val = "";
-                    if(e.getValue() != null) {
-                       val = String.valueOf(e.getValue());
-                    }
-                    b.setValue(val);
+                Properties existingProps = null;
+                if(pb.hasPreferences()) {
+                    existingProps = deserializeProps(pb.getPreferences().toArray());
                 }
+                else {
+                    existingProps = new Properties();
+                }
+
+                existingProps.putAll(properties);
+                pb.setPreferences(serializeProps(existingProps));
                 return null;
             }
         };
@@ -758,7 +725,7 @@ public class BdbJeUserController extends UserController {
         Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
             @Override
             public Void apply(CapPerson.Builder pb) {
-                pb.initPreferences(0);
+                pb.setPreferences(new Data.Reader());
                 return null;
             }
         };
@@ -772,6 +739,30 @@ public class BdbJeUserController extends UserController {
 
     @Override
     public void removePreference(int id, String name) {
+        if(StringUtils.isBlank(name)) {
+            return;
+        }
+
+        Function<CapPerson.Builder, Void> f = new Function<CapPerson.Builder, Void>() {
+            @Override
+            public Void apply(CapPerson.Builder pb) {
+                Properties existingProps = null;
+                if(pb.hasPreferences()) {
+                    existingProps = deserializeProps(pb.getPreferences().toArray());
+                    existingProps.remove(name);
+                    pb.setPreferences(serializeProps(existingProps));
+                }
+
+                return null;
+            }
+        };
+        try {
+            execWriteFunction(id, f);
+        }
+        catch(ControllerException e) {
+            String msg = String.format("could not remove preference %s of the user %d", name, id);
+            logger.warn(msg, e);
+        }
     }
 
     private User readUser(byte[] data) throws Exception {
@@ -961,8 +952,7 @@ public class BdbJeUserController extends UserController {
             String username = null;
             if(data != null) {
                 CapPerson.Reader pr = readMessage(data).getRoot(CapPerson.factory);
-                rmb.getMb().setRoot(CapPerson.factory, pr);
-                pb = (CapPerson.Builder) rmb.getMb().getRoot(CapPerson.factory);
+                pb = (CapPerson.Builder) rmb.prepareForUpdate(pr);
                 username = pb.getUsername().toString();
             }
             result = f.apply(pb);
@@ -1055,6 +1045,7 @@ public class BdbJeUserController extends UserController {
             admin.setUsername(username);
             updateUser(admin);
             checkOrUpdateUserPassword(admin.getId(), username);
+            setUserPreference(admin.getId(), "firstlogin", "false");
         }
     }
 }
