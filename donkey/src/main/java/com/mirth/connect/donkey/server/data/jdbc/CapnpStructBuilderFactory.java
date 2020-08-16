@@ -26,22 +26,22 @@ import com.mirth.connect.donkey.model.message.CapnpModel.CapStatistics;
 @SuppressWarnings("rawtypes")
 public class CapnpStructBuilderFactory implements KeyedPooledObjectFactory<Class, ReusableMessageBuilder> {
 
-    public static final int CapAttachment_Size = 5 * 1024;
-    public static final int CapMessage_Size = 256;
-    public static final int CapMessageContent_Size = 2 * 1024;
-    public static final int CapConnectorMessage_Size = 512;
-    public static final int CapMetadata_Size = 1024;
-    public static final int CapMetadataColumn_Size = 256;
-    public static final int CapStatistics_Size = 256;
+    public static final int CapAttachment_Size = 50 * 1024;//5 * 1024;
+    public static final int CapMessage_Size = 50 * 1024;//256;
+    public static final int CapMessageContent_Size = 50 * 1024;//2 * 1024;
+    public static final int CapConnectorMessage_Size = 50 * 1024;//512;
+    public static final int CapMetadata_Size = 50 * 1024;//1024;
+    public static final int CapMetadataColumn_Size = 50 * 1024;//256;
+    public static final int CapStatistics_Size = 50 * 1024;//256;
 
-    public static final int CapPerson_Size = 2 * 1024;
-    public static final int CapConfiguration_Size = 2 * 1024;
-    public static final int CapAlert_Size = 2 * 1024;
-    public static final int CapChannel_Size = 25 * 1024;
-    public static final int CapChannelGroup_Size = 2 * 1024;
-    public static final int CapCodeTemplate_Size = 2 * 1024;
-    public static final int CapCodeTemplateLibrary_Size = 2 * 1024;
-    public static final int CapEvent_Size = 2 * 1024;
+    public static final int CapPerson_Size = 10 * 1024;//2 * 1024;
+    public static final int CapConfiguration_Size = 50 * 1024;//2 * 1024;
+    public static final int CapAlert_Size = 5 * 1024;//2 * 1024;
+    public static final int CapChannel_Size = 50 * 1024;//25 * 1024;
+    public static final int CapChannelGroup_Size = 10 * 1024;//2 * 1024;
+    public static final int CapCodeTemplate_Size = 50 * 1024;//2 * 1024;
+    public static final int CapCodeTemplateLibrary_Size = 50 * 1024;//2 * 1024;
+    public static final int CapEvent_Size = 10 * 1024;//2 * 1024;
 
     @Override
     public void activateObject(Class key, PooledObject<ReusableMessageBuilder> po)
