@@ -58,7 +58,11 @@ public class BdbJeDataSource {
         defaultSeqConf = new SequenceConfig();
         defaultSeqConf.setAllowCreate(true);
         defaultSeqConf.setInitialValue(1);
-        defaultSeqConf.setCacheSize(1000);
+        // there is an issue with any size larger than 1 for caching
+        // after a restart the next id returned is at cacheSize + 1
+        // instead of being at the last used value + 1
+        defaultSeqConf.setCacheSize(1);
+        defaultSeqConf.setAutoCommitNoSync(true);
     }
 
     public static BdbJeDataSource getInstance() {
@@ -126,12 +130,7 @@ public class BdbJeDataSource {
 
     private void createSequence(String seqKey, Database seqDb, Transaction txn) {
         DatabaseEntry key = new DatabaseEntry(seqKey.getBytes(UTF_8));
-        SequenceConfig seqConfig = new SequenceConfig();
-        seqConfig.setAllowCreate(true);
-        seqConfig.setInitialValue(1);
-        seqConfig.setCacheSize(50);
-        
-        Sequence seq = seqDb.openSequence(txn, key, seqConfig);
+        Sequence seq = seqDb.openSequence(txn, key, defaultSeqConf);
         serverSeqMap.put(seqKey, seq);
     }
 
