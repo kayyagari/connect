@@ -43,6 +43,7 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 import org.apache.log4j.Logger;
+import org.capnproto.MessageBuilder;
 import org.capnproto.MessageReader;
 import org.capnproto.StructList;
 
@@ -106,6 +107,7 @@ public class BdbJeDao implements DonkeyDao {
     private String asyncCommitCommand;
     private Map<String, Long> localChannelIds;
     private String statsServerId;
+    private byte[] statsServerIdBytes;
     private boolean transactionAlteredChannels = false;
     private char quoteChar = '"';
     private Logger logger = Logger.getLogger(this.getClass());
@@ -124,7 +126,7 @@ public class BdbJeDao implements DonkeyDao {
 
     private static final byte DELIM_BYTE = '\\';
 
-    protected BdbJeDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
+    protected BdbJeDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId, byte[] statsServerIdBytes) {
         this.donkey = donkey;
         bdbJeEnv = donkey.getBdbJeEnv();
         dbMap = donkey.getDbMap();
@@ -137,6 +139,7 @@ public class BdbJeDao implements DonkeyDao {
         this.currentStats = currentStats;
         this.totalStats = totalStats;
         this.statsServerId = statsServerId;
+        this.statsServerIdBytes = statsServerIdBytes;
         encryptor = donkey.getEncryptor();
         alwaysDecrypt.addAll(Arrays.asList(ContentType.getMapTypes()));
         alwaysDecrypt.addAll(Arrays.asList(ContentType.getErrorTypes()));
@@ -231,8 +234,7 @@ public class BdbJeDao implements DonkeyDao {
                 CapConnectorMessage.Reader atReader= mr.getRoot(CapConnectorMessage.factory);
 
                 rmb = objectPool.borrowObject(CapConnectorMessage.class);
-                rmb.getMb().setRoot(CapConnectorMessage.factory, atReader);
-                CapConnectorMessage.Builder cb = (CapConnectorMessage.Builder)rmb.getSb();
+                CapConnectorMessage.Builder cb = (CapConnectorMessage.Builder)rmb.prepareForUpdate(atReader);
                 cb.setSendAttempts(connectorMessage.getSendAttempts());
                 
                 if(sendDate != null) {
@@ -409,13 +411,13 @@ public class BdbJeDao implements DonkeyDao {
             if(os == OperationStatus.SUCCESS) {
                 MessageReader mr = readMessage(data.getData());
                 CapStatistics.Reader atReader= mr.getRoot(CapStatistics.factory);
-                rmb.getMb().setRoot(CapStatistics.factory, atReader);
-                cb = (CapStatistics.Builder)rmb.getSb();
+                cb = (CapStatistics.Builder)rmb.prepareForUpdate(atReader);
             }
             else {
                 cb = (CapStatistics.Builder)rmb.getSb();
             }
 
+            cb.setMetadataId(metaDataId);
             long tmpReceived = cb.getReceived() + received;
             if(tmpReceived < 0) {
                 tmpReceived = 0;
@@ -788,8 +790,7 @@ public class BdbJeDao implements DonkeyDao {
                 //System.out.println(atReader.getId() + " " + atReader.getMessageId());
 
                 rmb = objectPool.borrowObject(CapConnectorMessage.class);
-                rmb.getMb().setRoot(CapConnectorMessage.factory, atReader);
-                CapConnectorMessage.Builder cb = (CapConnectorMessage.Builder)rmb.getSb();
+                CapConnectorMessage.Builder cb = (CapConnectorMessage.Builder)rmb.prepareForUpdate(atReader);
 
                 if(error) {
                     cb.setErrorCode(connectorMessage.getErrorCode());
@@ -936,8 +937,7 @@ public class BdbJeDao implements DonkeyDao {
                 CapMessage.Reader atReader= mr.getRoot(CapMessage.factory);
 
                 rmb = objectPool.borrowObject(CapMessage.class);
-                rmb.getMb().setRoot(CapMessage.factory, atReader);
-                CapMessage.Builder mb = (CapMessage.Builder)rmb.getSb();
+                CapMessage.Builder mb = (CapMessage.Builder)rmb.prepareForUpdate(atReader);
                 mb.setProcessed(!reset);
 
                 if(reset) {
@@ -1635,6 +1635,7 @@ public class BdbJeDao implements DonkeyDao {
             DatabaseEntry data = new DatabaseEntry();
             for(int mtId : metaDataIds) {
                 intToBytes(mtId, buf, 8);
+                key.setData(buf);
                 OperationStatus os = conMsgStatusDb.get(txn, key, data, LockMode.READ_COMMITTED);
                 if(os == OperationStatus.SUCCESS) {
                     char sc = (char)data.getData()[0];
@@ -1670,12 +1671,13 @@ public class BdbJeDao implements DonkeyDao {
             Database msgContentDb = dbMap.get("d_mc" + cid);
 
             byte[] buf = buildPrimaryKeyOfConnectorMessage(messageId, 0);
-            DatabaseEntry key = new DatabaseEntry();
+            DatabaseEntry key = new DatabaseEntry(buf);
             DatabaseEntry data = new DatabaseEntry();
             if(metaDataIds != null && !metaDataIds.isEmpty()) {
                 msgContentCursor = msgContentDb.openCursor(txn, null);
                 for(int mtId : metaDataIds) {
                     intToBytes(mtId, buf, 8);
+                    key.setData(buf);
                     OperationStatus os = conMsgStatusDb.get(txn, key, data, LockMode.READ_COMMITTED);
                     if(os == OperationStatus.SUCCESS) {
                         char sc = (char)data.getData()[0];
@@ -1863,8 +1865,7 @@ public class BdbJeDao implements DonkeyDao {
                 CapMetadata.Reader atReader= mr.getRoot(CapMetadata.factory);
 
                 rmb = objectPool.borrowObject(CapMetadata.class);
-                rmb.getMb().setRoot(CapMetadata.factory, atReader);
-                cb = (CapMetadata.Builder)rmb.getSb();
+                cb = (CapMetadata.Builder)rmb.prepareForUpdate(atReader);
                 
                 for(CapMetadataColumn.Reader col : atReader.getColumns()) {
                     String name = col.getName().toString();
@@ -2022,8 +2023,7 @@ public class BdbJeDao implements DonkeyDao {
             rmb = objectPool.borrowObject(CapStatistics.class);
             if(os == OperationStatus.SUCCESS) {
                 CapStatistics.Reader cr = readMessage(data.getData()).getRoot(CapStatistics.factory);
-                rmb.getMb().setRoot(CapStatistics.factory, cr);
-                cb = (CapStatistics.Builder)rmb.getSb();
+                cb = (CapStatistics.Builder)rmb.prepareForUpdate(cr);
             }
             else {
                 cb = (CapStatistics.Builder)rmb.getSb();
@@ -2170,7 +2170,10 @@ public class BdbJeDao implements DonkeyDao {
                     stats.put(Status.SENT, sent);
                     stats.put(Status.ERROR, error);
                     
-                    int metaDataId = bytesToInt(key.getData(), 8);
+                    Integer metaDataId = cr.getMetadataId();
+                    if(metaDataId == -1) {
+                        metaDataId = null; // channel stats are stored with -1 as metDataId value
+                    }
                     statistics.overwrite(channelId, metaDataId, stats);
                 }
             }
@@ -2195,6 +2198,9 @@ public class BdbJeDao implements DonkeyDao {
     public void commit(boolean durable) {
         logger.debug("Committing transaction" + (durable ? "" : " synchronously"));
 
+        if(!txn.isValid()) {
+            throw new IllegalStateException("transaction handle is not valid");
+        }
         try {
             if(durable) {
                 txn.commit();
@@ -2550,8 +2556,11 @@ public class BdbJeDao implements DonkeyDao {
             content = encryptor.decrypt(content);
             encrypted = false;
         }
-
-        return new MessageContent(channelId, mcr.getMessageId(), mcr.getMetaDataId(), contentType, content, mcr.getDataType().toString(), encrypted);
+        String dataType = null;
+        if(mcr.hasDataType()) {
+            dataType = mcr.getDataType().toString();
+        }
+        return new MessageContent(channelId, mcr.getMessageId(), mcr.getMetaDataId(), contentType, content, dataType, encrypted);
     }
 
     /**
@@ -2854,10 +2863,11 @@ public class BdbJeDao implements DonkeyDao {
     }
 
     private byte[] buildPrimaryKeyOfStats(int metadataId) {
-        byte[] tmp = statsServerId.getBytes(UTF_8);
-        byte[] data = new byte[tmp.length + 4];
-        System.arraycopy(tmp, 0, data, 0, tmp.length);
-        intToBytes(metadataId, data, tmp.length);
+        // TODO no need to store statsServerIdBytes in the key
+        // a BDB JE environment will always be tied to one server instance
+        byte[] data = new byte[statsServerIdBytes.length + 4];
+        System.arraycopy(statsServerIdBytes, 0, data, 0, statsServerIdBytes.length);
+        intToBytes(metadataId, data, statsServerIdBytes.length);
         
         return data;
     }

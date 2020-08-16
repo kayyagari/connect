@@ -18,6 +18,7 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
     private StatisticsUpdater statisticsUpdater;
     private boolean encryptData = false;
     private boolean decryptData = true;
+    private byte[] statsServerIdBytes;
     private Logger logger = Logger.getLogger(getClass());
 
     public static BdbJeDaoFactory getInstance() {
@@ -35,6 +36,12 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
 
     public void setStatsServerId(String serverId) {
         statsServerId = serverId;
+        try {
+            statsServerIdBytes = statsServerId.getBytes("utf-8");
+        }
+        catch(Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -68,10 +75,10 @@ public class BdbJeDaoFactory implements DonkeyDaoFactory {
 
     @Override
     public BdbJeDao getDao(SerializerProvider serializerProvider) {
-        return getDao(donkey, serializerProvider, encryptData, decryptData, statisticsUpdater, channelController.getStatistics(), channelController.getTotalStatistics(), statsServerId);
+        return getDao(donkey, serializerProvider, encryptData, decryptData, statisticsUpdater, channelController.getStatistics(), channelController.getTotalStatistics(), statsServerId, statsServerIdBytes);
     }
 
-    protected BdbJeDao getDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId) {
-        return new BdbJeDao(donkey, serializerProvider, encryptData, decryptData, statisticsUpdater, currentStats, totalStats, statsServerId);
+    protected BdbJeDao getDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId, byte[] statsServerIdBytes) {
+        return new BdbJeDao(donkey, serializerProvider, encryptData, decryptData, statisticsUpdater, currentStats, totalStats, statsServerId, statsServerIdBytes);
     }
 }
