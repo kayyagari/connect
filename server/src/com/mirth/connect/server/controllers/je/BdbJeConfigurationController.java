@@ -1,9 +1,10 @@
 package com.mirth.connect.server.controllers.je;
 
+import static com.mirth.connect.donkey.util.SerializerUtil.deserializeProps;
 import static com.mirth.connect.donkey.util.SerializerUtil.readMessage;
+import static com.mirth.connect.donkey.util.SerializerUtil.serializeProps;
 import static com.mirth.connect.donkey.util.SerializerUtil.writeMessageToEntry;
 
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.Set;
@@ -138,14 +139,12 @@ public class BdbJeConfigurationController extends DefaultConfigurationController
                 CapConfiguration.Reader cr = readMessage(data.getData()).getRoot(CapConfiguration.factory);
                 InputStream in = new ArrayInputStream(cr.getProps().toArray());
                 props.load(in);
-                rmb.getMb().setRoot(CapConfiguration.factory, cr);
+                rmb.prepareForUpdate(cr);
             }
             
             CapConfiguration.Builder cb = (CapConfiguration.Builder) rmb.getSb();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
             props.put(name, value);
-            props.store(out, null);
-            cb.setProps(out.toByteArray());
+            cb.setProps(serializeProps(props));
             cb.setCategory(category);
             writeMessageToEntry(rmb, data);
             db.put(txn, key, data);
@@ -194,17 +193,16 @@ public class BdbJeConfigurationController extends DefaultConfigurationController
             Properties props = new Properties();
             if(os == OperationStatus.SUCCESS) {
                 CapConfiguration.Reader cr = readMessage(data.getData()).getRoot(CapConfiguration.factory);
-                InputStream in = new ArrayInputStream(cr.getProps().toArray());
-                props.load(in);
-                rmb.getMb().setRoot(CapConfiguration.factory, cr);
+                if(cr.hasProps()) {
+                    props = deserializeProps(cr.getProps().toArray());
+                }
+                rmb.prepareForUpdate(cr);
             }
             
             val = f.apply(props);
             if(write) {
                 CapConfiguration.Builder cb = (CapConfiguration.Builder) rmb.getSb();
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                props.store(out, null);
-                cb.setProps(out.toByteArray());
+                cb.setProps(serializeProps(props));
                 cb.setCategory(category);
                 writeMessageToEntry(rmb, data);
                 db.put(txn, key, data);

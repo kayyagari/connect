@@ -1,13 +1,16 @@
 package com.mirth.connect.donkey.util;
 
-import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
-import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
-
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Properties;
 
+import org.apache.log4j.Logger;
 import org.capnproto.ArrayInputStream;
 import org.capnproto.ArrayOutputStream;
 import org.capnproto.DecodeException;
@@ -17,7 +20,6 @@ import org.capnproto.ReaderOptions;
 import org.capnproto.SerializePacked;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
-import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent.CapContentType;
 import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.server.data.jdbc.ReusableMessageBuilder;
 import com.sleepycat.je.DatabaseEntry;
@@ -31,6 +33,8 @@ public class SerializerUtil {
     public static final int BYTES_PER_WORD = 8;
     public static final int POINTER_SIZE_IN_WORDS = 1;
     public static final int WORDS_PER_POINTER = 1;
+
+    private static final Logger logger = Logger.getLogger(SerializerUtil.class);
 
     public static long bytesToLong(byte[] buf) {
         return bytesToLong(buf, 0);
@@ -290,5 +294,31 @@ public class SerializerUtil {
         intToBytes(ct.getContentTypeCode(), buf, 12);
         
         return buf;
+    }
+
+    public static byte[] serializeProps(Properties props) {
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ObjectOutputStream objOut = new ObjectOutputStream(out);
+            objOut.writeObject(props);
+
+            return out.toByteArray();
+        }
+        catch(Exception e) {
+            logger.warn("failed to serialize props", e);
+        }
+
+        return null;
+    }
+
+    public static Properties deserializeProps(byte[] data) {
+        try {
+            return (Properties) new ObjectInputStream(new ByteArrayInputStream(data)).readObject();
+        }
+        catch(Exception e) {
+            logger.warn("failed to deserialize props", e);
+        }
+
+        return null;
     }
 }
