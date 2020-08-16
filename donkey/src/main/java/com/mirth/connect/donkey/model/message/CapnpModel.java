@@ -1600,14 +1600,17 @@ public final class CapnpModel {
       public final boolean hasPreferences() {
         return !_pointerFieldIsNull(8);
       }
-      public final org.capnproto.StructList.Builder<com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.Builder> getPreferences() {
-        return _getPointerField(com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.listFactory, 8, null, 0);
+      public final org.capnproto.Data.Builder getPreferences() {
+        return _getPointerField(org.capnproto.Data.factory, 8, null, 0, 0);
       }
-      public final void setPreferences(org.capnproto.StructList.Reader<com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.Reader> value) {
-        _setPointerField(com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.listFactory, 8, value);
+      public final void setPreferences(org.capnproto.Data.Reader value) {
+        _setPointerField(org.capnproto.Data.factory, 8, value);
       }
-      public final org.capnproto.StructList.Builder<com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.Builder> initPreferences(int size) {
-        return _initPointerField(com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.listFactory, 8, size);
+      public final void setPreferences(byte [] value) {
+        _setPointerField(org.capnproto.Data.factory, 8, new org.capnproto.Data.Reader(value));
+      }
+      public final org.capnproto.Data.Builder initPreferences(int size) {
+        return _initPointerField(org.capnproto.Data.factory, 8, size);
       }
       public final boolean hasPassword() {
         return !_pointerFieldIsNull(9);
@@ -1718,11 +1721,11 @@ public final class CapnpModel {
         return _getIntField(8);
       }
 
-      public final boolean hasPreferences() {
+      public boolean hasPreferences() {
         return !_pointerFieldIsNull(8);
       }
-      public final org.capnproto.StructList.Reader<com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.Reader> getPreferences() {
-        return _getPointerField(com.mirth.connect.donkey.model.message.CapnpModel.PreferenceEntry.listFactory, 8, null, 0);
+      public org.capnproto.Data.Reader getPreferences() {
+        return _getPointerField(org.capnproto.Data.factory, 8, null, 0, 0);
       }
 
       public boolean hasPassword() {
@@ -4073,21 +4076,21 @@ public static final org.capnproto.SegmentReader b_a0a99fec5c3f9deb =
    "\u0039\u0002\u0000\u0000\u0062\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0038\u0002\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0054\u0002\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0044\u0002\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u000f\u0000\u0000\u0000\u0009\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u000f\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0051\u0002\u0000\u0000\u004a\u0000\u0000\u0000" +
+   "\u0041\u0002\u0000\u0000\u004a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0050\u0002\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\\\u0002\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0040\u0002\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u004c\u0002\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0010\u0000\u0000\u0000\u0005\u0000\u0000\u0000" +
    "\u0000\u0000\u0001\u0000\u0010\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0059\u0002\u0000\u0000\u006a\u0000\u0000\u0000" +
+   "\u0049\u0002\u0000\u0000\u006a\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0058\u0002\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0064\u0002\u0000\u0000\u0002\u0000\u0001\u0000" +
+   "\u0048\u0002\u0000\u0000\u0003\u0000\u0001\u0000" +
+   "\u0054\u0002\u0000\u0000\u0002\u0000\u0001\u0000" +
    "\u0069\u0064\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
@@ -4215,15 +4218,11 @@ public static final org.capnproto.SegmentReader b_a0a99fec5c3f9deb =
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0070\u0072\u0065\u0066\u0065\u0072\u0065\u006e" +
    "\u0063\u0065\u0073\u0000\u0000\u0000\u0000\u0000" +
-   "\u000e\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
+   "\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0003\u0000\u0001\u0000" +
-   "\u0010\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u007f\u00c5\u0004\u0032\u00ee\u0023\u008b\u0094" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
-   "\u000e\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
+   "\r\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000" +
    "\u0070\u0061\u0073\u0073\u0077\u006f\u0072\u0064" +
