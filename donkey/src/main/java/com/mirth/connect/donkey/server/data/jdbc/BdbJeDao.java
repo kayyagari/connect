@@ -2122,12 +2122,11 @@ public class BdbJeDao implements DonkeyDao {
     private Statistics getChannelStatistics(String serverId, boolean total) {
         Map<String, Long> channelIds = getLocalChannelIds();
         Statistics statistics = new Statistics(!total);
-        Cursor cursor = null;
         try {
             for (Map.Entry<String, Long> e : channelIds.entrySet()) {
                 String channelId = e.getKey();
                 long cid = e.getValue();
-                cursor = dbMap.get("d_ms" + cid).openCursor(txn, null);
+                Cursor cursor = dbMap.get("d_ms" + cid).openCursor(txn, null);
                 DatabaseEntry key = new DatabaseEntry();
                 DatabaseEntry data = new DatabaseEntry();
                 
@@ -2176,14 +2175,10 @@ public class BdbJeDao implements DonkeyDao {
                     }
                     statistics.overwrite(channelId, metaDataId, stats);
                 }
+                cursor.close();
             }
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
-        }
-        finally {
-            if(cursor != null) {
-                cursor.close();
-            }
         }
 
         return statistics;
