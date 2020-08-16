@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import org.capnproto.MessageBuilder;
 import org.capnproto.StructBuilder;
 import org.capnproto.StructFactory;
+import org.capnproto.StructReader;
 
 public class ReusableMessageBuilder {
     private MessageBuilder mb;
@@ -35,5 +36,12 @@ public class ReusableMessageBuilder {
     
     public int getInitBufSize() {
         return backingBuf.capacity();
+    }
+
+    public StructBuilder prepareForUpdate(StructReader r) {
+        mb.setRoot(factory, r);
+        sb = (StructBuilder) mb.getRoot(factory);
+
+        return sb;
     }
 }
