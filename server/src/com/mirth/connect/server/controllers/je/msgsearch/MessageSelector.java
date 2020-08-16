@@ -4,14 +4,13 @@ import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
 import static com.mirth.connect.donkey.util.SerializerUtil.readMessage;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.LinkedList;
 import java.util.List;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessage;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.server.BdbJeDataSource;
-import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.model.filters.MessageFilter;
 import com.mirth.connect.server.controllers.DonkeyMessageController.FilterOptions;
 import com.mirth.connect.server.controllers.je.EvalResult;
@@ -27,7 +26,7 @@ import com.sleepycat.je.Transaction;
 public class MessageSelector {
 
     public static List<MessageTextResult> searchMessageTable(Transaction txn, MessageFilter filter, List<Field> nonNullFilterfields, Long localChannelId, FilterOptions filterOptions, long minMessageId, long maxMessageId) throws Exception {
-        List<MessageTextResult> messageResults = new ArrayList<>();
+        List<MessageTextResult> messageResults = new LinkedList<>();
         BdbJeDataSource ds = BdbJeDataSource.getInstance();
         Database messageDb = ds.getDbMap().get("d_m" + localChannelId);
         DatabaseEntry key = new DatabaseEntry();
@@ -39,21 +38,20 @@ public class MessageSelector {
             if(os != OperationStatus.SUCCESS) {
                 return messageResults;
             }
-            // step back
-            cursor.getPrev(key, data, null);
             
             Database atmtDb = ds.getDbMap().get("d_ma" + localChannelId);
-            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+            do {
                 CapMessage.Reader cr = readMessage(data.getData()).getRoot(CapMessage.factory);
                 EvalResult er = evalMessage(txn, cr, atmtDb, nonNullFilterfields, filter, minMessageId, maxMessageId);
                 if(er == EvalResult.SELECTED) {
                     MessageTextResult m = toMessageTextResult(cr, filter);
-                    messageResults.add(m);
+                    messageResults.add(0, m);
                 }
                 else if(er == EvalResult.NO_MORE) {
                     break;
                 }
             }
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
         }
         finally {
             if(cursor != null) {
@@ -169,32 +167,36 @@ public class MessageSelector {
     }
     
     public static List<MessageSearchResult> selectMessagesById(Transaction txn, String serverId, long localChannelId, List<Long> includeMessageList, Long minMessageId, Long maxMessageId) throws Exception {
-        List<MessageSearchResult> messageResults = new ArrayList<>();
+        List<MessageSearchResult> messageResults = new LinkedList<>();
         BdbJeDataSource ds = BdbJeDataSource.getInstance();
         Database messageDb = ds.getDbMap().get("d_m" + localChannelId);
         DatabaseEntry key = new DatabaseEntry();
         DatabaseEntry data = new DatabaseEntry();
         Cursor cursor = messageDb.openCursor(txn, null);
         try {
-            key.setData(longToBytes(minMessageId));
+            if(minMessageId == null) {
+                key.setData(longToBytes(includeMessageList.get(0)));
+            }
+            else {
+                key.setData(longToBytes(minMessageId));
+            }
             OperationStatus os = cursor.getSearchKeyRange(key, data, null);
             if(os != OperationStatus.SUCCESS) {
                 return messageResults;
             }
-            // step back
-            cursor.getPrev(key, data, null);
             
-            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+            do {
                 CapMessage.Reader cr = readMessage(data.getData()).getRoot(CapMessage.factory);
                 EvalResult er = evalMessage(cr, includeMessageList, minMessageId, maxMessageId);
                 if(er == EvalResult.SELECTED) {
                     MessageSearchResult m = toMessageSearchResult(cr, serverId);
-                    messageResults.add(m);
+                    messageResults.add(0, m);
                 }
                 else if(er == EvalResult.NO_MORE) {
                     break;
                 }
             }
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
         }
         finally {
             if(cursor != null) {

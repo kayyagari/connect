@@ -476,10 +476,11 @@ public class BdbJeMessageController extends DonkeyMessageController {
                  * lowest message id
                  */
                 long currentMinMessageId = Math.max(maxMessageId - batchSize + 1, minMessageId);
+                long curMaxMsgId = maxMessageId; // to preserve the value before it becomes negative
                 maxMessageId -= batchSize;
                 totalSearched += batchSize;
 
-                Map<Long, MessageSearchResult> foundMessages = searchAll(txn, filter, localChannelId, false, filterOptions, currentMinMessageId, maxMessageId);
+                Map<Long, MessageSearchResult> foundMessages = searchAll(txn, filter, localChannelId, false, filterOptions, currentMinMessageId, curMaxMsgId);
 
                 if (!foundMessages.isEmpty()) {
                     /*

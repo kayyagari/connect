@@ -38,10 +38,8 @@ public class MessageContentSelector {
             if(os != OperationStatus.SUCCESS) {
                 return contentResults;
             }
-            // step back
-            cursor.getPrev(key, data, null);
-            
-            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+
+            do {
                 CapMessageContent.Reader cr = readMessage(data.getData()).getRoot(CapMessageContent.factory);
                 EvalResult er = evalMessage(cr, element, metadataId, contentType, minMessageId, maxMessageId);
                 if(er == EvalResult.SELECTED) {
@@ -52,6 +50,7 @@ public class MessageContentSelector {
                     break;
                 }
             }
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
         }
         finally {
             if(cursor != null) {

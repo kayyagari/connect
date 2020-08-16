@@ -38,10 +38,8 @@ public class MetadataSelector {
             if(os != OperationStatus.SUCCESS) {
                 return metaDataResults;
             }
-            // step back
-            cursor.getPrev(key, data, null);
             
-            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+            do {
                 CapConnectorMessage.Reader cr = readMessage(data.getData()).getRoot(CapConnectorMessage.factory);
                 EvalResult er = evalConnectorMessage(txn, cr, conMsgStatusDb, nonNullFilterfields, filter, minMessageId, maxMessageId);
                 if(er == EvalResult.SELECTED) {
@@ -52,6 +50,7 @@ public class MetadataSelector {
                     break;
                 }
             }
+            while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS);
         }
         finally {
             if(cursor != null) {

@@ -39,10 +39,8 @@ public class CustomeMetadataSelector {
             if(os != OperationStatus.SUCCESS) {
                 return metaDataResults;
             }
-            // step back
-            cursor.getPrev(key, data, null);
             
-            while(cursor.getSearchKeyRange(key, data, null) == OperationStatus.SUCCESS) {
+             do {
                 CapMetadata.Reader cr = readMessage(data.getData()).getRoot(CapMetadata.factory);
                 EvalResult er = evalCustomeMetadata(txn, cr, nonNullFilterfields, filter, minMessageId, maxMessageId);
                 if(er == EvalResult.SELECTED) {
@@ -53,6 +51,7 @@ public class CustomeMetadataSelector {
                     break;
                 }
             }
+            while(cursor.getSearchKeyRange(key, data, null) == OperationStatus.SUCCESS);
         }
         finally {
             if(cursor != null) {
