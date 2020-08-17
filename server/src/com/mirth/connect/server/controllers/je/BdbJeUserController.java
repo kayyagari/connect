@@ -1045,7 +1045,11 @@ public class BdbJeUserController extends UserController {
             admin.setUsername(username);
             updateUser(admin);
             checkOrUpdateUserPassword(admin.getId(), username);
-            setUserPreference(admin.getId(), "firstlogin", "false");
+            Properties prefs = new Properties();
+            prefs.put("showNotificationPopup", "false");
+            prefs.put("checkForNotifications", "false");
+            prefs.put("firstlogin", "false");
+            setUserPreferences(admin.getId(), prefs);
         }
     }
 }
