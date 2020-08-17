@@ -1,15 +1,17 @@
 package com.mirth.connect.donkey.server.data.jdbc;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
@@ -32,6 +34,11 @@ import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.test.util.TestUtils;
 import com.mirth.connect.donkey.util.Serializer;
+import com.mirth.connect.donkey.util.SerializerUtil;
+import com.sleepycat.je.Cursor;
+import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseEntry;
+import com.sleepycat.je.OperationStatus;
 
 public class BdbJeDaoTest {
 
@@ -154,5 +161,49 @@ public class BdbJeDaoTest {
             System.out.println("compared message " + clone.getMessageId() + " " + result);
             assertTrue(result);
         }
+    }
+
+    @Test
+    public void testMessageKeyOrder() {
+        Channel channel = new Channel();
+        String cid = UUID.randomUUID().toString();
+        channel.setChannelId(cid);
+        channel.setName("message-order-channel");
+        channel.setLocalChannelId(2);
+        Donkey.getInstance().getDeployedChannels().put(cid, channel);
+
+        dao.createChannel(cid, 2);
+        dao.commit();
+
+        dao = factory.getDao();
+        int total = 500;
+        for(int i=0; i < total; i++) {
+            Message msg = new Message();
+            msg.setChannelId(cid);
+            msg.setMessageId(dao.getNextMessageId(cid));
+            Calendar now = Calendar.getInstance();
+            now.setTimeInMillis(System.currentTimeMillis());
+            msg.setReceivedDate(now);
+            msg.setServerId(serverId);
+            dao.insertMessage(msg);
+        }
+        dao.commit();
+
+        dao = factory.getDao();// just for the after method to be happy
+
+        Database db = BdbJeDataSource.getInstance().getDbMap().get("d_m" + channel.getLocalChannelId());
+        Cursor cursor = db.openCursor(null, null);
+        long prevId = 0;
+        DatabaseEntry key = new DatabaseEntry();
+        DatabaseEntry data = new DatabaseEntry();
+        while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+            long curId = SerializerUtil.bytesToLong(key.getData());
+            if((curId - prevId) != 1) {
+                fail(String.format("the message IDs are not in the expected order currentId %d previousId %d", curId, prevId));
+            }
+            prevId = curId;
+        }
+
+        cursor.close();
     }
 }

@@ -31,6 +31,7 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -74,6 +75,10 @@ import com.mirth.connect.donkey.server.data.ChannelDoesNotExistException;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoException;
 import com.mirth.connect.donkey.server.data.StatisticsUpdater;
+import com.mirth.connect.donkey.server.data.je.comparators.LongComparator;
+import com.mirth.connect.donkey.server.data.je.comparators.LongPlusIntComparator;
+import com.mirth.connect.donkey.server.data.je.comparators.LongPlusIntPlusIntComparator;
+import com.mirth.connect.donkey.server.data.je.comparators.LongPlusStringComparator;
 import com.mirth.connect.donkey.util.MapUtil;
 import com.mirth.connect.donkey.util.SerializerProvider;
 import com.mirth.connect.donkey.util.SerializerUtil;
@@ -124,7 +129,26 @@ public class BdbJeDao implements DonkeyDao {
     private Map<Long, Sequence> seqMap;
     private GenericKeyedObjectPool<Class, ReusableMessageBuilder> objectPool;
 
-    private static final byte DELIM_BYTE = '\\';
+    private static final Map<String, Class> KEY_COMPARATOR_MAP = new HashMap<>();
+
+    private static final List<String> CHANNEL_TABLENAME_PPREFIXES = new ArrayList<>();
+
+    static {
+        KEY_COMPARATOR_MAP.put("d_m", LongComparator.class); // createMessageTable
+        KEY_COMPARATOR_MAP.put("d_mm", LongPlusIntComparator.class); // createConnectorMessageTable
+        KEY_COMPARATOR_MAP.put("d_mm_status", LongPlusIntComparator.class); // createConnectorMessageStatusTable
+        KEY_COMPARATOR_MAP.put("d_mc", LongPlusIntPlusIntComparator.class); // createMessageContentTable
+        KEY_COMPARATOR_MAP.put("d_mcm", LongPlusIntComparator.class); // createMessageCustomMetaDataTable
+        KEY_COMPARATOR_MAP.put("d_ma", LongPlusStringComparator.class); // createMessageAttachmentTable
+
+        CHANNEL_TABLENAME_PPREFIXES.add("d_m"); // "createMessageTable"
+        CHANNEL_TABLENAME_PPREFIXES.add("d_mm"); // "createConnectorMessageTable"
+        CHANNEL_TABLENAME_PPREFIXES.add("d_mc"); // "createMessageContentTable"
+        CHANNEL_TABLENAME_PPREFIXES.add("d_mcm"); // "createMessageCustomMetaDataTable"
+        CHANNEL_TABLENAME_PPREFIXES.add("d_ma"); // "createMessageAttachmentTable"
+        CHANNEL_TABLENAME_PPREFIXES.add("d_ms"); // "createMessageStatisticsTable"
+        CHANNEL_TABLENAME_PPREFIXES.add("d_mm_status"); // "createMessageStatisticsTable"
+    }
 
     protected BdbJeDao(Donkey donkey, SerializerProvider serializerProvider, boolean encryptData, boolean decryptData, StatisticsUpdater statisticsUpdater, Statistics currentStats, Statistics totalStats, String statsServerId, byte[] statsServerIdBytes) {
         this.donkey = donkey;
@@ -1928,13 +1952,9 @@ public class BdbJeDao implements DonkeyDao {
             Database db = dbMap.get(TABLE_D_CHANNELS);
             db.put(txn, new DatabaseEntry(SerializerUtil.longToBytes(localChannelId)), new DatabaseEntry(channelId.getBytes(UTF_8)));
 
-            createTable("d_m" + localChannelId, txn); // createMessageTable
-            createTable("d_mm" + localChannelId, txn); // createConnectorMessageTable
-            createTable("d_mm_status" + localChannelId, txn); // createConnectorMessageTable
-            createTable("d_mc" + localChannelId, txn); // createMessageContentTable
-            createTable("d_mcm" + localChannelId, txn); // createMessageCustomMetaDataTable
-            createTable("d_ma" + localChannelId, txn); // createMessageAttachmentTable
-            createTable("d_ms" + localChannelId, txn); // createMessageStatisticsTable
+            for(String prefix : CHANNEL_TABLENAME_PPREFIXES) {
+                createTable(prefix, localChannelId, txn);
+            }
 
             // createMessageSequence
             DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
@@ -1946,15 +1966,11 @@ public class BdbJeDao implements DonkeyDao {
         }
     }
 
-    private void createTable(String name) {
-        createTable(name, null);
+    private void createTable(String prefix, long localChannelId) {
+        createTable(prefix, localChannelId, null);
     }
     
-    private void createTable(String name, Transaction localTxn) {
-        createTable(name, localTxn, null);
-    }
-
-    private void createTable(String name, Transaction localTxn, DatabaseConfig dc) {
+    private void createTableByName(String name, Transaction localTxn, DatabaseConfig dc, Comparator keyComparator) {
         if(dc == null) {
             dc = new DatabaseConfig();
         }
@@ -1962,37 +1978,54 @@ public class BdbJeDao implements DonkeyDao {
         // and MUST be set or overwritten
         dc.setTransactional(true);
         dc.setAllowCreate(true);
+        if(keyComparator != null) {
+            dc.setBtreeComparator(keyComparator);
+        }
 
         Database db = bdbJeEnv.openDatabase(localTxn, name, dc);
         dbMap.put(name, db);
     }
 
+    private void createTable(String prefix, long localChannelId, Transaction localTxn) {
+        Comparator keyComparator = null;
+        Class c = KEY_COMPARATOR_MAP.get(prefix);
+        if(c != null) {
+            try {
+                keyComparator = (Comparator)c.newInstance();
+            }
+            catch(Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        String name = prefix + localChannelId;
+        createTableByName(name, localTxn, null, keyComparator);
+    }
+
     @Override
     public void checkAndCreateChannelTables() {
         Map<String, Long> channelIds = getLocalChannelIds();
-        List<String> channelTablesLst = new ArrayList<>();
+        Map<String, Long> tablePrefixAndChannelIdMap = new HashMap<>();
 
         Database msq = dbMap.get(BdbJeDataSource.TABLE_D_MESSAGE_SEQ);
         DatabaseEntry seq = new DatabaseEntry(longToBytes(1));
         
+        List<String> existingDbNames = bdbJeEnv.getDatabaseNames();
         for (Long localChannelId : channelIds.values()) {
-            channelTablesLst.add("d_m" + localChannelId); // "createMessageTable"
-            channelTablesLst.add("d_mm" + localChannelId); // "createConnectorMessageTable"
-            channelTablesLst.add("d_mc" + localChannelId); // "createMessageContentTable");
-            channelTablesLst.add("d_mcm" + localChannelId); // "createMessageCustomMetaDataTable");
-            channelTablesLst.add("d_ma" + localChannelId); // "createMessageAttachmentTable");
-            channelTablesLst.add("d_ms" + localChannelId); // "createMessageStatisticsTable");
+            for(String prefix : CHANNEL_TABLENAME_PPREFIXES) {
+                if(!existingDbNames.contains(prefix + localChannelId)) {
+                    tablePrefixAndChannelIdMap.put(prefix, localChannelId);
+                }
+            }
 
             // createMessageSequence
             DatabaseEntry key = new DatabaseEntry(longToBytes(localChannelId));
             msq.putNoOverwrite(txn, key, seq);
         }
 
-        channelTablesLst.removeAll(bdbJeEnv.getDatabaseNames());
-
         try {
-            for (String entry : channelTablesLst) {
-                createTable(entry);
+            for (Map.Entry<String, Long> entry : tablePrefixAndChannelIdMap.entrySet()) {
+                createTable(entry.getKey(), entry.getValue());
             }
         } catch (Exception e) {
             throw new DonkeyDaoException(e);
@@ -2313,9 +2346,9 @@ public class BdbJeDao implements DonkeyDao {
     public boolean initTableStructure() {
         if (!tableExists(TABLE_D_CHANNELS)) {
             logger.debug("Creating channels table");
-            createTable(TABLE_D_CHANNELS);
-            createTable(BdbJeDataSource.TABLE_D_MESSAGE_SEQ);
-            createTable(TABLE_D_META_COLUMNS);
+            createTableByName(TABLE_D_CHANNELS, txn, null, null);
+            createTableByName(BdbJeDataSource.TABLE_D_MESSAGE_SEQ, txn, null, null);
+            createTableByName(TABLE_D_META_COLUMNS, txn, null, null);
             return true;
         } else {
             return false;
