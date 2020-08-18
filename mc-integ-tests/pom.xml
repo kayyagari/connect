@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com</groupId>
+    <artifactId>mc-integ-tests</artifactId>
+    <version>1.0.0</version>
+    <name>MirthConnect Integration Tests</name>
+
+    <properties>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.capnproto</groupId>
+            <artifactId>runtime</artifactId>
+            <version>0.1.4</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../donkey/lib/runtime-0.1.4.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle</groupId>
+            <artifactId>je</artifactId>
+            <version>7.5.11</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../donkey/lib/je-7.5.11.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.jline</groupId>
+            <artifactId>jline-console</artifactId>
+            <version>3.16.0</version>
+        </dependency>
+    </dependencies>
+</project>
