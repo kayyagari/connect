@@ -5,6 +5,7 @@ import static com.mirth.connect.donkey.util.SerializerUtil.bytesToLong;
 import static com.mirth.connect.donkey.util.SerializerUtil.intToBytes;
 import static com.mirth.connect.donkey.util.SerializerUtil.longToBytes;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -12,6 +13,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 import org.apache.commons.codec.binary.Hex;
@@ -27,9 +31,6 @@ import org.junit.Test;
 
 import com.mirth.connect.donkey.model.message.CapnpModel.CapAttachment;
 import com.mirth.connect.donkey.model.message.CapnpModel.CapMessageContent;
-import com.mirth.connect.donkey.model.message.Message;
-import com.mirth.connect.donkey.model.message.attachment.Attachment;
-import com.mirth.connect.donkey.util.CapnpInputStream;
 import com.mirth.connect.donkey.util.SerializerUtil;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
@@ -42,8 +43,6 @@ import com.sleepycat.je.Sequence;
 import com.sleepycat.je.SequenceConfig;
 import com.sleepycat.je.SequenceStats;
 import com.sleepycat.je.StatsConfig;
-import com.sleepycat.persist.EntityStore;
-import com.sleepycat.persist.PrimaryIndex;
 import com.sleepycat.persist.StoreConfig;
 
 import io.netty.buffer.ByteBuf;
@@ -281,6 +280,52 @@ public class GeneralJETest {
         cursor.close();
         
         return total;
+    }
+    
+    @Test
+    public void testKeyOrder() {
+        DatabaseConfig dc = new DatabaseConfig();
+        dc.setAllowCreate(true);
+        Database db = env.openDatabase(null, "key_order.db", dc);
+        int total = 500;
+        Set<Long> orderedSet = new TreeSet<>();
+        Random random = new Random(total);
+
+        DatabaseEntry key = new DatabaseEntry();
+        DatabaseEntry data = new DatabaseEntry();
+
+        for(int i=1; i<total; i++) {
+            byte[] buf = new byte[8];
+            long k = random.nextInt(total);
+            if(orderedSet.contains(k)) {
+                continue;
+            }
+            orderedSet.add(k);
+            longToBytes(k, buf, 0);
+            key.setData(buf);
+            data.setData(longToBytes(i+1));
+            db.put(null, key, data);
+        }
+        
+        System.out.println(orderedSet);
+        Cursor cursor = db.openCursor(null, null);
+        List<Long> lst = new ArrayList<>();
+        while(cursor.getNext(key, data, null) == OperationStatus.SUCCESS) {
+            lst.add(bytesToLong(key.getData()));
+        }
+        cursor.close();
+        
+        assertEquals(orderedSet.size(), lst.size());
+        int i = 0;
+        for(Long expected : orderedSet) {
+            Long actual = lst.get(i);
+            if(expected != actual) {
+                System.out.println("expected " + expected + ": " + Arrays.toString(longToBytes(expected)));
+                System.out.println("actual " + actual + ": " + Arrays.toString(longToBytes(actual)));
+                fail("expected " + expected + " actual " + actual);
+            }
+            i++;
+        }
     }
     
     @Ignore
