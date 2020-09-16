@@ -22,3 +22,6 @@ from the localhost.
 | :------------ | :----------------: | :-------------   |
 |Postgresql v10 | 100K               | 29m 27sec        |
 |BDB JE v7.5.11 | 100K               | 4m 70sec         |
+
+
+Note: [Berkeley DB Java Edition](https://docs.oracle.com/cd/E17277_02/html/index.html) is licensed under Apache License v2.0
