@@ -2,7 +2,10 @@
 
 ##### Environment Details
 OS VM Specs - Ubuntu 18.04, 4vcpu, 8GB RAM, 30GB SSD
+
+
 JVM - Java8 with options "-server -Xms1024m -Xmx1024m"
+
 
 ##### Results
 | Database      | Number of messages | Total Time Taken |
