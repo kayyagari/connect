@@ -4,13 +4,15 @@ import java.io.File;
 import java.io.InputStream;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.Ignore;
 
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConfiguration;
-import com.mirth.connect.donkey.test.util.TestUtils;
+//import com.mirth.connect.donkey.test.util.TestUtils;
 import com.mirth.connect.server.controllers.je.BdbJeUserController;
 import com.mirth.connect.server.migration.ResourceUtil;
 
+@Ignore("due to unavailability of TestUtils on classpath while building from commandline")
 public class BdbJeUserControllerTests extends UserControllerTests {
     private static final String serverId = "85965adc-b131-4c0d-bd4c-b5d18c234ff9";
     private static final String channelId = "47efbe21-ed1c-4d85-a2dd-b8f0eefdc251";
@@ -35,9 +37,10 @@ public class BdbJeUserControllerTests extends UserControllerTests {
     protected void setupDb() throws Exception {
         if(jeDonkey == null) {
             jeDonkey = Donkey.getInstance();
-            DonkeyConfiguration dconf = TestUtils.getDonkeyTestConfigurationForJE(true);
-            dconf.setServerId(serverId);
-            jeDonkey.startEngine(dconf);
+            // remove @Ignore and uncomment the below three lines and the one in imports before running the tests in IDE
+            //DonkeyConfiguration dconf = TestUtils.getDonkeyTestConfigurationForJE(true);
+            //dconf.setServerId(serverId);
+            //jeDonkey.startEngine(dconf);
         }
         ConfigurationController cc = ControllerFactory.getFactory().createConfigurationController();
         cc.initializeSecuritySettings();
