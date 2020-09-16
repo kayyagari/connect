@@ -16,6 +16,8 @@ There are no transformers or processors in the channel. The channel code is [her
 The test message is a single HL7 message of size 2.8KB sent using a [client program](https://github.com/kayyagari/connect/blob/je/mc-integ-tests/mc-http-client.go)
 from the localhost.
 
+##### Serialization Format
+Internally data objects are stored in Berkeley DB JE in [Cap'n Proto](https://capnproto.org/) format.
 
 ##### Results
 | Database      | Number of messages | Total Time Taken |
