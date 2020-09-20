@@ -1,7 +1,7 @@
 # PostgreSQL vs Berkeley DB Java Edition
 
 ##### Environment Details
-OS VM Specs - Ubuntu 18.04, 4vcpu, 8GB RAM, 30GB SSD
+OS VM Specs - Ubuntu 18.04, 4vcpu, 8GB RAM, (SSD details are mentioned at individual results sections)
 
 
 JVM - Java8 with options "-server -Xms1024m -Xmx1024m"
@@ -20,10 +20,17 @@ from the localhost.
 Internally data objects are stored in Berkeley DB JE in [Cap'n Proto](https://capnproto.org/) format.
 
 ##### Results
-| Database      | Number of messages | Total Time Taken |
-| :------------ | :----------------: | :-------------   |
-|Postgresql v10 | 100K               | 29m 27sec        |
-|BDB JE v7.5.11 | 100K               | 4m 70sec         |
+###### Hard Disk - Azure Premium SSD, 30GB with 120 Max IOPs
+| Number of messages      | Time Taken for Postgresql v10 | Time Taken for BDB JE v7.5.11 |
+| :------------ | :---------------- | :-------------   |
+| 100K | 29m 27s | 4m 70s |
 
+
+###### Hard Disk - Azure Premium SSD, 250GB with 1100 Max IOPs
+| Number of messages | Time Taken for Postgresql v10 | Time Taken for BDB JE v7.5.11 |
+| :------------ | :---------------- | :-------------   |
+| 100K | 23m 31s | 3m 10s |
+| 1M | 3h 47m 55s | 31m 21s |
+| 10M | 37h 46m 20s | 5h 8m 38s |
 
 Note: [Berkeley DB Java Edition](https://docs.oracle.com/cd/E17277_02/html/index.html) is licensed under Apache License v2.0
