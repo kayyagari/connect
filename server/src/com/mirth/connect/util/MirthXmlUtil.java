@@ -14,6 +14,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Hashtable;
 
+import javax.xml.XMLConstants;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Source;
 import javax.xml.transform.Templates;
@@ -25,8 +26,8 @@ import javax.xml.transform.dom.DOMResult;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class MirthXmlUtil {
 
@@ -38,7 +39,7 @@ public class MirthXmlUtil {
     private static final String[] encoder = new String[0x100];
     private static final String[] encoderXml = new String[0x100];
 
-    private static Logger logger = Logger.getLogger(MirthXmlUtil.class);
+    private static Logger logger = LogManager.getLogger(MirthXmlUtil.class);
 
     private static final String prettyPrintingXslt = "<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"1.0\"><xsl:output indent=\"no\" method=\"xml\" omit-xml-declaration=\"yes\"/><xsl:strip-space elements=\"*\"/><xsl:template match=\"/\"><xsl:copy-of select=\".\"/></xsl:template></xsl:stylesheet>";
 
@@ -47,11 +48,11 @@ public class MirthXmlUtil {
 
         try {
             // Space Normalization Transformer
-            TransformerFactory normalizerTransformerFactory = TransformerFactory.newInstance();
+            TransformerFactory normalizerTransformerFactory = getTransformerFactory();
             normalizerTemplates = normalizerTransformerFactory.newTemplates(new StreamSource(new StringReader(prettyPrintingXslt)));
 
             // Pretty Printer transformer
-            serializerTransformerFactory = TransformerFactory.newInstance();
+            serializerTransformerFactory = getTransformerFactory();
 
             // When Saxon-B is on the classpath setting this attribute throws an
             // IllegalArgumentException.
@@ -459,5 +460,12 @@ public class MirthXmlUtil {
         addXmlEntity("&quot", 34);
         addXmlEntity("&#10", 10);
         addXmlEntity("&#13", 13);
+    }
+    
+    private static TransformerFactory getTransformerFactory() {
+    	TransformerFactory tf = TransformerFactory.newInstance();
+    	tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    	tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+    	return tf;
     }
 }

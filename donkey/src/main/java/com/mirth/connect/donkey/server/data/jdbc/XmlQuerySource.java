@@ -18,7 +18,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -27,7 +28,7 @@ import org.w3c.dom.NodeList;
 import com.mirth.connect.donkey.util.ResourceUtil;
 
 public class XmlQuerySource implements QuerySource {
-    private Logger logger = Logger.getLogger(getClass());
+    private Logger logger = LogManager.getLogger(getClass());
 
     private Map<String, String> queries = new HashMap<String, String>();
 
@@ -37,6 +38,7 @@ public class XmlQuerySource implements QuerySource {
         InputStream is = null;
         try {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             DocumentBuilder documentBuilder = dbf.newDocumentBuilder();
             is = ResourceUtil.getResourceStream(XmlQuerySource.class, xmlFile);
             document = documentBuilder.parse(is);

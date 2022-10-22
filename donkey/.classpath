@@ -6,7 +6,7 @@
 	<classpathentry kind="src" path="src/test/java"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
-	<classpathentry kind="lib" path="lib/commons/commons-dbutils-1.4.jar">
+	<classpathentry kind="lib" path="lib/commons/commons-dbutils-1.7.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="http://commons.apache.org/dbutils/apidocs/"/>
 		</attributes>
@@ -32,7 +32,21 @@
 			<attribute name="javadoc_location" value="http://commons.apache.org/logging/apidocs/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="lib/log4j-1.2.16.jar"/>
+	<classpathentry kind="lib" path="lib/log4j-1.2-api-2.17.2.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="https://logging.apache.org/log4j/2.x/log4j-1.2-api/apidocs/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="lib/log4j-api-2.17.2.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="https://logging.apache.org/log4j/2.x/log4j-api/apidocs/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="lib/log4j-core-2.17.2.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="https://logging.apache.org/log4j/2.x/log4j-core/apidocs/"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="lib" path="lib/commons/commons-math3-3.0.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="http://commons.apache.org/math/apidocs/"/>
@@ -41,12 +55,6 @@
 	<classpathentry kind="lib" path="lib/commons/commons-dbcp2-2.0.1.jar"/>
 	<classpathentry kind="lib" path="lib/commons/commons-pool2-2.3.jar"/>
 	<classpathentry kind="lib" path="lib/database/derby-10.10.2.0.jar"/>
-	<classpathentry kind="lib" path="lib/database/postgresql-9.4.1212.jdbc42.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="http://jdbc.postgresql.org/documentation/publicapi/"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="lib" path="lib/xstream/xstream-1.4.12.jar"/>
 	<classpathentry kind="lib" path="lib/xstream/xpp3-1.1.4c.jar"/>
 	<classpathentry kind="lib" path="lib/database/ojdbc8-12.2.0.1.jar"/>
 	<classpathentry kind="lib" path="lib/commons/commons-beanutils-1.9.3.jar"/>
@@ -74,9 +82,11 @@
 	<classpathentry kind="lib" path="lib/database/mssql-jdbc-8.4.1.jre8.jar"/>
 	<classpathentry kind="lib" path="lib/slf4j-api-1.7.30.jar">
 		<attributes>
-- 			<attribute name="javadoc_location" value="http://www.slf4j.org/apidocs/"/>
-- 		</attributes>
+			<attribute name="javadoc_location" value="http://www.slf4j.org/apidocs/"/>
+		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="lib/slf4j-log4j12-1.7.30.jar"/>
+	<classpathentry kind="lib" path="lib/database/postgresql-42.2.19.jar"/>
+	<classpathentry kind="lib" path="lib/xstream/xstream-1.4.19.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,7 +30,8 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.ibatis.session.SqlSession;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.donkey.model.channel.PollConnectorProperties;
@@ -84,7 +86,7 @@ public class DataPruner implements Runnable {
     private Thread pruneThread;
     private DataPrunerStatus status = new DataPrunerStatus();
     private DataPrunerStatus lastStatus;
-    private Logger logger = Logger.getLogger(getClass());
+    private Logger logger = LogManager.getLogger(getClass());
 
     private PollConnectorProperties pollingProperties;
 
@@ -271,7 +273,7 @@ public class DataPruner implements Runnable {
                         }
 
                         if (messageDateThreshold != null || contentDateThreshold != null) {
-                            queue.add(new PrunerTask(channel.getId(), channel.getName(), messageDateThreshold, contentDateThreshold, metadata.getPruningSettings().isArchiveEnabled()));
+                            queue.add(new PrunerTask(channel.getId(), channel.getName(), messageDateThreshold, contentDateThreshold, metadata.getPruningSettings().isArchiveEnabled(), metadata.getPruningSettings().isPruneErroredMessages()));
                             status.getPendingChannelIds().add(channel.getId());
                         }
                         break;
@@ -333,7 +335,7 @@ public class DataPruner implements Runnable {
                     status.setCurrentChannelName(task.getChannelName());
                     status.setTaskStartTime(Calendar.getInstance());
 
-                    PruneResult result = pruneChannel(task.getChannelId(), task.getChannelName(), task.getMessageDateThreshold(), task.getContentDateThreshold(), archiveFolder, task.isArchiveEnabled());
+                    PruneResult result = pruneChannel(task.getChannelId(), task.getChannelName(), task.getMessageDateThreshold(), task.getContentDateThreshold(), archiveFolder, task.isArchiveEnabled(), task.isPruneErroredMessages());
 
                     status.getProcessedChannelIds().add(task.getChannelId());
 
@@ -347,6 +349,14 @@ public class DataPruner implements Runnable {
                     attributes.put("Messages Pruned", Long.toString(result.numMessagesPruned));
                     attributes.put("Content Rows Pruned", Long.toString(result.numContentPruned));
                     attributes.put("Time Elapsed", getTimeElapsed());
+                    
+                    if (task.getMessageDateThreshold() != null) {
+                    	attributes.put("Message Date Threshold", String.valueOf(task.getMessageDateThreshold().getTime()));
+                    }
+                    if (task.getContentDateThreshold() != null) {
+                    	attributes.put("Content Date Threshold", String.valueOf(task.getContentDateThreshold().getTime()));
+                    }
+                    
                     eventController.dispatchEvent(new ServerEvent(serverId, DataPrunerService.PLUGINPOINT, Level.INFORMATION, Outcome.SUCCESS, attributes));
                 } catch (InterruptedException e) {
                     throw e;
@@ -417,8 +427,12 @@ public class DataPruner implements Runnable {
             status.setPruningEvents(false);
         }
     }
-
+    
     public PruneResult pruneChannel(String channelId, String channelName, Calendar messageDateThreshold, Calendar contentDateThreshold, String archiveFolder, boolean channelArchiveEnabled) throws InterruptedException, DataPrunerException {
+    	return pruneChannel(channelId, channelName, messageDateThreshold, contentDateThreshold, archiveFolder, channelArchiveEnabled, false);
+    }
+    
+    public PruneResult pruneChannel(String channelId, String channelName, Calendar messageDateThreshold, Calendar contentDateThreshold, String archiveFolder, boolean channelArchiveEnabled, boolean pruneErroredMessages) throws InterruptedException, DataPrunerException {
         logger.debug("Executing pruner for channel: " + channelId);
 
         if (messageDateThreshold == null && contentDateThreshold == null) {
@@ -454,7 +468,12 @@ public class DataPruner implements Runnable {
                 params.put("limit", ID_RETRIEVE_LIMIT);
 
                 if (getSkipStatuses().length > 0) {
-                    params.put("skipStatuses", getSkipStatuses());
+                	List<Status> statusesToSkip = new ArrayList<Status>(Arrays.asList(getSkipStatuses()));
+                	if (pruneErroredMessages) {
+                		statusesToSkip.remove(Status.ERROR);
+                	}
+                	
+                    params.put("skipStatuses", statusesToSkip);
                 }
 
                 PruneResult result = new PruneResult();
@@ -784,13 +803,15 @@ public class DataPruner implements Runnable {
         private Calendar messageDateThreshold;
         private Calendar contentDateThreshold;
         private boolean archiveEnabled;
+        private boolean pruneErroredMessages;
 
-        public PrunerTask(String channelId, String channelName, Calendar messageDateThreshold, Calendar contentDateThreshold, boolean archiveEnabled) {
+        public PrunerTask(String channelId, String channelName, Calendar messageDateThreshold, Calendar contentDateThreshold, boolean archiveEnabled, boolean pruneErroredMessages) {
             this.channelId = channelId;
             this.channelName = channelName;
             this.messageDateThreshold = messageDateThreshold;
             this.contentDateThreshold = contentDateThreshold;
             this.archiveEnabled = archiveEnabled;
+            this.pruneErroredMessages = pruneErroredMessages;
         }
 
         public String getChannelId() {
@@ -812,5 +833,13 @@ public class DataPruner implements Runnable {
         public boolean isArchiveEnabled() {
             return archiveEnabled;
         }
+
+		public boolean isPruneErroredMessages() {
+			return pruneErroredMessages;
+		}
+
+		public void setPruneErroredMessages(boolean pruneErroredMessages) {
+			this.pruneErroredMessages = pruneErroredMessages;
+		}
     }
 }

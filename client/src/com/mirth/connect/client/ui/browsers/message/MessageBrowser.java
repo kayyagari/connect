@@ -64,7 +64,8 @@ import javax.swing.text.DateFormatter;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jdesktop.swingx.decorator.Highlighter;
 import org.jdesktop.swingx.decorator.HighlighterFactory;
 import org.jdesktop.swingx.table.TableColumnExt;
@@ -132,7 +133,7 @@ public class MessageBrowser extends javax.swing.JPanel {
     protected static final int IMPORT_ID_COLUMN = 12;
     protected static final int IMPORT_CHANNEL_ID_COLUMN = 13;
 
-    protected final static String DATE_FORMAT = "yyyy-MM-dd HH:mm:ss:SSS";
+    protected final static String DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
 
     private final String SCOPE_COLUMN_NAME = "Scope";
     private final String KEY_COLUMN_NAME = "Variable";
@@ -146,7 +147,10 @@ public class MessageBrowser extends javax.swing.JPanel {
     private String lastUserSelectedErrorType = "Processing Error";
     private Frame parent;
     private String channelId;
+    private String channelName;
     private boolean isChannelDeployed;
+    private boolean isCURESPHILoggingOn;
+    private boolean isChannelMessagesPanelFirstLoadSearch;
     private Map<Integer, String> connectors;
     private List<MetaDataColumn> metaDataColumns;
     private MessageBrowserTableModel tableModel;
@@ -160,7 +164,7 @@ public class MessageBrowser extends javax.swing.JPanel {
     private Set<String> defaultVisibleColumns;
     // Worker used for loading a page and counting the total number of messages
     private SwingWorker<Void, Void> worker;
-    private Logger logger = Logger.getLogger(this.getClass());
+    private Logger logger = LogManager.getLogger(this.getClass());
     private ExecutorService executor;
     private List<Future<Void>> prettyPrintWorkers = new ArrayList<Future<Void>>();
 
@@ -298,7 +302,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         });
     }
 
-    public void loadChannel(String channelId, Map<Integer, String> connectors, List<MetaDataColumn> metaDataColumns, List<Integer> selectedMetaDataIds, boolean isChannelDeployed) {
+    public void loadChannel(String channelId, String channelName, Map<Integer, String> connectors, List<MetaDataColumn> metaDataColumns, List<Integer> selectedMetaDataIds, boolean isChannelDeployed) {
         this.isChannelDeployed = isChannelDeployed;
         this.selectedMetaDataIds = selectedMetaDataIds;
         parent.setVisibleTasks(parent.messageTasks, parent.messagePopupMenu, 1, 1, isChannelDeployed);
@@ -308,6 +312,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         formatMessageCheckBox.setSelected(Preferences.userNodeForPackage(Mirth.class).getBoolean("messageBrowserFormat", true));
 
         this.channelId = channelId;
+        this.channelName = channelName;
         this.connectors = connectors;
         this.connectors.put(null, "Deleted Connectors");
         this.metaDataColumns = metaDataColumns;
@@ -329,6 +334,9 @@ public class MessageBrowser extends javax.swing.JPanel {
         Set<String> metaDataColumnNames = new LinkedHashSet<String>();
 
         for (MetaDataColumn column : metaDataColumns) {
+            // if channel has patient_id metadata, turn on CURES PHI logging
+            isCURESPHILoggingOn = column.getName().toLowerCase().equals("patient_id") ? true : false;
+            
             metaDataColumnNames.add(column.getName());
         }
 
@@ -360,7 +368,9 @@ public class MessageBrowser extends javax.swing.JPanel {
         messageTreeTable.setMetaDataColumns(metaDataColumnNames, channelId);
         messageTreeTable.restoreColumnPreferences();
 
+        isChannelMessagesPanelFirstLoadSearch = true;
         runSearch();
+        isChannelMessagesPanelFirstLoadSearch = false;
     }
 
     public Set<Operation> getAbortOperations() {
@@ -377,6 +387,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         statusBoxTransformed.setSelected(false);
         statusBoxFiltered.setSelected(false);
         statusBoxQueued.setSelected(false);
+        statusBoxPending.setSelected(false);
         statusBoxSent.setSelected(false);
         statusBoxError.setSelected(false);
         pageSizeField.setText(String.valueOf(Preferences.userNodeForPackage(Mirth.class).getInt("messageBrowserPageSize", 20)));
@@ -412,6 +423,23 @@ public class MessageBrowser extends javax.swing.JPanel {
 
     public MessageFilter getMessageFilter() {
         return messageFilter;
+    }
+
+    public String getPatientId(Long messageId, Integer metaDataId, List<Integer> selectedMetaDataIds) {
+    	String patientId = null;
+        Message message = messageCache.get(messageId);
+		try {
+	        if (message == null) {
+					message = parent.mirthClient.getMessageContent(channelId, messageId, selectedMetaDataIds);
+	        	}
+			ConnectorMessage connectorMessage = message.getConnectorMessages().get(metaDataId);
+	    	if (connectorMessage.getMetaDataMap().get("PATIENT_ID") != null) {
+	    		patientId = (String) connectorMessage.getMetaDataMap().get("PATIENT_ID").toString();
+	    	}
+		} catch (ClientException e) {
+            logger.error("Invalid patient ID.", e);
+		}
+		return patientId;
     }
 
     public int getPageSize() {
@@ -523,6 +551,9 @@ public class MessageBrowser extends javax.swing.JPanel {
         if (statusBoxQueued.isSelected()) {
             statuses.add(Status.QUEUED);
         }
+        if (statusBoxPending.isSelected()) {
+            statuses.add(Status.PENDING);
+        }
 
         if (!statuses.isEmpty()) {
             messageFilter.setStatuses(statuses);
@@ -579,6 +610,18 @@ public class MessageBrowser extends javax.swing.JPanel {
             loadPageNumber(1);
 
             updateSearchCriteriaPane();
+            
+            // if CURES PHI logging is on and channel messages have been loaded, audit the event
+            if (isCURESPHILoggingOn && !isChannelMessagesPanelFirstLoadSearch) {
+                try {
+                    LinkedHashMap<String, String> auditMessageAttributesMap = new LinkedHashMap<String, String>();
+                    auditMessageAttributesMap.put("channel", "Channel[id=" + channelId + ",name=" + channelName + "]");
+                    auditMessageAttributesMap.put("filter", messageFilter.toString());
+                    parent.mirthClient.auditQueriedPHIMessage(auditMessageAttributesMap);
+                } catch (ClientException e) {
+                    logger.error("Unable to audit the CURES queried PHI event.", e);
+                }
+            }
         }
     }
 
@@ -1734,13 +1777,25 @@ public class MessageBrowser extends javax.swing.JPanel {
                         if (attachmentTable == null || attachmentTable.getSelectedRow() == -1 || descriptionTabbedPane.indexOfTab("Attachments") == -1) {
                             parent.setVisibleTasks(parent.messageTasks, parent.messagePopupMenu, 9, 10, false);
                         }
+                        
+                        // if CURES PHI logging is on and a channel message has been accessed, audit the event
+                        if (isCURESPHILoggingOn) {
+                            try {
+                                LinkedHashMap<String, String> auditMessageAttributesMap = new LinkedHashMap<String, String>();
+                                auditMessageAttributesMap.put("patient_id", connectorMessage.getMetaDataMap() != null && connectorMessage.getMetaDataMap().get("PATIENT_ID") != null ? connectorMessage.getMetaDataMap().get("PATIENT_ID").toString() : "");
+                                auditMessageAttributesMap.put("channel", "Channel[id=" + channelId + ",name=" + channelName + "]");
+                                auditMessageAttributesMap.put("message_id", String.valueOf(connectorMessage.getMessageId()));
+                                parent.mirthClient.auditAccessedPHIMessage(auditMessageAttributesMap);
+                            } catch (ClientException e) {
+                                logger.error("Unable to audit the CURES accessed PHI event.", e);
+                            }
+                        }
                     }
                 } else {
                     clearDescription(null);
                 }
 
                 this.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
-
             }
         }
     }
@@ -2165,6 +2220,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         lastSearchCriteria = new javax.swing.JTextArea();
         previousPageButton = new javax.swing.JButton();
         statusBoxQueued = new com.mirth.connect.client.ui.components.MirthCheckBox();
+        statusBoxPending = new com.mirth.connect.client.ui.components.MirthCheckBox();
         pageTotalLabel = new javax.swing.JLabel();
         textSearchField = new javax.swing.JTextField();
         pageNumberField = new com.mirth.connect.client.ui.components.MirthTextField();
@@ -2588,6 +2644,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         statusBoxQueued.setBackground(new java.awt.Color(255, 255, 255));
         statusBoxQueued.setText("QUEUED");
         statusBoxQueued.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
+        statusBoxQueued.setToolTipText("The message either has not been attempted to be dispatched yet, or it has failed to dispatch and is waiting in the queue to be attempted again.");
 
         pageTotalLabel.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         pageTotalLabel.setText("of ?");
@@ -2624,6 +2681,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         statusBoxFiltered.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
         statusBoxFiltered.setMaximumSize(new java.awt.Dimension(83, 23));
         statusBoxFiltered.setMinimumSize(new java.awt.Dimension(83, 23));
+        statusBoxFiltered.setToolTipText("The message has been rejected by the destination filter, and will not be dispatched by this destination. Other destinations may still dispatch this message.");
 
         pageSizeLabel.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         pageSizeLabel.setText("Page Size:");
@@ -2632,6 +2690,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         statusBoxSent.setBackground(new java.awt.Color(255, 255, 255));
         statusBoxSent.setText("SENT");
         statusBoxSent.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
+        statusBoxSent.setToolTipText("The message has been successfully dispatched / written out by the destination connector.");
 
         resetButton.setText("Reset");
         resetButton.addActionListener(new java.awt.event.ActionListener() {
@@ -2660,12 +2719,19 @@ public class MessageBrowser extends javax.swing.JPanel {
         statusBoxError.setBackground(new java.awt.Color(255, 255, 255));
         statusBoxError.setText("ERROR");
         statusBoxError.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
+        statusBoxError.setToolTipText("An error occurred while processing the message through the destination connector.");
 
         statusBoxReceived.setBackground(new java.awt.Color(255, 255, 255));
         statusBoxReceived.setText("RECEIVED");
         statusBoxReceived.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
         statusBoxReceived.setPreferredSize(new java.awt.Dimension(90, 22));
+        statusBoxReceived.setToolTipText("The inbound data for the destination connector has been committed to the database, but the destination has not yet finished processing the message.");
 
+        statusBoxPending.setBackground(new java.awt.Color(255, 255, 255));
+        statusBoxPending.setText("PENDING");
+        statusBoxPending.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
+        statusBoxPending.setToolTipText("The destination was able to dispatch / write the message outbound, but has not yet finished processing the message through the response transformer.");
+        
         pageGoButton.setText("Go");
         pageGoButton.setNextFocusableComponent(messageTreeTable);
         pageGoButton.addActionListener(new java.awt.event.ActionListener() {
@@ -2679,6 +2745,7 @@ public class MessageBrowser extends javax.swing.JPanel {
         statusBoxTransformed.setFont(new java.awt.Font("Lucida Grande", 0, 11)); // NOI18N
         statusBoxTransformed.setMaximumSize(new java.awt.Dimension(83, 23));
         statusBoxTransformed.setMinimumSize(new java.awt.Dimension(83, 23));
+        statusBoxTransformed.setToolTipText("The message has passed the source filter/transformer, and the source encoded data has been dispatched to any destinations.");
 
         jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         jLabel3.setText("Start Time:");
@@ -2743,6 +2810,7 @@ public class MessageBrowser extends javax.swing.JPanel {
                     .addComponent(statusBoxQueued, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(statusBoxSent, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(statusBoxError, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(statusBoxPending, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                         .addComponent(statusBoxReceived, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(statusBoxFiltered, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -2838,7 +2906,9 @@ public class MessageBrowser extends javax.swing.JPanel {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(statusBoxSent, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(statusBoxError, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                                .addComponent(statusBoxError, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(statusBoxPending, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -3065,6 +3135,7 @@ public class MessageBrowser extends javax.swing.JPanel {
     private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxError;
     private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxFiltered;
     private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxQueued;
+    private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxPending;
     private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxReceived;
     private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxSent;
     private com.mirth.connect.client.ui.components.MirthCheckBox statusBoxTransformed;

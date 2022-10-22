@@ -63,6 +63,7 @@ import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.dbutils.DbUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -71,7 +72,8 @@ import org.apache.commons.mail.EmailException;
 import org.apache.commons.mail.SimpleEmail;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
@@ -105,6 +107,7 @@ import com.mirth.connect.model.DriverInfo;
 import com.mirth.connect.model.EncryptionSettings;
 import com.mirth.connect.model.PasswordRequirements;
 import com.mirth.connect.model.PluginMetaData;
+import com.mirth.connect.model.PublicServerSettings;
 import com.mirth.connect.model.ResourceProperties;
 import com.mirth.connect.model.ResourcePropertiesList;
 import com.mirth.connect.model.ServerConfiguration;
@@ -143,7 +146,7 @@ public class DefaultConfigurationController extends ConfigurationController {
     public static final String SECRET_KEY_ALIAS = "encryption";
     public static final String VACUUM_LOCK_STATEMENT_ID = "Configuration.vacuumConfigurationTable";
 
-    private Logger logger = Logger.getLogger(this.getClass());
+    private Logger logger = LogManager.getLogger(this.getClass());
     private String appDataDir = null;
     private String baseDir = null;
     private String configurationFile = null;
@@ -161,14 +164,14 @@ public class DefaultConfigurationController extends ConfigurationController {
     private volatile Map<String, String> commentMap = Collections.unmodifiableMap(new HashMap<String, String>());
     private static PropertiesConfiguration versionConfig = PropertiesConfigurationUtil.create();
     private static FileBasedConfigurationBuilder<PropertiesConfiguration> mirthConfigBuilder = PropertiesConfigurationUtil.createBuilder();
-    private static PropertiesConfiguration mirthConfig = PropertiesConfigurationUtil.create();
+    protected static PropertiesConfiguration mirthConfig = PropertiesConfigurationUtil.create();
     private static EncryptionSettings encryptionConfig;
     private static DatabaseSettings databaseConfig;
     private static String apiBypassword;
     private static int statsUpdateInterval;
     private static Integer rhinoLanguageVersion;
     private static int startupLockSleep;
-    private volatile boolean configMapLoaded = false;
+    protected volatile boolean configMapLoaded = false;
 
     private static KeyEncryptor encryptor = null;
     private static Digester digester = null;
@@ -176,8 +179,8 @@ public class DefaultConfigurationController extends ConfigurationController {
     private static final String CHARSET = "ca.uhn.hl7v2.llp.charset";
     private static final String PROPERTY_TEMP_DIR = "dir.tempdata";
     private static final String PROPERTY_APP_DATA_DIR = "dir.appdata";
-    private static final String CONFIGURATION_MAP_PATH = "configurationmap.path";
-    private static final String CONFIGURATION_MAP_LOCATION = "configurationmap.location";
+    public static final String CONFIGURATION_MAP_PATH = "configurationmap.path";
+    public static final String CONFIGURATION_MAP_LOCATION = "configurationmap.location";
     private static final String MAX_INACTIVE_SESSION_INTERVAL = "server.api.sessionmaxinactiveinterval";
     private static final String HTTPS_CLIENT_PROTOCOLS = "https.client.protocols";
     private static final String HTTPS_SERVER_PROTOCOLS = "https.server.protocols";
@@ -193,26 +196,30 @@ public class DefaultConfigurationController extends ConfigurationController {
     // singleton pattern
     private static ConfigurationController instance = null;
 
-    DefaultConfigurationController() {
+    public DefaultConfigurationController() {
 
     }
-
+    
     public static ConfigurationController create() {
         synchronized (DefaultConfigurationController.class) {
             if (instance == null) {
                 instance = ExtensionLoader.getInstance().getControllerInstance(ConfigurationController.class);
-
                 if (instance == null) {
                     instance = new DefaultConfigurationController();
                     ((DefaultConfigurationController) instance).initialize();
+                } else {
+                    try {
+                        instance.getClass().getMethod("initialize").invoke(instance);
+                    } catch (Exception e) {
+                    	LogManager.getLogger(DefaultConfigurationController.class).error("Error calling initialize method in DefaultConfigurationController", e);
+                    }
                 }
             }
-
             return instance;
         }
     }
 
-    private void initialize() {
+    public void initialize() {
         InputStream versionPropertiesStream = null;
 
         try {
@@ -498,6 +505,11 @@ public class DefaultConfigurationController extends ConfigurationController {
         Properties serverSettings = getPropertiesForGroup(PROPERTIES_CORE);
         return new ServerSettings(environmentName, serverName, serverSettings);
     }
+    
+    @Override
+    public PublicServerSettings getPublicServerSettings() throws ControllerException {
+        return new PublicServerSettings(getServerSettings());
+    }
 
     @Override
     public EncryptionSettings getEncryptionSettings() throws ControllerException {
@@ -510,7 +522,11 @@ public class DefaultConfigurationController extends ConfigurationController {
     }
 
     @Override
-    public void setServerSettings(ServerSettings settings) throws ControllerException {
+    public void setServerSettings(ServerSettings settings) throws ControllerException {        
+        Properties properties = settings.getProperties();
+
+        validateServerSettings(properties);
+        
         String environmentName = settings.getEnvironmentName();
         if (environmentName != null) {
             saveProperty(PROPERTIES_CORE, "environment.name", environmentName);
@@ -522,9 +538,51 @@ public class DefaultConfigurationController extends ConfigurationController {
             this.serverName = serverName;
         }
 
-        Properties properties = settings.getProperties();
         for (Object name : properties.keySet()) {
             saveProperty(PROPERTIES_CORE, (String) name, (String) properties.get(name));
+        }
+    }
+    
+    public void validateServerSettings(Properties properties) throws ControllerException {  
+        Boolean autoLogoutEnabled = false;
+        Integer autoLogoutTime = null;
+        
+        if (properties.getProperty("administratorautologoutinterval.enabled") != null) {
+            autoLogoutEnabled = intToBooleanObject(properties.getProperty("administratorautologoutinterval.enabled"), false);
+        }
+        
+        if (autoLogoutEnabled == true) {
+            try {
+                autoLogoutTime = Integer.parseInt(properties.getProperty("administratorautologoutinterval.field"));
+                if (autoLogoutTime <= 0 || autoLogoutTime >= 61) {
+                    throw new Exception();
+                }
+            } catch (Exception e) {
+                throw new ControllerException("Invalid auto logout interval, the value should be between 1 and 60.");
+            }
+        }
+    }
+    
+    /**
+     * Takes a String and returns a Boolean Object. "1" = true "0" = false null or not a number =
+     * defaultValue
+     * 
+     * @param str
+     * @param defaultValue
+     * @return
+     */
+    protected Boolean intToBooleanObject(String str, Boolean defaultValue) {
+        int i = NumberUtils.toInt(str, -1);
+
+        if (i == -1) {
+            // Must return null explicitly to avoid Java NPE due to autoboxing
+            if (defaultValue == null) {
+                return null;
+            } else {
+                return defaultValue;
+            }
+        } else {
+            return BooleanUtils.toBooleanObject(i);
         }
     }
 
@@ -601,7 +659,9 @@ public class DefaultConfigurationController extends ConfigurationController {
 
     List<DriverInfo> parseDbdriversXml(Reader reader) throws Exception {
         List<DriverInfo> drivers = new ArrayList<DriverInfo>();
-        Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(reader));
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        Document document = dbf.newDocumentBuilder().parse(new InputSource(reader));
         Element driversElement = document.getDocumentElement();
 
         for (int i = 0; i < driversElement.getElementsByTagName("driver").getLength(); i++) {
@@ -768,7 +828,7 @@ public class DefaultConfigurationController extends ConfigurationController {
         return configurationMap;
     }
 
-    private void loadDatabaseConfigPropsIfNecessary() {
+    protected void loadDatabaseConfigPropsIfNecessary() {
         try {
             if (!configMapLoaded && "database".equals(mirthConfig.getString(CONFIGURATION_MAP_LOCATION))) {
                 // load configurations from database
@@ -856,7 +916,7 @@ public class DefaultConfigurationController extends ConfigurationController {
 
     @Override
     public Properties getPropertiesForGroup(String category, Set<String> propertyKeys) {
-        logger.debug("retrieving properties: category=" + category + " propertyKeys=" + StringUtils.join(propertyKeys, ","));
+        logger.trace("retrieving properties: category=" + category + " propertyKeys=" + StringUtils.join(propertyKeys, ","));
         Properties properties = new Properties();
 
         StatementLock.getInstance(VACUUM_LOCK_STATEMENT_ID).readLock();
@@ -900,7 +960,7 @@ public class DefaultConfigurationController extends ConfigurationController {
 
     @Override
     public String getProperty(String category, String name) {
-        logger.debug("retrieving property: category=" + category + ", name=" + name);
+        logger.trace("retrieving property: category=" + category + ", name=" + name);
 
         StatementLock.getInstance(VACUUM_LOCK_STATEMENT_ID).readLock();
         try {
@@ -1112,7 +1172,7 @@ public class DefaultConfigurationController extends ConfigurationController {
             if (MigrationUtil.compareVersions("2.2.0", getServerVersion()) == 1) {
                 keyStore = KeyStore.getInstance("JKS");
             } else {
-                keyStore = KeyStore.getInstance("JCEKS");
+                keyStore = KeyStore.getInstance(mirthConfig.getString("keystore.type", "JCEKS"));
             }
 
             if (keyStoreFile.exists()) {

@@ -71,7 +71,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
@@ -94,7 +95,7 @@ public class ServerConnection implements Connector {
     private static final int CONNECT_TIMEOUT = 10000;
     private static final int IDLE_TIMEOUT = 300000;
 
-    private Logger logger = Logger.getLogger(getClass());
+    private Logger logger = LogManager.getLogger(getClass());
     private Registry<ConnectionSocketFactory> socketFactoryRegistry;
     private PoolingHttpClientConnectionManager httpClientConnectionManager;
     private CookieStore cookieStore;
@@ -423,6 +424,8 @@ public class ServerConnection implements Connector {
         HttpRequestBase requestBase = getRequestBase(executeType, request.getMethod());
         requestBase.setURI(request.getUri());
 
+        requestBase.addHeader("X-Requested-With", "nextgen-connect-client");
+
         for (Entry<String, List<String>> entry : request.getStringHeaders().entrySet()) {
             for (String value : entry.getValue()) {
                 requestBase.addHeader(entry.getKey(), value);
@@ -430,6 +433,7 @@ public class ServerConnection implements Connector {
         }
 
         if (MapUtils.isNotEmpty(customHeaders)) {
+            
             for (Entry<String, List<String>> entry : customHeaders.entrySet()) {
                 String key = entry.getKey();
 

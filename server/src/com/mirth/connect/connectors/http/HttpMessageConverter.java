@@ -40,7 +40,8 @@ import org.apache.http.message.BasicHeaderValueParser;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.message.ParserCursor;
 import org.apache.http.util.CharArrayBuffer;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 
 import com.mirth.connect.donkey.util.Base64Util;
@@ -48,7 +49,7 @@ import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.DonkeyElement.DonkeyElementException;
 
 public class HttpMessageConverter {
-    private static Logger logger = Logger.getLogger(HttpMessageConverter.class);
+    private static Logger logger = LogManager.getLogger(HttpMessageConverter.class);
 
     private static BinaryContentTypeResolver defaultResolver = new BinaryContentTypeResolver() {
         @Override
@@ -60,7 +61,7 @@ public class HttpMessageConverter {
 
     public static String httpRequestToXml(HttpRequestMessage request, boolean parseMultipart, boolean includeMetadata, BinaryContentTypeResolver resolver) {
         try {
-            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            Document document = getDocument();
             DonkeyElement requestElement = new DonkeyElement(document.createElement("HttpRequest"));
 
             if (includeMetadata) {
@@ -197,7 +198,7 @@ public class HttpMessageConverter {
 
     public static String httpResponseToXml(String status, Map<String, List<String>> headers, Object content, ContentType contentType, boolean parseMultipart, boolean includeMetadata, BinaryContentTypeResolver resolver) {
         try {
-            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            Document document = getDocument();
             DonkeyElement requestElement = new DonkeyElement(document.createElement("HttpResponse"));
 
             if (includeMetadata) {
@@ -304,4 +305,10 @@ public class HttpMessageConverter {
             throw new ParseException("Invalid content type: " + contentTypeString);
         }
     }
+    
+	private static Document getDocument() throws Exception {
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		return dbf.newDocumentBuilder().newDocument();
+	}
 }

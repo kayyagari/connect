@@ -25,7 +25,7 @@ public class HL7ModelGenerator {
     private static final String MESSAGE_TEMPLATE = "Message.txt";
     private static final String SEGMENT_TEMPLATE = "Segment.txt";
     private static final String COMPOSITE_TEMPLATE = "Composite.txt";
-    private static final String[] VERSIONS = new String[] { "21", "22", "23", "231", "24", "25" };
+    private static final String[] VERSIONS = new String[] { "21", "22", "23", "231", "24", "25", "251", "26", "27", "271", "28", "281", "282" };
 
     public String outputPath = "";
     public String version = "";
@@ -66,7 +66,9 @@ public class HL7ModelGenerator {
 
                 for (int i = 0; i < files.length; i++) {
                     if (!files[i].isDirectory()) {
-                        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+                        DocumentBuilder builder = dbf.newDocumentBuilder();
                         Document document = builder.parse(new InputSource(new StringReader(FileUtils.readFileToString(new File(files[i].getAbsolutePath())))));
 
                         if (files[i].getName().startsWith("message")) {

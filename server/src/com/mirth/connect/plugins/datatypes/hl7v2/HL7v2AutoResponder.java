@@ -21,7 +21,8 @@ import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 
@@ -43,7 +44,7 @@ public class HL7v2AutoResponder implements AutoResponder {
     private static final String ERROR_MESSAGE = "errorMessage";
     private static final String SEGMENT_DELIMITER = "segmentDelimiter";
 
-    private Logger logger = Logger.getLogger(getClass());
+    private Logger logger = LogManager.getLogger(getClass());
     private HL7v2SerializationProperties serializationProperties;
     private HL7v2ResponseGenerationProperties generationProperties;
     private TemplateValueReplacer replacer = new TemplateValueReplacer();
@@ -120,6 +121,7 @@ public class HL7v2AutoResponder implements AutoResponder {
                     XPath xpath = XPathFactory.newInstance().newXPath();
                     XPathExpression msh15Query = xpath.compile("//MSH.15/text()");
                     DocumentBuilderFactory domFactory = DocumentBuilderFactory.newInstance();
+            		domFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
                     DocumentBuilder builder = domFactory.newDocumentBuilder();
                     Reader reader = new CharArrayReader(hl7Message.toCharArray());
                     Document doc = builder.parse(new InputSource(reader));

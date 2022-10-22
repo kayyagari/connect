@@ -20,7 +20,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -29,10 +28,12 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.log4j.Appender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.MDC;
+import org.apache.logging.log4j.ThreadContext;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.filter.Filterable;
 import org.apache.velocity.runtime.RuntimeConstants;
 
 import com.mirth.connect.client.core.ConnectServiceUtil;
@@ -72,7 +73,7 @@ import com.mirth.connect.server.util.javascript.MirthContextFactory;
  */
 public class Mirth extends Thread {
 
-    private Logger logger = Logger.getLogger(this.getClass());
+    private Logger logger = LogManager.getLogger(this.getClass());
     private boolean running = false;
     private PropertiesConfiguration mirthProperties = PropertiesConfigurationUtil.create();
     private PropertiesConfiguration versionProperties = PropertiesConfigurationUtil.create();
@@ -90,6 +91,11 @@ public class Mirth extends Thread {
     private UsageController usageController = ControllerFactory.getFactory().createUsageController();
 
     private static List<Thread> shutdownHooks = new ArrayList<Thread>();
+
+    static {
+        // Disable Threadlocals for log4j 2.x, since it messes with the server log
+        System.setProperty("log4j2.enableThreadlocals", "false");
+    }
 
     public static void main(String[] args) {
         Mirth mirth = new Mirth();
@@ -115,12 +121,12 @@ public class Mirth extends Thread {
 
     public void run() {
         Thread.currentThread().setName("Main Server Thread");
-        
+
         // Add the host address as a variable that log4j can output
         try {
-            MDC.put("hostAddress", NetworkUtil.getIpv4HostAddress());
+            ThreadContext.put("hostAddress", NetworkUtil.getIpv4HostAddress());
         } catch (Exception e) {}
-        
+
         initializeLogging();
 
         if (initResources()) {
@@ -218,14 +224,78 @@ public class Mirth extends Thread {
         configurationController.updatePropertiesConfiguration(mirthProperties);
 
         try {
-            DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties());
-            SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
-            SqlConfig.getInstance().getSqlSessionManager().getConnection();
+            int maxRetry = configurationController.getDatabaseSettings().getDatabaseConnectionMaxRetry();
+            int maxRetryTimeout = configurationController.getDatabaseSettings().getDatabaseConnectionMaxRetryWaitTimeInMs();
+            do {
+                try {
+                    DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties());
+                    break;
+                }catch(Exception e) {
+                    maxRetry--;
+                    if(maxRetry >= 0) {
+                        try {
+                            logger.error("Error establishing connection to database, retrying startup in " + maxRetryTimeout + " milliseconds", e);
+                            Thread.sleep(maxRetryTimeout);
+                        }catch(InterruptedException ie) {
+                            //ignore
+                        }
+                    }else {
+                        throw e;
+                    }
+                }
 
+            }while(maxRetry >= 0);
+
+            maxRetry = configurationController.getDatabaseSettings().getDatabaseConnectionMaxRetry();
+            do {
+                try {
+                    if (!SqlConfig.getInstance().getSqlSessionManager().isManagedSessionStarted()) {
+                        SqlConfig.getInstance().getSqlSessionManager().startManagedSession();
+                    }
+                    SqlConfig.getInstance().getSqlSessionManager().getConnection();
+                    break;
+                }catch(Exception e) {
+                    maxRetry--;
+                    if(maxRetry >= 0) {
+                        try {
+                            logger.error("Error establishing connection to database, retrying startup in " + maxRetryTimeout + " milliseconds", e);
+                            Thread.sleep(maxRetryTimeout);
+                        }catch(InterruptedException ie) {
+                            //ignore
+                        }
+                    }else {
+                        throw e;
+                    }
+                }
+
+            }while(maxRetry >= 0);
+
+            maxRetry = configurationController.getDatabaseSettings().getDatabaseConnectionMaxRetry();
             if (SqlConfig.getInstance().isSplitReadWrite()) {
-                SqlConfig.getInstance().getReadOnlySqlSessionManager().startManagedSession();
-                SqlConfig.getInstance().getReadOnlySqlSessionManager().getConnection();
+                do {
+                    try {
+                        if (!SqlConfig.getInstance().getReadOnlySqlSessionManager().isManagedSessionStarted()) {
+                            SqlConfig.getInstance().getReadOnlySqlSessionManager().startManagedSession();
+                        }
+                        SqlConfig.getInstance().getReadOnlySqlSessionManager().getConnection();
+                        break;
+                    }catch(Exception e) {
+                        maxRetry--;
+                        if(maxRetry >= 0) {
+                            try {
+                                logger.error("Error establishing connection to database, retrying startup in " + maxRetryTimeout + " milliseconds", e);
+                                Thread.sleep(maxRetryTimeout);
+                            }catch(InterruptedException ie) {
+                                //ignore
+                            }
+                        }else {
+                            throw e;
+                        }
+                    }
+
+                }while(maxRetry >= 0);
             }
+
         } catch (Exception e) {
             // the getCause is needed since the wrapper exception is from the connection pool
             logger.error("Error establishing connection to database, aborting startup. " + e.getCause().getMessage());
@@ -269,9 +339,9 @@ public class Mirth extends Thread {
         }
 
         // disable the velocity logging
-        Logger velocityLogger = Logger.getLogger(RuntimeConstants.DEFAULT_RUNTIME_LOG_NAME);
-        if (velocityLogger != null && velocityLogger.getLevel() == null) {
-            velocityLogger.setLevel(Level.OFF);
+        Logger velocityLogger = LogManager.getLogger(RuntimeConstants.DEFAULT_RUNTIME_LOG_NAME);
+        if (velocityLogger != null && velocityLogger.getLevel() == null && velocityLogger instanceof org.apache.logging.log4j.core.Logger) {
+            ((org.apache.logging.log4j.core.Logger) velocityLogger).setLevel(Level.OFF);
         }
 
         eventController.dispatchEvent(new ServerEvent(configurationController.getServerId(), "Server startup"));
@@ -328,7 +398,7 @@ public class Mirth extends Thread {
         configurationController.setStatus(ConfigurationController.STATUS_OK);
         printSplashScreen();
 
-        // Send usage stats once a day.
+        // schedule usage statistics to be sent at startup and every 24 hours
         Timer timer = new Timer();
         timer.schedule(new UsageSenderTask(), 0, ConnectServiceUtil.MILLIS_PER_DAY);
     }
@@ -554,8 +624,13 @@ public class Mirth extends Thread {
         JuliToLog4JService.getInstance().start();
 
         // Add a custom filter to appenders to suppress SAXParser warnings introduced in 7u40 (MIRTH-3548)
-        for (Enumeration<?> en = Logger.getRootLogger().getAllAppenders(); en.hasMoreElements();) {
-            ((Appender) en.nextElement()).addFilter(new MirthLog4jFilter());
+        Logger rootLogger = LogManager.getRootLogger();
+        if (rootLogger instanceof org.apache.logging.log4j.core.Logger) {
+            for (Appender appender : ((org.apache.logging.log4j.core.Logger) rootLogger).getAppenders().values()) {
+                if (appender instanceof Filterable) {
+                    ((Filterable) appender).addFilter(new MirthLog4jFilter());
+                }
+            }
         }
     }
 

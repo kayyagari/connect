@@ -18,6 +18,7 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.inject.Inject;
+import com.mirth.connect.donkey.model.channel.Ports;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.channel.Statistics;
@@ -47,12 +48,21 @@ public class ChannelController {
 
     public void removeChannel(String channelId) {
         DonkeyDao dao = donkey.getDaoFactory().getDao();
+        boolean commitSuccess = false;
 
         try {
             dao.removeChannel(channelId);
             dao.commit();
+            commitSuccess = true;
         } finally {
-            dao.close();
+            if (dao != null) {
+                if (!commitSuccess) {
+                    try {
+                        dao.rollback();
+                    } catch (Exception e) {}
+                }
+                dao.close();
+            }         
         }
     }
 
@@ -80,6 +90,16 @@ public class ChannelController {
 
         try {
             return dao.getChannelStatistics(serverId);
+        } finally {
+            dao.close();
+        }
+    }
+    
+    public List<Ports> getPortsInUse() {
+        DonkeyDao dao = donkey.getReadOnlyDaoFactory().getDao();
+
+        try {
+            return dao.getPortsInUse();
         } finally {
             dao.close();
         }
@@ -115,6 +135,7 @@ public class ChannelController {
      */
     public void resetStatistics(Map<String, List<Integer>> channelConnectorMap, Set<Status> statuses) {
         DonkeyDao dao = donkey.getDaoFactory().getDao();
+        boolean commitSuccess = false;
 
         try {
             for (Entry<String, List<Integer>> entry : channelConnectorMap.entrySet()) {
@@ -122,19 +143,29 @@ public class ChannelController {
                 List<Integer> metaDataIds = entry.getValue();
 
                 for (Integer metaDataId : metaDataIds) {
+                    commitSuccess = false;
                     dao.resetStatistics(channelId, metaDataId, statuses);
 
                     // Each update here must have its own transaction, otherwise deadlocks may occur.
                     dao.commit();
+                    commitSuccess = true;
                 }
             }
         } finally {
-            dao.close();
+            if (dao != null) {
+                if (!commitSuccess) {
+                    try {
+                        dao.rollback();
+                    } catch (Exception e) {}
+                }
+                dao.close();
+            } 
         }
     }
 
     public void resetAllStatistics() {
         DonkeyDao dao = donkey.getDaoFactory().getDao();
+        boolean commitSuccess = false;
 
         try {
             for (String channelId : dao.getLocalChannelIds().keySet()) {
@@ -142,9 +173,18 @@ public class ChannelController {
 
                 // Each update here must have its own transaction, otherwise deadlocks may occur.
                 dao.commit();
+                commitSuccess = true;
             }
         } finally {
-            dao.close();
+
+            if (dao != null) {
+                if (!commitSuccess) {
+                    try {
+                        dao.rollback();
+                    } catch (Exception e) {}
+                }
+                dao.close();
+            }        
         }
     }
 
@@ -222,6 +262,7 @@ public class ChannelController {
 
     public void deleteAllMessages(String channelId) {
         DonkeyDao dao = donkey.getDaoFactory().getDao();
+        boolean commitSuccess = false;
 
         try {
             if (dao.getLocalChannelIds().get(channelId) != null) {
@@ -229,13 +270,22 @@ public class ChannelController {
             }
 
             dao.commit();
+            commitSuccess = true;
         } finally {
-            dao.close();
+            if (dao != null) {
+                if (!commitSuccess) {
+                    try {
+                        dao.rollback();
+                    } catch (Exception e) {}
+                }
+                dao.close();
+            }         
         }
     }
 
     private synchronized long createChannel(String channelId) {
         DonkeyDao dao = donkey.getDaoFactory().getDao();
+        boolean commitSuccess = false;
 
         try {
             Long localChannelId = dao.selectMaxLocalChannelId();
@@ -247,9 +297,17 @@ public class ChannelController {
 
             dao.createChannel(channelId, localChannelId);
             dao.commit();
+            commitSuccess = true;
             return localChannelId;
         } finally {
-            dao.close();
-        }
+            if (dao != null) {
+                if (!commitSuccess) {
+                    try {
+                        dao.rollback();
+                    } catch (Exception e) {}
+                }
+                dao.close();
+            }        
+         }
     }
 }

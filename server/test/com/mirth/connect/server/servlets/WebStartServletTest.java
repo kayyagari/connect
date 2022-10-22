@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -24,6 +25,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -54,7 +57,7 @@ public class WebStartServletTest {
 		assertEquals(CORE_JNLP.trim(), response.getResponseString().trim());
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
-		assertEquals("nosniff", response.getHeader("X-Content-Type-Options:"));
+		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
 		assertEquals("attachment; filename = \"webstart.jnlp\"", response.getHeader("Content-Disposition"));
 
 		// Test /webstart.jnlp
@@ -70,7 +73,7 @@ public class WebStartServletTest {
 		assertEquals(CORE_JNLP.trim(), response.getResponseString().trim());
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
-		assertEquals("nosniff", response.getHeader("X-Content-Type-Options:"));
+		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
 		assertEquals("attachment; filename = \"webstart.jnlp\"", response.getHeader("Content-Disposition"));
 	}
 
@@ -216,7 +219,7 @@ public class WebStartServletTest {
 		assertEquals(EXTENSION_JNLP.trim(), response.getResponseString().trim());
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
-		assertEquals("nosniff", response.getHeader("X-Content-Type-Options:"));
+		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
 		assertEquals("attachment; filename = \"testextension.jnlp\"", response.getHeader("Content-Disposition"));
 
 		// Test /webstart/extensions/testextension.jnlp
@@ -233,7 +236,7 @@ public class WebStartServletTest {
 		assertEquals(EXTENSION_JNLP.trim(), response.getResponseString().trim());
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
-		assertEquals("nosniff", response.getHeader("X-Content-Type-Options:"));
+		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
 		assertEquals("attachment; filename = \"testextension.jnlp\"", response.getHeader("Content-Disposition"));
 	}
 
@@ -503,20 +506,38 @@ public class WebStartServletTest {
 		private static final long serialVersionUID = 1L;
 
 		@Override
+		protected PropertiesConfiguration getMirthProperties() throws FileNotFoundException, ConfigurationException {
+		    PropertiesConfiguration mirthPropertiesConfiguration = new PropertiesConfiguration();
+		    mirthPropertiesConfiguration.setProperty("http.contextpath", "/");
+		    mirthPropertiesConfiguration.setProperty("server.url", "");
+		    mirthPropertiesConfiguration.setProperty("https.port", 8443);
+		    mirthPropertiesConfiguration.setProperty("administrator.maxheapsize", "512m");
+		    return mirthPropertiesConfiguration;
+		}
+
+		@Override
 		protected Document getAdministratorJnlp(HttpServletRequest request) throws Exception {
-			return DocumentBuilderFactory.newInstance().newDocumentBuilder()
+	        DocumentBuilderFactory factory = getSecureDocumentBuilderFactory();
+			return factory.newDocumentBuilder()
 					.parse(new ByteArrayInputStream(CORE_JNLP.getBytes()));
 		}
 
 		@Override
 		protected Document getExtensionJnlp(String extensionPath) throws Exception {
-			return DocumentBuilderFactory.newInstance().newDocumentBuilder()
+	        DocumentBuilderFactory factory = getSecureDocumentBuilderFactory();
+			return factory.newDocumentBuilder()
 					.parse(new ByteArrayInputStream(EXTENSION_JNLP.getBytes()));
 		}
 	}
+	
+	private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws Exception {
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		return dbf;
+	}
 
-	private static String CORE_JNLP = "<jnlp codebase=\"https://localhost:8443\" version=\"3.11.0\">\n"
-			+ "	<information>\n" + "		<title>Mirth Connect Administrator 3.11.0</title>\n"
+	private static String CORE_JNLP = "<jnlp codebase=\"https://localhost:8443\" version=\"4.1.1\">\n"
+			+ "	<information>\n" + "		<title>Mirth Connect Administrator 4.1.1</title>\n"
 			+ "		<vendor>NextGen Healthcare</vendor>\n" + "		<homepage href=\"http://www.nextgen.com\"/>\n"
 			+ "		<description>Open Source Healthcare Integration Engine</description>\n" + "		\n"
 			+ "		<icon href=\"images/mirth_128_ico.png\"/>\n"
@@ -533,7 +554,7 @@ public class WebStartServletTest {
 			+ "        <jar download=\"eager\" href=\"webstart/client-lib/mirth-client-core.jar\" sha256=\"testsha256\"/>\n"
 			+ "        <extension href=\"webstart/extensions/test.jnlp\"/>\n" + "    </resources>\n" + "	\n"
 			+ "	<application-desc main-class=\"com.mirth.connect.client.ui.Mirth\">\n"
-			+ "        <argument>https://localhost:8443</argument>\n" + "        <argument>3.11.0</argument>\n"
+			+ "        <argument>https://localhost:8443</argument>\n" + "        <argument>4.1.1</argument>\n"
 			+ "    </application-desc>\n" + "</jnlp>";
 
 	private static String EXTENSION_JNLP = "<jnlp>\n" + "    <information>\n"

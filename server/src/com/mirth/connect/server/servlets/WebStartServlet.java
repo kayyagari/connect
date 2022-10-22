@@ -12,6 +12,7 @@ package com.mirth.connect.server.servlets;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -30,9 +31,11 @@ import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bouncycastle.util.Arrays;
 import org.eclipse.jetty.io.RuntimeIOException;
 import org.w3c.dom.Document;
@@ -51,7 +54,7 @@ import com.mirth.connect.server.util.ResourceUtil;
 import com.mirth.connect.util.MirthSSLUtil;
 
 public class WebStartServlet extends HttpServlet {
-    private Logger logger = Logger.getLogger(this.getClass());
+    private Logger logger = LogManager.getLogger(this.getClass());
     private ConfigurationController configurationController = ControllerFactory.getFactory().createConfigurationController();
     private ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
 
@@ -71,14 +74,17 @@ public class WebStartServlet extends HttpServlet {
         try {
             response.setContentType("application/x-java-jnlp-file");
             response.setHeader("Pragma", "no-cache");
-            response.setHeader("X-Content-Type-Options:", "nosniff");
+            response.setHeader("X-Content-Type-Options", "nosniff");
             PrintWriter out = response.getWriter();
             Document jnlpDocument = null;
             
-            if ((request.getRequestURI().equals("/webstart.jnlp") || request.getRequestURI().equals("/webstart")) && isWebstartRequestValid(request)) {
+            PropertiesConfiguration mirthProperties = getMirthProperties();
+            String contextPathProp = getContextPathProp(mirthProperties);
+            
+            if ((request.getRequestURI().equals(contextPathProp + "/webstart.jnlp") || request.getRequestURI().equals(contextPathProp + "/webstart")) && isWebstartRequestValid(request)) {
                 jnlpDocument = getAdministratorJnlp(request);
                 response.setHeader("Content-Disposition", "attachment; filename = \"webstart.jnlp\"");
-            } else if (request.getServletPath().equals("/webstart/extensions") && isWebstartExtensionsRequestValid(request)) {
+            } else if (request.getServletPath().equals("/webstart/extensions") && isWebstartExtensionsRequestValid(request, contextPathProp)) {
                 String extensionPath = getExtensionPath(request);
                 jnlpDocument = getExtensionJnlp(getExtensionPath(request));
                 response.setHeader("Content-Disposition", "attachment; filename = \"" + extensionPath +  ".jnlp\"");
@@ -116,10 +122,10 @@ public class WebStartServlet extends HttpServlet {
         return true;
     }
     
-    private boolean isWebstartExtensionsRequestValid(HttpServletRequest request) {
-    	// Don't allow any parameters and don't allow modified URIs
-    	return request.getParameterMap().isEmpty() 
-    			&& (request.getServletPath() + "/" + getExtensionPath(request)).equals(StringUtils.removeEnd(request.getRequestURI(), ".jnlp"));
+    private boolean isWebstartExtensionsRequestValid(HttpServletRequest request, String contextPathProp) {
+        // Don't allow any parameters and don't allow modified URIs
+        return request.getParameterMap().isEmpty() 
+                && (contextPathProp + request.getServletPath() + "/" + getExtensionPath(request)).equals(StringUtils.removeEnd(request.getRequestURI(), ".jnlp"));
     }
     
     private String getExtensionPath(HttpServletRequest request) {
@@ -131,7 +137,8 @@ public class WebStartServlet extends HttpServlet {
         Document document;
         try {
             clientJnlpIs = ResourceUtil.getResourceStream(this.getClass(), "mirth-client.jnlp");
-            document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(clientJnlpIs);
+            DocumentBuilderFactory dbf = getSecureDocumentBuilderFactory();
+            document = dbf.newDocumentBuilder().parse(clientJnlpIs);
         } finally {
             ResourceUtil.closeResourceQuietly(clientJnlpIs);
         }
@@ -177,15 +184,7 @@ public class WebStartServlet extends HttpServlet {
         String contextPath = request.getContextPath();
         String codebase = scheme + "://" + serverHostname + ":" + serverPort + contextPath;
 
-        PropertiesConfiguration mirthProperties = PropertiesConfigurationUtil.create();
-        
-        InputStream mirthPropsIs = null;
-        try {
-            mirthPropsIs = ResourceUtil.getResourceStream(getClass(), "mirth.properties"); 
-            mirthProperties = PropertiesConfigurationUtil.create(mirthPropsIs);
-        } finally {
-            ResourceUtil.closeResourceQuietly(mirthPropsIs);
-        }
+        PropertiesConfiguration mirthProperties = getMirthProperties();
 
         String server = null;
 
@@ -193,17 +192,7 @@ public class WebStartServlet extends HttpServlet {
             server = mirthProperties.getString("server.url");
         } else {
             int httpsPort = mirthProperties.getInt("https.port", 8443);
-            String contextPathProp = mirthProperties.getString("http.contextpath", "");
-
-            // Add a starting slash if one does not exist
-            if (!contextPathProp.startsWith("/")) {
-                contextPathProp = "/" + contextPathProp;
-            }
-
-            // Remove a trailing slash if one exists
-            if (contextPathProp.endsWith("/")) {
-                contextPathProp = contextPathProp.substring(0, contextPathProp.length() - 1);
-            }
+            String contextPathProp = getContextPathProp(mirthProperties);
 
             server = "https://" + serverHostname + ":" + httpsPort + contextPathProp;
         }
@@ -348,7 +337,8 @@ public class WebStartServlet extends HttpServlet {
             throw new Exception("Extension metadata could not be located for the path: " + extensionPath);
         }
 
-        Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        DocumentBuilderFactory dbf = getSecureDocumentBuilderFactory();
+        Document document = dbf.newDocumentBuilder().newDocument();
         Element jnlpElement = document.createElement("jnlp");
 
         Element informationElement = document.createElement("information");
@@ -413,4 +403,39 @@ public class WebStartServlet extends HttpServlet {
             ResourceUtil.closeResourceQuietly(fis);
         }
     }
+    
+    protected PropertiesConfiguration getMirthProperties() throws FileNotFoundException, ConfigurationException {
+        PropertiesConfiguration mirthProperties = PropertiesConfigurationUtil.create();
+        
+        InputStream mirthPropsIs = null;
+        try {
+            mirthPropsIs = ResourceUtil.getResourceStream(getClass(), "mirth.properties"); 
+            mirthProperties = PropertiesConfigurationUtil.create(mirthPropsIs);
+        } finally {
+            ResourceUtil.closeResourceQuietly(mirthPropsIs);
+        }
+        return mirthProperties;
+    }
+    
+    private String getContextPathProp(PropertiesConfiguration mirthProperties) {
+        String contextPathProp = mirthProperties.getString("http.contextpath", "");
+
+        // Add a starting slash if one does not exist
+        if (!contextPathProp.startsWith("/")) {
+            contextPathProp = "/" + contextPathProp;
+        }
+
+        // Remove a trailing slash if one exists
+        if (contextPathProp.endsWith("/")) {
+            contextPathProp = contextPathProp.substring(0, contextPathProp.length() - 1);
+        }
+        
+        return contextPathProp;
+    }
+    
+	private static DocumentBuilderFactory getSecureDocumentBuilderFactory() throws Exception {
+		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+		return dbf;
+	}
 }

@@ -25,11 +25,11 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
-import org.xhtmlrenderer.pdf.ITextRenderer;
 import org.xhtmlrenderer.resource.FSEntityResolver;
 import org.xml.sax.InputSource;
 
@@ -55,12 +55,13 @@ import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.server.controllers.EventController;
 import com.mirth.connect.server.util.TemplateValueReplacer;
 import com.mirth.connect.util.ErrorMessageBuilder;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 
 public class DocumentDispatcher extends DestinationConnector {
 
     private static final Pattern PAGE_SIZE_PATTERN = Pattern.compile("@page\\s*\\{[\\s\\S]*?size\\s*:[\\s\\S]*?\\}");
 
-    private Logger logger = Logger.getLogger(this.getClass());
+    private Logger logger = LogManager.getLogger(this.getClass());
     private DocumentDispatcherProperties connectorProperties;
     private EventController eventController = ControllerFactory.getFactory().createEventController();
     private TemplateValueReplacer replacer = new TemplateValueReplacer();
@@ -212,7 +213,9 @@ public class DocumentDispatcher extends DestinationConnector {
     }
 
     private void createPDF(Reader reader, OutputStream outputStream, DocumentDispatcherProperties props) throws Exception {
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        DocumentBuilder builder = dbf.newDocumentBuilder();
         builder.setEntityResolver(FSEntityResolver.instance());
         org.w3c.dom.Document doc = builder.parse(new InputSource(reader));
 
@@ -251,12 +254,12 @@ public class DocumentDispatcher extends DestinationConnector {
                 }
             } catch (Exception e) {
             }
-
-            ITextRenderer renderer = new ITextRenderer();
-            renderer.setDocument(doc, null);
-
-            renderer.layout();
-            renderer.createPDF(outputStream, true);
+            
+            PdfRendererBuilder pdfRenderedBuilder = new PdfRendererBuilder();
+            pdfRenderedBuilder.useFastMode();
+            pdfRenderedBuilder.withW3cDocument(doc, "");
+            pdfRenderedBuilder.toStream(outputStream);
+            pdfRenderedBuilder.run();
         } catch (Throwable e) {
             throw new Exception(e);
         }

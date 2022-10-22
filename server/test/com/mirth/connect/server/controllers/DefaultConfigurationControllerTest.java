@@ -10,6 +10,7 @@
 package com.mirth.connect.server.controllers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -26,7 +27,9 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
+import javax.xml.XMLConstants;
 import javax.xml.transform.Source;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
@@ -36,6 +39,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.Invocation;
+import org.xml.sax.SAXParseException;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -129,6 +133,75 @@ public class DefaultConfigurationControllerTest {
             // Expected
         }
     }
+    
+    @Test
+    public void validateServerSettings_Enabled_GoodValue() throws Exception {
+        DefaultConfigurationController configurationController = spy(new DefaultConfigurationController());
+        
+        Properties properties = new Properties();
+        String enabledKey = "administratorautologoutinterval.enabled";
+        String fieldKey = "administratorautologoutinterval.field";
+        properties.setProperty(enabledKey, "1");
+        properties.setProperty(fieldKey, "30");
+
+        try {
+            configurationController.validateServerSettings(properties);
+        } catch (ControllerException e) {
+            fail("Exception should not have been thrown");
+        }
+    }
+    
+    @Test
+    public void validateServerSettings_Exception_Enabled_BadValue() throws Exception {
+        DefaultConfigurationController configurationController = spy(new DefaultConfigurationController());
+        
+        Properties properties = new Properties();
+        String enabledKey = "administratorautologoutinterval.enabled";
+        String fieldKey = "administratorautologoutinterval.field";
+        properties.setProperty(enabledKey, "1");
+        properties.setProperty(fieldKey, "0");
+
+        try {
+            configurationController.validateServerSettings(properties);
+            fail("Exception should have been thrown");
+        } catch (ControllerException e) {
+            // Expected
+        }
+    }
+    
+    @Test
+    public void validateServerSettings_Disabled_GoodValue() throws Exception {
+        DefaultConfigurationController configurationController = spy(new DefaultConfigurationController());
+        
+        Properties properties = new Properties();
+        String enabledKey = "administratorautologoutinterval.enabled";
+        String fieldKey = "administratorautologoutinterval.field";
+        properties.setProperty(enabledKey, "0");
+        properties.setProperty(fieldKey, "5");
+
+        try {
+            configurationController.validateServerSettings(properties);
+        } catch (ControllerException e) {
+            fail("Exception should not have been thrown");
+        }
+    }
+    
+    @Test
+    public void validateServerSettings_Exception_Disabled_BadValue() throws Exception {
+        DefaultConfigurationController configurationController = spy(new DefaultConfigurationController());
+        
+        Properties properties = new Properties();
+        String enabledKey = "administratorautologoutinterval.enabled";
+        String fieldKey = "administratorautologoutinterval.field";
+        properties.setProperty(enabledKey, "0");
+        properties.setProperty(fieldKey, "a");
+
+        try {
+            configurationController.validateServerSettings(properties);
+        } catch (ControllerException e) {
+            fail("Exception should not have been thrown");
+        }
+    }
 
     @Test
     public void setDatabaseDrivers() throws Exception {
@@ -188,6 +261,18 @@ public class DefaultConfigurationControllerTest {
     @Test
     public void testRhinoVersionUnknown() {
         assertEquals(0, (int) new DefaultConfigurationController().getRhinoLanguageVersion("asdf"));
+    }
+    
+    @Test
+    public void testParseDbdriversXmlWithExternalDtd() {
+    	boolean exceptionCaught = false;
+    	try {
+			new DefaultConfigurationController().parseDbdriversXml(new StringReader(DBDRIVERS_FILE_WITH_EXTERNAL_DTD));
+		} catch (Exception e) {
+			assertEquals(SAXParseException.class, e.getClass());
+			exceptionCaught = true;
+		}
+    	assertTrue(exceptionCaught);
     }
 
     private void assertDefaultDrivers(List<DriverInfo> drivers, boolean includeODBC) {
@@ -249,7 +334,10 @@ public class DefaultConfigurationControllerTest {
     private String normalizeXml(String xml) throws Exception {
         Source source = new StreamSource(new StringReader(xml));
         Writer writer = new StringWriter();
-        TransformerFactory.newInstance().newTransformer().transform(source, new StreamResult(writer));
+        TransformerFactory tf = TransformerFactory.newInstance();
+        tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+        tf.newTransformer().transform(source, new StreamResult(writer));
         return writer.toString();
     }
 
@@ -310,5 +398,17 @@ public class DefaultConfigurationControllerTest {
     		"	<driver class=\"com.microsoft.sqlserver.jdbc.SQLServerDriver\" name=\"Microsoft SQL Server\" template=\"jdbc:sqlserver://host:port;databaseName=dbname\" selectLimit=\"SELECT TOP 1 * FROM ?\" />\n" + 
     		"	<driver class=\"org.sqlite.JDBC\" name=\"SQLite\" template=\"jdbc:sqlite:dbfile.db\" selectLimit=\"SELECT * FROM ? LIMIT 1\" />\n" + 
     		"</drivers>\n";
+    
+    private String DBDRIVERS_FILE_WITH_EXTERNAL_DTD = "<!DOCTYPE foo[\n" + 
+    		"<!ELEMENT foo ANY >\n" + 
+    		"<!ENTITY xxe SYSTEM \"file:///dev/random\" >]\n" + 
+    		"<drivers>\n" + 
+    		"	<driver class=\"com.mysql.cj.jdbc.Driver\" name=\"&xxe;MySQL\" template=\"jdbc:mysql://host:port/dbname\" selectLimit=\"SELECT * FROM ? LIMIT 1\" alternativeClasses=\"com.mysql.jdbc.Driver\" />\n" + 
+    		"	<driver class=\"oracle.jdbc.driver.OracleDriver\" name=\"Oracle\" template=\"jdbc:oracle:thin:@host:port:dbname\" selectLimit=\"SELECT * FROM ? WHERE ROWNUM &lt; 2\" />\n" + 
+    		"	<driver class=\"org.postgresql.Driver\" name=\"PostgreSQL\" template=\"jdbc:postgresql://host:port/dbname\" selectLimit=\"SELECT * FROM ? LIMIT 1\" />\n" + 
+    		"	<driver class=\"net.sourceforge.jtds.jdbc.Driver\" name=\"SQL Server/Sybase (jTDS)\" template=\"jdbc:jtds:sqlserver://host:port/dbname\" selectLimit=\"SELECT TOP 1 * FROM ?\" />\n" + 
+    		"	<driver class=\"com.microsoft.sqlserver.jdbc.SQLServerDriver\" name=\"Microsoft SQL Server\" template=\"jdbc:sqlserver://host:port;databaseName=dbname\" selectLimit=\"SELECT TOP 1 * FROM ?\" />\n" + 
+    		"	<driver class=\"org.sqlite.JDBC\" name=\"SQLite\" template=\"jdbc:sqlite:dbfile.db\" selectLimit=\"SELECT * FROM ? LIMIT 1\" />\n" + 
+    		"</drivers>";
     // @formatter:on
 }

@@ -42,7 +42,9 @@ public class MirthLauncher {
     private static final String MIRTH_PROPERTIES_FILE = "./conf/mirth.properties";
     private static final String PROPERTY_APP_DATA_DIR = "dir.appdata";
     private static final String PROPERTY_INCLUDE_CUSTOM_LIB = "server.includecustomlib";
-    private static final String LOG4J_JAR_FILE = "./server-lib/log4j-1.2.16.jar";
+    private static final String[] LOG4J_JAR_FILES = { "./server-lib/log4j/log4j-core-2.17.2.jar",
+            "./server-lib/log4j/log4j-api-2.17.2.jar",
+            "./server-lib/log4j/log4j-1.2-api-2.17.2.jar" };
 
     private static String appDataDir = null;
 
@@ -53,12 +55,17 @@ public class MirthLauncher {
         try {
             List<URL> classpathUrls = new ArrayList<>();
             // Always add log4j
-            classpathUrls.add(new File(LOG4J_JAR_FILE).toURI().toURL());
+            for (String log4jJar : LOG4J_JAR_FILES) {
+                classpathUrls.add(new File(log4jJar).toURI().toURL());
+            }
             classpathUrls.addAll(addServerLauncherLibJarsToClasspath());
             URLClassLoader mirthLauncherClassLoader = new URLClassLoader(classpathUrls.toArray(new URL[classpathUrls.size()]), Thread.currentThread().getContextClassLoader());
             Thread.currentThread().setContextClassLoader(mirthLauncherClassLoader);
 
-            logger = new LoggerWrapper(mirthLauncherClassLoader.loadClass("org.apache.log4j.Logger").getMethod("getLogger", Class.class).invoke(null, MirthLauncher.class));
+            // Disable Threadlocals for log4j 2.x, since it messes with the server log
+            System.setProperty("log4j2.enableThreadlocals", "false");
+
+            logger = new LoggerWrapper(mirthLauncherClassLoader.loadClass("org.apache.logging.log4j.LogManager").getMethod("getLogger", Class.class).invoke(null, MirthLauncher.class));
 
             try {
                 uninstallPendingExtensions();
@@ -239,8 +246,10 @@ public class MirthLauncher {
 
                 for (File extensionFile : extensionFiles) {
                     try {
-                        Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(extensionFile);
-                        Element rootElement = document.getDocumentElement();
+                		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+                		Document document = dbf.newDocumentBuilder().parse(extensionFile);
+                		Element rootElement = document.getDocumentElement();
 
                         boolean enabled = extensionStatuses.isEnabled(rootElement.getElementsByTagName("name").item(0).getTextContent());
                         boolean compatible = isExtensionCompatible(rootElement.getElementsByTagName("mirthVersion").item(0).getTextContent(), currentVersion);
