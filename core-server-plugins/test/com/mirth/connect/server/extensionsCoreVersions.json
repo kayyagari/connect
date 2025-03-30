@@ -1,0 +1,792 @@
+{
+    "extensionsData": {
+        "alert": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "appliance": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "astmmode": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "auth": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "clusteringadvanced": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "clusteringbasic": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "cures": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "datatype-astm": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "email": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "enhancement": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "fhir": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "generator": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "history": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "interop-core": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "interop-pdq": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "interop-pix": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "interop-xca": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "interop-xcpd": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "interop-xdsb": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "ldap": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "licensemanager": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "mfa": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "mirthresults": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "mirthresults3": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "serial": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0"
+                    }
+                }
+            }
+        },
+        "ssl": {
+            "4.6.0": {
+                "coreVersions": {
+                    "mirth-core-client": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-client-api": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-client-base": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-client-plugins": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-models": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-server-plugins": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-ui": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    },
+                    "mirth-core-util": {
+                        "min": "4.6.0",
+                        "max": "4.7.0"
+                    }
+                }
+            }
+        }
+    }
+}

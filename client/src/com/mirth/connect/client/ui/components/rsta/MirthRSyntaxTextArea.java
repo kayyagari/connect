@@ -39,7 +39,6 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextAreaHighlighter;
 import org.fife.ui.rtextarea.RTextAreaUI;
 
-import com.mirth.connect.client.ui.Mirth;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.UIConstants;
 import com.mirth.connect.client.ui.components.MirthTextInterface;
@@ -134,7 +133,7 @@ public class MirthRSyntaxTextArea extends RSyntaxTextArea implements MirthTextIn
     private CustomMenuItem viewUserAPIMenuItem;
 
     static {
-        Preferences userPreferences = Preferences.userNodeForPackage(Mirth.class);
+        Preferences userPreferences = Preferences.userNodeForPackage(UIConstants.PREFERENCE_USER_NODE);
         String keyStrokesJSON = userPreferences.get(PREFERENCES_KEYSTROKES, null);
         String findReplaceJSON = userPreferences.get(PREFERENCES_FIND_REPLACE, null);
         String toggleOptionsJSON = userPreferences.get(PREFERENCES_TOGGLE_OPTIONS, null);
@@ -291,7 +290,7 @@ public class MirthRSyntaxTextArea extends RSyntaxTextArea implements MirthTextIn
     }
 
     public static void updateKeyStrokePreferences() {
-        updateKeyStrokePreferences(Preferences.userNodeForPackage(Mirth.class));
+        updateKeyStrokePreferences(Preferences.userNodeForPackage(UIConstants.PREFERENCE_USER_NODE));
     }
 
     public static void updateKeyStrokePreferences(Preferences userPreferences) {
@@ -300,7 +299,7 @@ public class MirthRSyntaxTextArea extends RSyntaxTextArea implements MirthTextIn
     }
 
     public static void updateFindReplacePreferences() {
-        updateFindReplacePreferences(Preferences.userNodeForPackage(Mirth.class));
+        updateFindReplacePreferences(Preferences.userNodeForPackage(UIConstants.PREFERENCE_USER_NODE));
     }
 
     public static void updateFindReplacePreferences(Preferences userPreferences) {
@@ -308,7 +307,7 @@ public class MirthRSyntaxTextArea extends RSyntaxTextArea implements MirthTextIn
     }
 
     public static void updateToggleOptionPreferences() {
-        updateToggleOptionPreferences(Preferences.userNodeForPackage(Mirth.class));
+        updateToggleOptionPreferences(Preferences.userNodeForPackage(UIConstants.PREFERENCE_USER_NODE));
     }
 
     public static void updateToggleOptionPreferences(Preferences userPreferences) {
@@ -316,7 +315,7 @@ public class MirthRSyntaxTextArea extends RSyntaxTextArea implements MirthTextIn
     }
 
     public static void updateAutoCompletePreferences() {
-        updateAutoCompletePreferences(Preferences.userNodeForPackage(Mirth.class));
+        updateAutoCompletePreferences(Preferences.userNodeForPackage(UIConstants.PREFERENCE_USER_NODE));
     }
 
     public static void updateAutoCompletePreferences(Preferences userPreferences) {

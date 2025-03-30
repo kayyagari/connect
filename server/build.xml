@@ -15,6 +15,8 @@
 
 		<path id="classpath">
 			<fileset dir="${lib}" includes="**/*.jar" />
+			<fileset dir="${core.lib}/shared" includes="**/*.jar" />
+			<fileset dir="${core.lib}/server" includes="**/*.jar" />
 		</path>
 
 		<!-- connectors -->
@@ -100,33 +102,9 @@
 			<fileset file="version.properties" />
 			<fileset file="mirth-client.jnlp" />
 		</copy>
-		<copy todir="${classes}/com/mirth/connect/util">
-			<fileset dir="${src}/com/mirth/connect/util">
-				<include name="*.js" />
-			</fileset>
-		</copy>
 	</target>
 
-	<target name="create-client-core" depends="compile">
-		<jar destfile="${setup.server.lib}/${client-core.jar}" basedir="${classes}">
-			<include name="com/mirth/connect/client/core/**" />
-			<include name="com/mirth/connect/model/**" />
-			<include name="com/mirth/connect/userutil/**" />
-			<include name="com/mirth/connect/util/**" />
-			<include name="com/mirth/connect/server/util/ResourceUtil.class" />
-			<include name="com/mirth/connect/server/util/DebuggerUtil.class" />
-			<include name="org/mozilla/**" />
-			<include name="org/glassfish/jersey/**" />
-			<include name="de/**" />
-			<include name="net/lingala/zip4j/unzip/**" />
-
-			<include name="version.properties" />
-		</jar>
-
-		<copy file="${lib}/mirth-crypto.jar" todir="${setup.server.lib}" />
-	</target>
-
-	<target name="create-connectors" depends="create-client-core">
+	<target name="create-connectors" depends="compile">
 
 		<!-- connectors.dicom -->
 		<mkdir dir="${connectors.dicom}" />
@@ -228,18 +206,12 @@
 		<jar destfile="${connectors.http}/http-shared.jar" basedir="${classes}">
 			<include name="com/mirth/connect/connectors/http/HttpReceiverProperties.class" />
 			<include name="com/mirth/connect/connectors/http/HttpDispatcherProperties.class" />
-			<include name="com/mirth/connect/connectors/http/HttpStaticResource.class" />
-			<include name="com/mirth/connect/connectors/http/HttpStaticResource$ResourceType.class" />
-			<include name="com/mirth/connect/connectors/http/HttpConnectorServletInterface.class" />
 		</jar>
 		<jar destfile="${connectors.http}/http-server.jar">
 			<fileset dir="${classes}">
 				<include name="com/mirth/connect/connectors/http/**" />
 				<exclude name="com/mirth/connect/connectors/http/HttpReceiverProperties.class" />
 				<exclude name="com/mirth/connect/connectors/http/HttpDispatcherProperties.class" />
-				<exclude name="com/mirth/connect/connectors/http/HttpStaticResource.class" />
-				<exclude name="com/mirth/connect/connectors/http/HttpStaticResource$ResourceType.class" />
-				<exclude name="com/mirth/connect/connectors/http/HttpConnectorServletInterface.class" />
 			</fileset>
 		</jar>
 
@@ -425,6 +397,9 @@
 
 		<!-- set the version on all connectors -->
 		<replace dir="${extensions}" token="@mirthversion" value="${version}">
+			<include name="**/*.xml" />
+		</replace>
+		<replace dir="${extensions}" token="@pluginbuildnumber" value="${buildnumber}">
 			<include name="**/*.xml" />
 		</replace>
 	</target>
@@ -936,6 +911,9 @@
 		<replace dir="${extensions}" token="@mirthversion" value="${version}">
 			<include name="**/*.xml" />
 		</replace>
+		<replace dir="${extensions}" token="@pluginbuildnumber" value="${buildnumber}">
+			<include name="**/*.xml" />
+		</replace>
 	</target>
 
 	<target name="create-setup" depends="init">
@@ -954,6 +932,11 @@
 		<mkdir dir="${setup.logs}" />
 		<mkdir dir="${setup.docs}" />
 		<mkdir dir="${setup.server.launcher.lib}" />
+		
+		<!-- Copy core-lib -->
+		<copy todir="${setup.core.lib}">
+			<fileset dir="${core.lib}" includes="**/*.jar" />
+		</copy>
 
 		<!-- copy lib -->
 		<copy todir="${setup.server.lib}">
@@ -1007,6 +990,7 @@
 			<include name="net/sourceforge/jtds/ssl/**" />
 
 			<include name="mirth-client.jnlp" />
+			<include name="version.properties" />
 
 			<exclude name="com/mirth/connect/server/launcher/**" />
 			<exclude name="org/dcm4che2/**" />
@@ -1015,6 +999,11 @@
 		<!-- create the dbconf jar -->
 		<jar destfile="${setup.server.lib}/${dbconf.jar}" basedir="${dbconf}" />
 
+		<!-- copy classes needed by the launcher JAR -->
+		<copy todir="${classes}">
+			<fileset dir="${core.server.plugins}/classes" includes="com/mirth/connect/server/extprops/**"/>
+		</copy>
+
 		<!-- create the mirth-launcher jar -->
 		<jar destfile="${setup}/${mirth-launcher.jar}" basedir="${classes}">
 			<include name="com/mirth/connect/server/launcher/**" />
@@ -1022,7 +1011,7 @@
 
 			<manifest>
 				<attribute name="Main-Class" value="com.mirth.connect.server.launcher.MirthLauncher" />
-				<attribute name="Class-Path" value="server-lib/commons/commons-io-2.6.jar server-lib/commons/commons-configuration2-2.7.jar server-lib/commons/commons-lang3-3.9.jar server-lib/commons/commons-logging-1.2.jar server-lib/commons/commons-beanutils-1.9.3.jar server-lib/commons/commons-text-1.8.jar server-lib/commons/commons-collections-3.2.2.jar conf/" />
+				<attribute name="Class-Path" value="core-lib/shared/commons/commons-io-2.13.0.jar core-lib/shared/commons/commons-configuration2-2.8.0.jar core-lib/shared/commons/commons-lang3-3.13.0.jar core-lib/shared/commons/commons-logging-1.2.jar core-lib/shared/commons/commons-beanutils-1.9.4.jar core-lib/shared/commons/commons-text-1.10.0.jar server-lib/commons/commons-collections-3.2.2.jar conf/" />
 			</manifest>
 		</jar>
 		
@@ -1146,10 +1135,11 @@
 				<pathelement location="classes" />
 				<pathelement location="${setup.conf}" />
 				<fileset dir="${lib}">
-					<include name="log4j-1.2.16.jar" />
+					<include name="log4j/log4j-api-2.17.2.jar" />
+					<include name="log4j/log4j-core-2.17.2.jar" />
 					<include name="database/derby-10.10.2.0.jar" />
 					<include name="database/derbytools-10.10.2.0.jar" />
-					<include name="commons/commons-io-2.3.jar" />
+					<include name="commons/commons-io-2.13.0.jar" />
 				</fileset>
 			</classpath>
 			<arg value="dbconf/derby/derby-database.sql" />
@@ -1183,7 +1173,10 @@
 		
 		<path id="testclasspath">
 			<fileset dir="testlib" includes="**/*.jar" />
+			<fileset dir="${core.lib}/shared" includes="**/*.jar" />
+			<fileset dir="${core.lib}/server" includes="**/*.jar" />
 			<dirset dir="${classes}"/>
+			<dirset dir="${core.util}/test_classes"/>
 			<path refid="classpath" />
 		</path>
 	</target>
@@ -1226,7 +1219,7 @@
 		<jacoco:coverage destfile="${code-coverage-reports}/jacoco.exec" xmlns:jacoco="antlib:org.jacoco.ant" exclclassloader="sun.reflect.DelegatingClassLoader:javassist.Loader" >
 			<junit haltonfailure="false" fork="true" forkmode="once">
 				<jvmarg value="-Xms128m" />
-				<jvmarg value="-Xmx1024m" />
+				<jvmarg value="-Xmx2048m" />
 				<!-- Uncomment the following and add additional dashes in front of the arguments to allow Java 9+
 					<jvmarg value="-add-opens=java.base/java.util=ALL-UNNAMED" />
 					<jvmarg value="-add-opens=java.base/java.lang=ALL-UNNAMED" />

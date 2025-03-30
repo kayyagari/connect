@@ -83,6 +83,8 @@ public class EventBrowser extends javax.swing.JPanel {
     private final String EVENT_OUTCOME_COLUMN_NAME = "Outcome";
     private final String EVENT_IP_ADDRESS_COLUMN_NAME = "IP Address";
     private final String EVENT_PATIENT_ID_NAME = "Patient ID";
+    private final String EVENT_CHANNEL_MESSAGE_COLUMN_NAME = "Channel ID - Message ID";
+    private final String EVENT_CHANNEL_NAME_COLUMN_NAME = "Channel Name";
     private final String ATTRIBUTES_NAME_COLUMN_NAME = "Name";
     private final String ATTRIBUTES_VALUE_COLUMN_NAME = "Value";
     private final int ATTRIBUTES_VALUE_COLUMN_NUMBER = 1;
@@ -97,7 +99,7 @@ public class EventBrowser extends javax.swing.JPanel {
      * Constructs the new event browser and sets up its default information/layout.
      */
     public EventBrowser() {
-        this.parent = PlatformUI.MIRTH_FRAME;
+        this.parent = (Frame) PlatformUI.MIRTH_FRAME;
         initComponents();
         initComponentsManual();
         makeEventTable();
@@ -176,7 +178,7 @@ public class EventBrowser extends javax.swing.JPanel {
             public void ancestorRemoved(AncestorEvent event) {
                 // Stop waiting for event browser requests when the event browser 
                 // is no longer being displayed
-                parent.mirthClient.getServerConnection().abort(getAbortOperations());
+                parent.getClient().getServerConnection().abort(getAbortOperations());
                 // Clear the event cache when leaving the event browser.
                 parent.eventBrowser.clearCache();
             }
@@ -310,7 +312,7 @@ public class EventBrowser extends javax.swing.JPanel {
         }
 
         try {
-            Integer maxEventId = parent.mirthClient.getMaxEventId();
+            Integer maxEventId = parent.getClient().getMaxEventId();
             eventFilter.setMaxEventId(maxEventId);
         } catch (ClientException e) {
             parent.alertThrowable(parent, e);
@@ -324,7 +326,7 @@ public class EventBrowser extends javax.swing.JPanel {
         if (generateEventFilter()) {
             updateFilterButtonFont(Font.PLAIN);
             events = new PaginatedEventList();
-            events.setClient(parent.mirthClient);
+            events.setClient(parent.getClient());
             events.setEventFilter(eventFilter);
 
             try {
@@ -422,7 +424,7 @@ public class EventBrowser extends javax.swing.JPanel {
         final String workingId = parent.startWorking("Loading page...");
 
         if (worker != null && !worker.isDone()) {
-            parent.mirthClient.getServerConnection().abort(getAbortOperations());
+            parent.getClient().getServerConnection().abort(getAbortOperations());
             worker.cancel(true);
         }
 
@@ -553,7 +555,7 @@ public class EventBrowser extends javax.swing.JPanel {
         userMapById.clear();
         userMapById.put(-1, UIConstants.ALL_OPTION);
         userMapById.put(0, "System");
-        for (User user : parent.users) {
+        for (User user : parent.getCachedUsers()) {
             userMapById.put(user.getId(), user.getUsername());
         }
     }
@@ -606,7 +608,7 @@ public class EventBrowser extends javax.swing.JPanel {
         Object[][] tableData = null;
 
         if (systemEventList != null) {
-            tableData = new Object[systemEventList.size()][9];
+            tableData = new Object[systemEventList.size()][11];
 
             for (int i = 0; i < systemEventList.size(); i++) {
                 ServerEvent systemEvent = systemEventList.get(i);
@@ -645,12 +647,13 @@ public class EventBrowser extends javax.swing.JPanel {
                     tableData[i][6] = new CellData(null, systemEvent.getOutcome().toString());
                 }
 
-                tableData[i][7] = systemEvent.getIpAddress();
-                
-                tableData[i][8] = systemEvent.getPatientId();
+                tableData[i][7]  = systemEvent.getIpAddress();             
+                tableData[i][8]  = systemEvent.getChannelIdWithMessageId();
+                tableData[i][9]  = systemEvent.getChannelName();
+                tableData[i][10] = systemEvent.getPatientId();
             }
         } else {
-            tableData = new Object[0][8];
+            tableData = new Object[0][11];
         }
 
         if (eventTable != null) {
@@ -665,16 +668,19 @@ public class EventBrowser extends javax.swing.JPanel {
             defaultVisibleColumns.add(EVENT_USER_COLUMN_NAME);
             defaultVisibleColumns.add(EVENT_OUTCOME_COLUMN_NAME);
             defaultVisibleColumns.add(EVENT_IP_ADDRESS_COLUMN_NAME);
+            defaultVisibleColumns.add(EVENT_CHANNEL_MESSAGE_COLUMN_NAME);
+            defaultVisibleColumns.add(EVENT_CHANNEL_NAME_COLUMN_NAME);
             defaultVisibleColumns.add(EVENT_PATIENT_ID_NAME);
 
             eventTable = new MirthTable("eventBrowser", defaultVisibleColumns);
             eventTable.setModel(new RefreshTableModel(tableData, new String[] {
                     EVENT_ID_COLUMN_NAME, EVENT_LEVEL_COLUMN_NAME, EVENT_DATE_COLUMN_NAME,
                     EVENT_NAME_COLUMN_NAME, EVENT_SERVER_ID_COLUMN_NAME, EVENT_USER_COLUMN_NAME,
-                    EVENT_OUTCOME_COLUMN_NAME, EVENT_IP_ADDRESS_COLUMN_NAME, EVENT_PATIENT_ID_NAME }) {
+                    EVENT_OUTCOME_COLUMN_NAME, EVENT_IP_ADDRESS_COLUMN_NAME,
+                    EVENT_CHANNEL_MESSAGE_COLUMN_NAME, EVENT_CHANNEL_NAME_COLUMN_NAME, EVENT_PATIENT_ID_NAME }) {
 
                 boolean[] canEdit = new boolean[] { false, false, false, false, false, false, false,
-                        false };
+                        false, false, false, false };
 
                 public boolean isCellEditable(int rowIndex, int columnIndex) {
                     return canEdit[columnIndex];
@@ -1236,7 +1242,7 @@ public class EventBrowser extends javax.swing.JPanel {
 
             public Void doInBackground() {
                 try {
-                    events.setItemCount(parent.mirthClient.getEventCount(eventFilter));
+                    events.setItemCount(parent.getClient().getEventCount(eventFilter));
                 } catch (ClientException e) {
                     if (e instanceof RequestAbortedException) {
                         // The client is no longer waiting for the count request

@@ -2,7 +2,9 @@
 	<name>TCP Sender</name>
 	<author>NextGen Healthcare</author>
 	<pluginVersion>@mirthversion</pluginVersion>
-	<mirthVersion>4.1.1</mirthVersion>
+	<mirthVersion>@mirthversion</mirthVersion>
+	<pluginBuildNumber>@pluginbuildnumber</pluginBuildNumber>
+	<coreExtension>true</coreExtension>
 	<url>http://www.nextgen.com</url>
 	<description>This connector allows Mirth Connect to send messages to a TCP server.</description>
 	<clientClassName>com.mirth.connect.connectors.tcp.TcpSender</clientClassName>
@@ -11,7 +13,7 @@
 	<library type="CLIENT" path="tcp-client.jar" />
 	<library type="SHARED" path="tcp-shared.jar" />
 	<library type="SERVER" path="tcp-server.jar" />
-	<apiProvider type="SERVLET_INTERFACE" name="com.mirth.connect.connectors.tcp.TcpConnectorServletInterface"/>
+	<apiProvider type="SERVLET_INTERFACE" name="com.mirth.connect.connectors.core.tcp.TcpConnectorServletInterface"/>
 	<apiProvider type="SERVER_CLASS" name="com.mirth.connect.connectors.tcp.TcpConnectorServlet"/>
 	<transformers/>
 	<protocol>tcp</protocol>

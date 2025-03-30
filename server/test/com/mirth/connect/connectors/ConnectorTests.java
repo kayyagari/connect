@@ -22,7 +22,7 @@ import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.RawMessage;
 import com.mirth.connect.donkey.server.Donkey;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.server.controllers.TestUtils;
 import com.mirth.connect.server.util.GlobalVariableStore;
@@ -41,7 +41,7 @@ public class ConnectorTests {
         JavaScriptReceiver javaScriptReceiver = new JavaScriptReceiver();
         javaScriptReceiver.setConnectorProperties(connectorProperties);
 
-        ChannelController.getInstance().deleteAllMessages(TestUtils.CHANNEL_ID);
+        ControllerFactory.getFactory().createChannelController().deleteAllMessages(TestUtils.CHANNEL_ID);
 
         DummyChannel channel = new DummyChannel(TestUtils.CHANNEL_ID, TestUtils.SERVER_ID, javaScriptReceiver, null);
         channel.start(null);
@@ -61,7 +61,7 @@ public class ConnectorTests {
         JavaScriptDispatcher javaScriptWriter = new JavaScriptDispatcher();
         javaScriptWriter.setConnectorProperties(connectorProperties);
 
-        ChannelController.getInstance().deleteAllMessages(TestUtils.CHANNEL_ID);
+        ControllerFactory.getFactory().createChannelController().deleteAllMessages(TestUtils.CHANNEL_ID);
 
         DummyChannel channel = new DummyChannel(TestUtils.CHANNEL_ID, TestUtils.SERVER_ID, null, javaScriptWriter);
         channel.start(null);

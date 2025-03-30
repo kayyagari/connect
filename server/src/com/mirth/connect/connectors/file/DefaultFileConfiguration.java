@@ -9,13 +9,17 @@
 
 package com.mirth.connect.connectors.file;
 
+import java.io.IOException;
+
+import com.mirth.connect.connectors.core.file.FileConfiguration;
+import com.mirth.connect.connectors.core.file.FileConnector;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
-import com.mirth.connect.donkey.server.channel.Connector;
+import com.mirth.connect.donkey.server.channel.IConnector;
 
 public class DefaultFileConfiguration implements FileConfiguration {
 
     @Override
-    public void configureConnectorDeploy(Connector connector, ConnectorProperties connectorProperties) throws Exception {
+    public void configureConnectorDeploy(IConnector connector, ConnectorProperties connectorProperties) throws Exception {
         FileConnector fileConnector = new FileConnector(connector.getChannelId(), connectorProperties, connector);
 
         if (connector instanceof FileReceiver) {
@@ -26,5 +30,11 @@ public class DefaultFileConfiguration implements FileConfiguration {
     }
 
     @Override
-    public void configureConnectorUndeploy(Connector connector) {}
+    public void configureConnectorUndeploy(IConnector connector) {}
+
+    @Override
+    public void initialize(Object client) throws IOException {}
+
+    @Override
+    public void disconnect(Object client) {}
 }

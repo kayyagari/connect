@@ -32,6 +32,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.FalseFileFilter;
+import org.apache.commons.io.filefilter.PrefixFileFilter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -42,7 +45,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import com.mirth.connect.client.core.PropertiesConfigurationUtil;
 import com.mirth.connect.model.ExtensionLibrary;
 import com.mirth.connect.model.MetaData;
 import com.mirth.connect.model.converters.DocumentSerializer;
@@ -52,6 +54,7 @@ import com.mirth.connect.server.controllers.ExtensionController;
 import com.mirth.connect.server.tools.ClassPathResource;
 import com.mirth.connect.server.util.ResourceUtil;
 import com.mirth.connect.util.MirthSSLUtil;
+import com.mirth.connect.util.PropertiesConfigurationUtil;
 
 public class WebStartServlet extends HttpServlet {
     private Logger logger = LogManager.getLogger(this.getClass());
@@ -182,9 +185,11 @@ public class WebStartServlet extends HttpServlet {
         String serverHostname = request.getServerName();
         int serverPort = request.getServerPort();
         String contextPath = request.getContextPath();
-        String codebase = scheme + "://" + serverHostname + ":" + serverPort + contextPath;
 
         PropertiesConfiguration mirthProperties = getMirthProperties();
+        
+        String codebase = mirthProperties.getString("codebase.webstart.url", scheme + "://" + serverHostname + ":" + serverPort + contextPath);
+        jnlpElement.setAttribute("codebase", codebase);
 
         String server = null;
 
@@ -197,7 +202,6 @@ public class WebStartServlet extends HttpServlet {
             server = "https://" + serverHostname + ":" + httpsPort + contextPathProp;
         }
 
-        jnlpElement.setAttribute("codebase", codebase);
 
         Element resourcesElement = (Element) jnlpElement.getElementsByTagName("resources").item(0);
 
@@ -216,8 +220,9 @@ public class WebStartServlet extends HttpServlet {
 
         List<String> defaultClientLibs = new ArrayList<String>();
         defaultClientLibs.add("mirth-client.jar");
-        defaultClientLibs.add("mirth-client-core.jar");
-        defaultClientLibs.add("mirth-crypto.jar");
+        for (File coreJarFile : FileUtils.listFiles(new File("client-lib"), new PrefixFileFilter("mirth-core-"), FalseFileFilter.FALSE)) {
+            defaultClientLibs.add(coreJarFile.getName());
+        }
         defaultClientLibs.add("mirth-vocab.jar");
 
         File clientLibDirectory = new File(getClientLibPath());

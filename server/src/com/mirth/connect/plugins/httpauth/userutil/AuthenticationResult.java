@@ -16,6 +16,8 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.mirth.connect.plugins.core.httpauth.userutil.AuthStatus;
+
 /**
  * This class represents the result of an HTTP authentication attempt, used to accept or reject
  * requests coming into HTTP-based source connectors.

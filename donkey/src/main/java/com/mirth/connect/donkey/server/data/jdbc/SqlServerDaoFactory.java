@@ -14,7 +14,7 @@ import java.sql.Statement;
 
 import org.apache.commons.dbutils.DbUtils;
 
-import com.mirth.connect.donkey.server.data.DonkeyDaoException;
+import com.mirth.connect.donkey.model.DonkeyDaoException;
 import com.mirth.connect.donkey.util.SerializerProvider;
 
 public class SqlServerDaoFactory extends JdbcDaoFactory {

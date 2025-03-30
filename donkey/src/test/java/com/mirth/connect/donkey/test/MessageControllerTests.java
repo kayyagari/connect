@@ -35,8 +35,7 @@ import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.channel.Channel;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
-import com.mirth.connect.donkey.server.controllers.MessageController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.timed.TimedDaoFactory;
 import com.mirth.connect.donkey.server.queue.ConnectorMessageQueueDataSource;
@@ -78,8 +77,8 @@ public class MessageControllerTests {
     @Test
     public void testCreateNewMessage() throws Exception {
         Channel channel = TestUtils.createDefaultChannel(channelId, serverId);
-        ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
 
         Map<String, Object> channelMap = new HashMap<String, Object>();
         channelMap.put("key", "value");
@@ -122,7 +121,7 @@ public class MessageControllerTests {
 
             System.out.println(daoTimer.getLog());
         } finally {
-            ChannelController.getInstance().removeChannel(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
         }
     }
 
@@ -171,7 +170,7 @@ public class MessageControllerTests {
         // delete the message
         Map<Long, Set<Integer>> messages = new HashMap<Long, Set<Integer>>();
         messages.put(message.getMessageId(), null);
-        MessageController.getInstance().deleteMessages(channelId, messages);
+        ControllerFactory.getFactory().createMessageController().deleteMessages(channelId, messages);
         channel.invalidateQueues();
 
         // assert that the message does not exist in the database

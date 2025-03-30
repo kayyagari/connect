@@ -40,7 +40,7 @@ import com.mirth.connect.client.ui.editors.DataTypePropertiesDialog;
 import com.mirth.connect.model.datatype.DataTypeProperties;
 import com.mirth.connect.plugins.DataTypeClientPlugin;
 
-public class TemplatePanel extends javax.swing.JPanel implements DropTargetListener {
+public class TemplatePanel extends TemplatePanelBase implements DropTargetListener {
     public final String DEFAULT_TEXT = "Paste a sample message here.";
 
     private static final String MESSAGE_TEMPLATES_BOLD = "<html><b>Message Templates</b></html>";
@@ -68,7 +68,7 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
         openFileButton.setIcon(UIConstants.ICON_FILE_PICKER);
 
         if (PlatformUI.MIRTH_FRAME != null) {
-            dataTypeComboBox.setModel(new javax.swing.DefaultComboBoxModel(PlatformUI.MIRTH_FRAME.dataTypeToDisplayName.values().toArray()));
+            dataTypeComboBox.setModel(new javax.swing.DefaultComboBoxModel(PlatformUI.MIRTH_FRAME.getDataTypeToDisplayNameMap().values().toArray()));
         }
 
         hl7Document = new SyntaxDocument();
@@ -150,7 +150,7 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
                 dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
                 File file = ((List<File>) tr.getTransferData(DataFlavor.javaFileListFlavor)).get(0);
 
-                String dataType = PlatformUI.MIRTH_FRAME.displayNameToDataType.get(getDataType());
+                String dataType = PlatformUI.MIRTH_FRAME.getDisplayNameToDataTypeMap().get(getDataType());
                 DataTypeClientPlugin dataTypePlugin = LoadedExtensions.getInstance().getDataTypePlugins().get(dataType);
                 if (dataTypePlugin.isBinary()) {
                     byte[] content = FileUtils.readFileToByteArray(file);
@@ -251,7 +251,7 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
     }
 
     private void setDocType(String dataType) {
-        TokenMarker tokenMarker = LoadedExtensions.getInstance().getDataTypePlugins().get(PlatformUI.MIRTH_FRAME.displayNameToDataType.get(dataType)).getTokenMarker(getDataProperties());
+        TokenMarker tokenMarker = LoadedExtensions.getInstance().getDataTypePlugins().get(PlatformUI.MIRTH_FRAME.getDisplayNameToDataTypeMap().get(dataType)).getTokenMarker(getDataProperties());
 
         if (tokenMarker != null) {
             hl7Document.setTokenMarker(tokenMarker);
@@ -260,6 +260,7 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
         pasteBox.setDocument(hl7Document);
     }
 
+    @Override
     public String getDataType() {
         return (String) dataTypeComboBox.getSelectedItem();
     }
@@ -370,7 +371,7 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
     private void openFileButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_openFileButtonActionPerformed
     {//GEN-HEADEREND:event_openFileButtonActionPerformed
         try {
-            String dataType = PlatformUI.MIRTH_FRAME.displayNameToDataType.get(getDataType());
+            String dataType = PlatformUI.MIRTH_FRAME.getDisplayNameToDataTypeMap().get(getDataType());
             DataTypeClientPlugin dataTypePropertiesPlugin = LoadedExtensions.getInstance().getDataTypePlugins().get(dataType);
             if (dataTypePropertiesPlugin.isBinary()) {
                 byte[] content = PlatformUI.MIRTH_FRAME.browseForFileBytes(null);
@@ -436,7 +437,7 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
             currentDataType = (String) dataTypeComboBox.getSelectedItem();
 
             // Set the default properties for the data type selected
-            String dataType = PlatformUI.MIRTH_FRAME.displayNameToDataType.get(currentDataType);
+            String dataType = PlatformUI.MIRTH_FRAME.getDisplayNameToDataTypeMap().get(currentDataType);
 
             dataProperties = LoadedExtensions.getInstance().getDataTypePlugins().get(dataType).getDefaultProperties();
         }
@@ -452,4 +453,9 @@ public class TemplatePanel extends javax.swing.JPanel implements DropTargetListe
     private com.mirth.connect.client.ui.components.MirthSyntaxTextArea pasteBox;
     private javax.swing.JButton properties;
     // End of variables declaration//GEN-END:variables
+
+    @Override
+	public void setMessage(String message, String dataType) {
+		setMessage(message);
+	}
 }

@@ -17,6 +17,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import com.mirth.connect.connectors.core.smtp.ISmtpDispatcherProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorPropertiesInterface;
@@ -24,7 +25,7 @@ import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
 import com.mirth.connect.util.CharsetUtils;
 
-public class SmtpDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface {
+public class SmtpDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface, ISmtpDispatcherProperties {
 
     private DestinationConnectorProperties destinationConnectorProperties;
 
@@ -119,6 +120,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         attachmentsVariable = props.getAttachmentsVariable();
     }
 
+    @Override
     public String getSmtpHost() {
         return smtpHost;
     }
@@ -127,6 +129,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.smtpHost = smtpHost;
     }
 
+    @Override
     public String getSmtpPort() {
         return smtpPort;
     }
@@ -159,6 +162,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.localPort = localPort;
     }
 
+    @Override
     public String getTimeout() {
         return timeout;
     }
@@ -167,6 +171,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.timeout = timeout;
     }
 
+    @Override
     public String getEncryption() {
         return encryption;
     }
@@ -175,6 +180,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.encryption = encryption;
     }
 
+    @Override
     public boolean isAuthentication() {
         return authentication;
     }
@@ -183,6 +189,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.authentication = authentication;
     }
 
+    @Override
     public String getUsername() {
         return username;
     }
@@ -191,6 +198,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.username = username;
     }
 
+    @Override
     public String getPassword() {
         return password;
     }
@@ -199,6 +207,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.password = password;
     }
 
+    @Override
     public String getTo() {
         return to;
     }
@@ -207,6 +216,7 @@ public class SmtpDispatcherProperties extends ConnectorProperties implements Des
         this.to = to;
     }
 
+    @Override
     public String getFrom() {
         return from;
     }

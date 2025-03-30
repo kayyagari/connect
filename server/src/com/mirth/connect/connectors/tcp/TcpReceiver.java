@@ -20,7 +20,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -42,11 +41,16 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.mirth.connect.connectors.core.tcp.ITcpReceiver;
+import com.mirth.connect.connectors.core.tcp.StateAwareSocketInterface;
+import com.mirth.connect.connectors.core.tcp.TcpConfiguration;
 import com.mirth.connect.donkey.model.channel.DeployedState;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.ErrorEventType;
 import com.mirth.connect.donkey.model.message.BatchRawMessage;
 import com.mirth.connect.donkey.model.message.RawMessage;
+import com.mirth.connect.donkey.model.message.StreamHandler;
+import com.mirth.connect.donkey.model.message.batch.BatchStreamReader;
 import com.mirth.connect.donkey.server.ConnectorTaskException;
 import com.mirth.connect.donkey.server.channel.ChannelException;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
@@ -54,11 +58,9 @@ import com.mirth.connect.donkey.server.channel.SourceConnector;
 import com.mirth.connect.donkey.server.event.ConnectionStatusEvent;
 import com.mirth.connect.donkey.server.event.ConnectorCountEvent;
 import com.mirth.connect.donkey.server.event.ErrorEvent;
-import com.mirth.connect.donkey.server.message.StreamHandler;
 import com.mirth.connect.donkey.server.message.batch.BatchMessageException;
 import com.mirth.connect.donkey.server.message.batch.BatchMessageReader;
 import com.mirth.connect.donkey.server.message.batch.BatchMessageReceiver;
-import com.mirth.connect.donkey.server.message.batch.BatchStreamReader;
 import com.mirth.connect.donkey.server.message.batch.ResponseHandler;
 import com.mirth.connect.donkey.server.message.batch.SimpleResponseHandler;
 import com.mirth.connect.donkey.util.ThreadUtils;
@@ -76,7 +78,7 @@ import com.mirth.connect.util.CharsetUtils;
 import com.mirth.connect.util.ErrorMessageBuilder;
 import com.mirth.connect.util.TcpUtil;
 
-public class TcpReceiver extends SourceConnector {
+public class TcpReceiver extends SourceConnector implements ITcpReceiver {
     // This determines how many client requests can queue up while waiting for the server socket to accept
     private static final int DEFAULT_BACKLOG = 256;
 
@@ -105,6 +107,15 @@ public class TcpReceiver extends SourceConnector {
 
     @Override
     public void onDeploy() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onDeploy();
+    	} else {
+    		doOnDeploy();
+    	}
+    }
+    
+    @Override
+    public void doOnDeploy() throws ConnectorTaskException {
         connectorProperties = (TcpReceiverProperties) getConnectorProperties();
 
         if (connectorProperties.isDataTypeBinary() && isProcessBatch()) {
@@ -155,12 +166,30 @@ public class TcpReceiver extends SourceConnector {
 
         eventController.dispatchEvent(new ConnectorCountEvent(getChannelId(), getMetaDataId(), getSourceName(), ConnectionStatusEventType.IDLE, null, maxConnections));
     }
+    
+    @Override
+    public void onUndeploy() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onUndeploy();
+    	} else {
+    		doOnUndeploy();
+    	}
+    }
 
     @Override
-    public void onUndeploy() throws ConnectorTaskException {}
+    public void doOnUndeploy() throws ConnectorTaskException {}
 
     @Override
     public void onStart() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStart();
+    	} else {
+    		doOnStart();
+    	}
+    }
+    
+    @Override
+    public void doOnStart() throws ConnectorTaskException {
         disposing.set(false);
         results.clear();
         clientReaders.clear();
@@ -270,6 +299,15 @@ public class TcpReceiver extends SourceConnector {
 
     @Override
     public void onStop() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStop();
+    	} else {
+    		doOnStop();
+    	}
+    }
+    
+    @Override
+    public void doOnStop() throws ConnectorTaskException {
         ConnectorTaskException firstCause = null;
 
         synchronized (clientReaders) {
@@ -385,6 +423,15 @@ public class TcpReceiver extends SourceConnector {
 
     @Override
     public void onHalt() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onHalt();
+    	} else {
+    		doOnHalt();
+    	}
+    }
+    
+    @Override
+    public void doOnHalt() throws ConnectorTaskException {
         ConnectorTaskException firstCause = null;
 
         synchronized (clientReaders) {
@@ -474,9 +521,18 @@ public class TcpReceiver extends SourceConnector {
             throw firstCause;
         }
     }
-
+    
     @Override
     public void handleRecoveredResponse(DispatchResult dispatchResult) {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.handleRecoveredResponse(dispatchResult);
+    	} else {
+    		doHandleRecoveredResponse(dispatchResult);
+    	}
+    }
+
+    @Override
+    public void doHandleRecoveredResponse(DispatchResult dispatchResult) {
         try {
             if (dispatchResult.getSelectedResponse() != null) {
                 // Only if we're responding on a new connection can we handle recovered responses
@@ -505,7 +561,10 @@ public class TcpReceiver extends SourceConnector {
     }
 
     @Override
-    protected String getConfigurationClass() {
+	public String getConfigurationClass() {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.getConfigurationClass();
+    	}
         return configurationController.getProperty(connectorProperties.getProtocol(), "tcpConfigurationClass");
     }
 
@@ -889,19 +948,7 @@ public class TcpReceiver extends SourceConnector {
         while (!success) {
             try {
                 bindAttempts++;
-                boolean isLoopback = false;
-
-                try {
-                    isLoopback = (hostAddress.isLoopbackAddress() || host.trim().equals("localhost") || hostAddress.equals(InetAddress.getLocalHost()));
-                } catch (UnknownHostException e) {
-                    logger.warn("Failed to determine if '" + hostAddress.getHostAddress() + "' is a loopback address. Could not resolve the system's host name to an address.", e);
-                }
-
-                if (isLoopback) {
-                    serverSocket = configuration.createServerSocket(port, backlog);
-                } else {
-                    serverSocket = configuration.createServerSocket(port, backlog, hostAddress);
-                }
+                serverSocket = configuration.createServerSocket(port, backlog, hostAddress);
                 success = true;
             } catch (BindException e) {
                 if (bindAttempts >= 10) {
@@ -915,6 +962,10 @@ public class TcpReceiver extends SourceConnector {
                 }
             }
         }
+    }
+    
+    protected ServerSocket getServerSocket() {
+    	return serverSocket;
     }
 
     private Socket createResponseSocket() throws IOException {

@@ -2,7 +2,9 @@
 	<name>JMS Sender</name>
 	<author>NextGen Healthcare</author>
 	<pluginVersion>@mirthversion</pluginVersion>
-	<mirthVersion>4.1.1</mirthVersion>
+	<mirthVersion>@mirthversion</mirthVersion>
+	<pluginBuildNumber>@pluginbuildnumber</pluginBuildNumber>
+	<coreExtension>true</coreExtension>
 	<url>http://www.nextgen.com</url>
 	<description>This connector allows Mirth Connect to write messages to a JMS queue.</description>
 	<clientClassName>com.mirth.connect.connectors.jms.JmsSender</clientClassName>

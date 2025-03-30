@@ -24,9 +24,10 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.http.HttpHeader;
 
 import com.mirth.connect.donkey.util.MessageMaps;
+import com.mirth.connect.plugins.core.httpauth.AuthenticationResultBase;
+import com.mirth.connect.plugins.core.httpauth.Authenticator;
+import com.mirth.connect.plugins.core.httpauth.RequestInfo;
 import com.mirth.connect.plugins.httpauth.AuthenticationResult;
-import com.mirth.connect.plugins.httpauth.Authenticator;
-import com.mirth.connect.plugins.httpauth.RequestInfo;
 import com.mirth.connect.server.channel.MirthMessageMaps;
 import com.mirth.connect.server.util.TemplateValueReplacer;
 
@@ -48,7 +49,7 @@ public class BasicAuthenticator extends Authenticator {
     }
 
     @Override
-    public AuthenticationResult authenticate(RequestInfo request) {
+    public AuthenticationResultBase authenticate(RequestInfo request) {
         BasicHttpAuthProperties properties = getReplacedProperties(request);
         List<String> authHeaderList = request.getHeaders().get(HttpHeader.AUTHORIZATION.asString());
 
@@ -87,7 +88,7 @@ public class BasicAuthenticator extends Authenticator {
     private BasicHttpAuthProperties getReplacedProperties(RequestInfo request) {
         BasicHttpAuthProperties properties = new BasicHttpAuthProperties((BasicHttpAuthProperties) provider.getProperties());
         String channelId = provider.getConnector().getChannelId();
-        String channelName = provider.getConnector().getChannel().getName();
+        String channelName = provider.getConnector().getChannelName();
         Map<String, Object> map = new HashMap<String, Object>();
         request.populateMap(map);
 

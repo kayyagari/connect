@@ -42,10 +42,8 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
 import org.jdesktop.swingx.decorator.Highlighter;
 import org.jdesktop.swingx.decorator.HighlighterFactory;
@@ -53,6 +51,7 @@ import org.jdesktop.swingx.decorator.HighlighterFactory;
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.ui.ConnectorTypeDecoration;
 import com.mirth.connect.client.ui.Frame;
+import com.mirth.connect.client.ui.FrameBase;
 import com.mirth.connect.client.ui.Mirth;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.TextFieldCellEditor;
@@ -67,9 +66,12 @@ import com.mirth.connect.client.ui.components.MirthTable;
 import com.mirth.connect.client.ui.components.MirthTextField;
 import com.mirth.connect.client.ui.panels.connectors.ConnectorSettingsPanel;
 import com.mirth.connect.client.ui.panels.connectors.ResponseHandler;
+import com.mirth.connect.connectors.core.http.HttpConnectorServletInterface;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.model.Connector.Mode;
 import com.mirth.connect.util.ConnectionTestResponse;
+
+import net.miginfocom.swing.MigLayout;
 
 public class HttpSender extends ConnectorSettingsPanel {
 
@@ -83,7 +85,7 @@ public class HttpSender extends ConnectorSettingsPanel {
     private final String VALUE_COLUMN_NAME = "Value";
     private int propertiesLastIndex = -1;
     private int headerLastIndex = -1;
-    private Frame parent;
+    private FrameBase parent;
     private SSLWarningPanel sslWarningPanel;
 
     public HttpSender() {

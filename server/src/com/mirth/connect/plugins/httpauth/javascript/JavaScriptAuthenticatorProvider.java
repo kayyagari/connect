@@ -13,8 +13,8 @@ import java.util.UUID;
 
 import com.mirth.connect.donkey.server.channel.Connector;
 import com.mirth.connect.model.codetemplates.ContextType;
-import com.mirth.connect.plugins.httpauth.Authenticator;
-import com.mirth.connect.plugins.httpauth.AuthenticatorProvider;
+import com.mirth.connect.plugins.core.httpauth.Authenticator;
+import com.mirth.connect.plugins.core.httpauth.AuthenticatorProvider;
 import com.mirth.connect.plugins.httpauth.HttpAuthConnectorPluginProperties;
 import com.mirth.connect.server.controllers.ContextFactoryController;
 import com.mirth.connect.server.controllers.ControllerFactory;
@@ -33,7 +33,7 @@ public class JavaScriptAuthenticatorProvider extends AuthenticatorProvider {
         JavaScriptHttpAuthProperties props = (JavaScriptHttpAuthProperties) properties;
 
         scriptId = UUID.randomUUID().toString();
-        MirthContextFactory contextFactory = contextFactoryController.getContextFactory(connector.getResourceIds());
+        MirthContextFactory contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(connector.getResourceIds());
         contextFactoryId = contextFactory.getId();
         JavaScriptUtil.compileAndAddScript(connector.getChannelId(), contextFactory, scriptId, props.getScript(), ContextType.SOURCE_RECEIVER, null, null);
     }
@@ -43,11 +43,11 @@ public class JavaScriptAuthenticatorProvider extends AuthenticatorProvider {
     }
 
     MirthContextFactory getContextFactory() throws Exception {
-        MirthContextFactory contextFactory = contextFactoryController.getContextFactory(getConnector().getResourceIds());
+        MirthContextFactory contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(getConnector().getResourceIds());
 
         if (!contextFactoryId.equals(contextFactory.getId())) {
             synchronized (this) {
-                contextFactory = contextFactoryController.getContextFactory(getConnector().getResourceIds());
+                contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(getConnector().getResourceIds());
 
                 if (!contextFactoryId.equals(contextFactory.getId())) {
                     JavaScriptUtil.recompileGeneratedScript(contextFactory, scriptId);

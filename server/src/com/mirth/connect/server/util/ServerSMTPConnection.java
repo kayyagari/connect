@@ -11,14 +11,12 @@ package com.mirth.connect.server.util;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.mail.Email;
-import org.apache.commons.mail.EmailException;
 import org.apache.commons.mail.SimpleEmail;
-
 import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.util.MirthSSLUtil;
 
-public class ServerSMTPConnection {
+public class ServerSMTPConnection implements IServerSMTPConnection{
     private String host;
     private String port;
     private boolean useAuthentication;
@@ -47,6 +45,7 @@ public class ServerSMTPConnection {
         return host;
     }
 
+    @Override
     public void setHost(String host) {
         this.host = host;
     }
@@ -55,6 +54,7 @@ public class ServerSMTPConnection {
         return port;
     }
 
+    @Override
     public void setPort(String port) {
         this.port = port;
     }
@@ -63,6 +63,7 @@ public class ServerSMTPConnection {
         return useAuthentication;
     }
 
+    @Override
     public void setUseAuthentication(boolean useAuthentication) {
         this.useAuthentication = useAuthentication;
     }
@@ -71,6 +72,7 @@ public class ServerSMTPConnection {
         return secure;
     }
 
+    @Override
     public void setSecure(String secure) {
         this.secure = secure;
     }
@@ -79,6 +81,7 @@ public class ServerSMTPConnection {
         return username;
     }
 
+    @Override
     public void setUsername(String username) {
         this.username = username;
     }
@@ -87,6 +90,7 @@ public class ServerSMTPConnection {
         return password;
     }
 
+    @Override
     public void setPassword(String password) {
         this.password = password;
     }
@@ -95,6 +99,7 @@ public class ServerSMTPConnection {
         return from;
     }
 
+    @Override
     public void setFrom(String from) {
         this.from = from;
     }
@@ -103,11 +108,12 @@ public class ServerSMTPConnection {
         return socketTimeout;
     }
 
+    @Override
     public void setSocketTimeout(int socketTimeout) {
         this.socketTimeout = socketTimeout;
     }
 
-    public void send(String toList, String ccList, String from, String subject, String body, String charset) throws EmailException {
+    public void send(String toList, String ccList, String from, String subject, String body, String charset) throws Exception {
         Email email = new SimpleEmail();
 
         // Set the charset if it was specified. Otherwise use the system's default.
@@ -118,7 +124,6 @@ public class ServerSMTPConnection {
         email.setHostName(host);
         email.setSmtpPort(Integer.parseInt(port));
         email.setSocketConnectionTimeout(socketTimeout);
-        email.setDebug(true);
 
         if (useAuthentication) {
             email.setAuthentication(username, password);
@@ -149,14 +154,15 @@ public class ServerSMTPConnection {
         email.setFrom(from);
         email.setSubject(subject);
         email.setMsg(body);
-        email.send();
+        email.send(); 
     }
 
-    public void send(String toList, String ccList, String from, String subject, String body) throws EmailException {
+    public void send(String toList, String ccList, String from, String subject, String body) throws Exception {
         send(toList, ccList, from, subject, body, null);
     }
 
-    public void send(String toList, String ccList, String subject, String body) throws EmailException {
+    @Override
+    public void send(String toList, String ccList, String subject, String body) throws Exception {
         send(toList, ccList, from, subject, body);
     }
 }

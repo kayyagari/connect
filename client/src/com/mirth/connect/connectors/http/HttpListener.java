@@ -49,8 +49,6 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
@@ -58,7 +56,7 @@ import org.jdesktop.swingx.decorator.Highlighter;
 import org.jdesktop.swingx.decorator.HighlighterFactory;
 
 import com.mirth.connect.client.ui.ConnectorTypeDecoration;
-import com.mirth.connect.client.ui.Frame;
+import com.mirth.connect.client.ui.FrameBase;
 import com.mirth.connect.client.ui.Mirth;
 import com.mirth.connect.client.ui.MirthDialog;
 import com.mirth.connect.client.ui.PlatformUI;
@@ -76,10 +74,18 @@ import com.mirth.connect.client.ui.components.MirthTable;
 import com.mirth.connect.client.ui.components.MirthTextField;
 import com.mirth.connect.client.ui.panels.connectors.ConnectorSettingsPanel;
 import com.mirth.connect.client.ui.panels.connectors.ListenerSettingsPanel;
-import com.mirth.connect.connectors.http.HttpStaticResource.ResourceType;
+import com.mirth.connect.connectors.core.ConnectorSettingsPanelPlugin;
+import com.mirth.connect.connectors.core.http.HttpStaticResource;
+import com.mirth.connect.connectors.core.http.IHttpListener;
+import com.mirth.connect.connectors.core.http.IHttpReceiverProperties;
+import com.mirth.connect.connectors.core.http.HttpStaticResource.ResourceType;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
+import com.mirth.connect.donkey.model.channel.ListenerConnectorPropertiesInterface;
+import com.mirth.connect.donkey.model.channel.SourceConnectorPropertiesInterface;
 
-public class HttpListener extends ConnectorSettingsPanel {
+import net.miginfocom.swing.MigLayout;
+
+public class HttpListener extends ConnectorSettingsPanel implements IHttpListener {
 
     private final int NAME_COLUMN = 0;
     private final int VALUE_COLUMN = 1;
@@ -88,6 +94,7 @@ public class HttpListener extends ConnectorSettingsPanel {
     private int responseHeadersLastIndex = -1;
     private int staticResourcesLastIndex = -1;
     private boolean usingHttps = false;
+    private ConnectorSettingsPanelPlugin connectorPlugin;
 
     private enum StaticResourcesColumn {
         CONTEXT_PATH(0, "Context Path"), RESOURCE_TYPE(1, "Resource Type"), VALUE(2,
@@ -119,10 +126,16 @@ public class HttpListener extends ConnectorSettingsPanel {
         }
     }
 
-    private Frame parent;
+    private FrameBase parent;
 
     public HttpListener() {
         this.parent = PlatformUI.MIRTH_FRAME;
+    }
+    
+    @Override
+    public void initialize(ConnectorSettingsPanelPlugin connectorPlugin) {
+    	this.connectorPlugin = connectorPlugin;
+    	
         initComponents();
         initToolTips();
         initLayout();
@@ -133,12 +146,23 @@ public class HttpListener extends ConnectorSettingsPanel {
 
     @Override
     public String getConnectorName() {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.getConnectorName();
+    	}
         return new HttpReceiverProperties().getName();
+    }
+    
+    @Override
+    public ConnectorProperties getProperties() {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.getProperties();
+    	}
+    	return doGetProperties();
     }
 
     @Override
-    public ConnectorProperties getProperties() {
-        HttpReceiverProperties properties = (HttpReceiverProperties) getDefaults();
+    public ConnectorProperties doGetProperties() {
+        IHttpReceiverProperties properties = (IHttpReceiverProperties) getDefaults();
         properties.setContextPath(contextPathField.getText());
         properties.setTimeout(receiveTimeoutField.getText());
         properties.setXmlBody(messageContentXmlBodyRadio.isSelected());
@@ -158,12 +182,21 @@ public class HttpListener extends ConnectorSettingsPanel {
         
         properties.setStaticResources(getStaticResources());
 
-        return properties;
+        return (ConnectorProperties) properties;
+    }
+    
+    @Override
+    public void setProperties(ConnectorProperties properties) {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.setProperties(properties);
+    	} else {
+    		doSetProperties(properties);
+    	}
     }
 
     @Override
-    public void setProperties(ConnectorProperties properties) {
-        HttpReceiverProperties props = (HttpReceiverProperties) properties;
+    public void doSetProperties(ConnectorProperties properties) {
+        IHttpReceiverProperties props = (IHttpReceiverProperties) properties;
 
         contextPathField.setText(props.getContextPath());
         receiveTimeoutField.setText(props.getTimeout());
@@ -230,12 +263,28 @@ public class HttpListener extends ConnectorSettingsPanel {
 
     @Override
     public ConnectorProperties getDefaults() {
-        return new HttpReceiverProperties();
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.getDefaults();
+    	}
+        return doGetDefaults();
+    }
+    
+    private ConnectorProperties doGetDefaults() {
+    	return new HttpReceiverProperties();
+    }
+    
+    @Override
+    public boolean checkProperties(ConnectorProperties properties, boolean highlight) {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.checkProperties(properties, highlight);
+    	}
+    	
+    	return doCheckProperties(properties, highlight);
     }
 
     @Override
-    public boolean checkProperties(ConnectorProperties properties, boolean highlight) {
-        HttpReceiverProperties props = (HttpReceiverProperties) properties;
+    public boolean doCheckProperties(ConnectorProperties properties, boolean highlight) {
+        IHttpReceiverProperties props = (IHttpReceiverProperties) properties;
 
         boolean valid = true;
 
@@ -246,7 +295,7 @@ public class HttpListener extends ConnectorSettingsPanel {
             }
         }
 
-        if (!props.getSourceConnectorProperties().getResponseVariable().equalsIgnoreCase("None")) {
+        if (!((SourceConnectorPropertiesInterface) props).getSourceConnectorProperties().getResponseVariable().equalsIgnoreCase("None")) {
             if (props.getResponseContentType().length() == 0) {
                 valid = false;
                 if (highlight) {
@@ -264,9 +313,18 @@ public class HttpListener extends ConnectorSettingsPanel {
 
         return valid;
     }
-
+    
     @Override
     public void resetInvalidProperties() {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.resetInvalidProperties();
+    	} else {
+    		doResetInvalidProperties();
+    	}
+    }
+
+    @Override
+    public void doResetInvalidProperties() {
         receiveTimeoutField.setBackground(null);
         responseContentTypeField.setBackground(null);
         responseHeadersVariableField.setBackground(null);
@@ -280,11 +338,23 @@ public class HttpListener extends ConnectorSettingsPanel {
 
     @Override
     public String getRequiredInboundDataType() {
-        if (((HttpReceiverProperties) getProperties()).isXmlBody()) {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.getRequiredInboundDataType();
+    	}
+    	
+        if (((IHttpReceiverProperties) getProperties()).isXmlBody()) {
             return UIConstants.DATATYPE_XML;
         } else {
             return null;
         }
+    }
+    
+    @Override
+    public String getInitialOutboundDataType() {
+        if (connectorPlugin != null) {
+        	return connectorPlugin.getInitialOutboundDataType();
+        }
+        return super.getInitialInboundDataType();
     }
 
     public void updateHttpUrl() {
@@ -298,7 +368,7 @@ public class HttpListener extends ConnectorSettingsPanel {
         httpUrlLabel.setText(usingHttps ? "HTTPS URL:" : "HTTP URL:");
 
         // Display: http://server:port/contextpath/
-        httpUrlField.setText("http" + (usingHttps ? "s" : "") + "://" + server + ":" + ((HttpReceiverProperties) getFilledProperties()).getListenerConnectorProperties().getPort() + (contextPathField.getText().startsWith("/") ? "" : "/") + contextPathField.getText() + ((StringUtils.isBlank(contextPathField.getText()) || contextPathField.getText().endsWith("/")) ? "" : "/"));
+        httpUrlField.setText("http" + (usingHttps ? "s" : "") + "://" + server + ":" + ((ListenerConnectorPropertiesInterface) getFilledProperties()).getListenerConnectorProperties().getPort() + (contextPathField.getText().startsWith("/") ? "" : "/") + contextPathField.getText() + ((StringUtils.isBlank(contextPathField.getText()) || contextPathField.getText().endsWith("/")) ? "" : "/"));
     }
 
     public void setResponseHeaders(Map<String, List<String>> responseHeaders) {
@@ -820,11 +890,20 @@ public class HttpListener extends ConnectorSettingsPanel {
         }
         return true;
     }
-
+    
     /**
      * This method is called from within the constructor to initialize the form.
      */
     protected void initComponents() {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.initComponents();
+    	} else {
+    		doInitComponents();
+    	}
+    }
+
+    @Override
+    public void doInitComponents() {
 
         includeHeadersGroup = new ButtonGroup();
         parseMultipartButtonGroup = new ButtonGroup();
@@ -1060,6 +1139,14 @@ public class HttpListener extends ConnectorSettingsPanel {
     }
 
     protected void initLayout() {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.initLayout();
+    	} else {
+    		doInitLayout();
+    	}
+    }
+    
+    private void doInitLayout() {
         setLayout(new MigLayout("insets 0 8 0 8, novisualpadding, hidemode 3, gap 12 6", "[][]6[]", "[][][][][][][][][][][][][grow][grow]"));
 
         add(contextPathLabel, "right");
@@ -1103,7 +1190,7 @@ public class HttpListener extends ConnectorSettingsPanel {
     }
 
     private void messageContentPlainBodyRadioActionPerformed(ActionEvent evt) {
-        parent.channelEditPanel.checkAndSetSourceDataType();
+        parent.getChannelSetup().checkAndSetSourceDataType();
         parseMultipartLabel.setEnabled(false);
         parseMultipartYesRadio.setEnabled(false);
         parseMultipartNoRadio.setEnabled(false);
@@ -1142,7 +1229,7 @@ public class HttpListener extends ConnectorSettingsPanel {
     }
 
     private void messageContentXmlBodyRadioActionPerformed(ActionEvent evt) {
-        parent.channelEditPanel.checkAndSetSourceDataType();
+        parent.getChannelSetup().checkAndSetSourceDataType();
         parseMultipartLabel.setEnabled(true);
         parseMultipartYesRadio.setEnabled(true);
         parseMultipartNoRadio.setEnabled(true);
@@ -1202,6 +1289,36 @@ public class HttpListener extends ConnectorSettingsPanel {
         responseHeadersNewButton.setEnabled(!useTemplate);
         responseHeadersDeleteButton.setEnabled(!useTemplate && responseHeadersTable.getSelectedRow() > -1);
     }
+    
+	@Override
+	public JLabel getContextPathLabel() {
+		return contextPathLabel;
+	}
+	
+    @Override
+    public MirthTextField getContextPathField() {
+    	return contextPathField;
+    }
+    
+	@Override
+	public JLabel getReceiveTimeoutLabel() {
+		return receiveTimeoutLabel;
+	}
+    
+    @Override
+    public MirthTextField getReceiveTimeoutField() {
+    	return receiveTimeoutField;
+    }
+
+	@Override
+	public JLabel getHttpUrlLabel() {
+		return httpUrlLabel;
+	}
+
+	@Override
+	public JTextField getHttpUrlField() {
+		return httpUrlField;
+	}   
 
     // Variables declaration - do not modify
     private MirthTextField binaryMimeTypesField;

@@ -15,7 +15,7 @@ import java.sql.SQLException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.mirth.connect.donkey.server.data.DonkeyDaoException;
+import com.mirth.connect.donkey.model.DonkeyDaoException;
 import com.mirth.connect.donkey.util.SerializerProvider;
 
 public class PostgresqlDaoFactory extends JdbcDaoFactory {

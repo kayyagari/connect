@@ -18,7 +18,13 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.ssl.SSLContexts;
 
+import com.mirth.connect.connectors.core.ws.IWebServiceDispatcher;
+import com.mirth.connect.connectors.core.ws.IWebServiceReceiver;
+import com.mirth.connect.connectors.core.ws.SSLSocketFactoryWrapper;
+import com.mirth.connect.connectors.core.ws.WebServiceConfiguration;
+import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.server.channel.Connector;
+import com.mirth.connect.donkey.server.channel.IConnector;
 import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.util.MirthSSLUtil;
@@ -32,7 +38,7 @@ public class DefaultWebServiceConfiguration implements WebServiceConfiguration {
     private String[] enabledCipherSuites;
 
     @Override
-    public void configureConnectorDeploy(Connector connector) throws Exception {
+    public void configureConnectorDeploy(IConnector connector) throws Exception {
         if (connector instanceof WebServiceDispatcher) {
             sslContext = SSLContexts.createSystemDefault();
             enabledProtocols = MirthSSLUtil.getEnabledHttpsProtocols(configurationController.getHttpsClientProtocols());
@@ -43,15 +49,15 @@ public class DefaultWebServiceConfiguration implements WebServiceConfiguration {
     }
 
     @Override
-    public void configureConnectorUndeploy(Connector connector) {}
+    public void configureConnectorUndeploy(IConnector connector) {}
 
     @Override
-    public void configureReceiver(WebServiceReceiver connector) throws Exception {
+    public void configureReceiver(IWebServiceReceiver connector) throws Exception {
         connector.setServer(HttpServer.create());
     }
 
     @Override
-    public void configureDispatcher(WebServiceDispatcher connector, WebServiceDispatcherProperties connectorProperties, Map<String, Object> requestContext) throws Exception {
+    public void configureDispatcher(IWebServiceDispatcher connector, ConnectorProperties connectorProperties, Map<String, Object> requestContext) throws Exception {
         SSLSocketFactory socketFactory = new SSLSocketFactoryWrapper(sslContext.getSocketFactory(), enabledProtocols, enabledCipherSuites);
         requestContext.put("com.sun.xml.internal.ws.transport.https.client.SSLSocketFactory", socketFactory);
         requestContext.put("com.sun.xml.ws.transport.https.client.SSLSocketFactory", socketFactory); // JAX-WS RI

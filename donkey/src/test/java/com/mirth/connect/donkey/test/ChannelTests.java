@@ -45,6 +45,7 @@ import com.mirth.connect.donkey.server.channel.DispatchResult;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
 import com.mirth.connect.donkey.server.channel.StorageSettings;
 import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.test.util.TestChannel;
 import com.mirth.connect.donkey.test.util.TestDestinationConnector;
 import com.mirth.connect.donkey.test.util.TestFilterTransformer;
@@ -309,7 +310,7 @@ public class ChannelTests {
      */
     @Test
     public final void testControllerRemoveChannel() throws Exception {
-        ChannelController channelController = ChannelController.getInstance();
+        ChannelController channelController = ControllerFactory.getFactory().createChannelController();
 
         // Create Channel
         TestUtils.createDefaultChannel(channelId, serverId, false, 1, 1);
@@ -341,7 +342,7 @@ public class ChannelTests {
      */
     @Test
     public final void testUpdateMetaDataColumns() throws Exception {
-        ChannelController.getInstance().removeChannel(channelId);
+        ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
 
         TestChannel channel = (TestChannel) TestUtils.createDefaultChannel(channelId, serverId);
 
@@ -532,7 +533,7 @@ public class ChannelTests {
 //            
 //            long messageId = dispatchResult.getProcessedMessage().getMessageId();
 //            
-//            statement = connection.prepareStatement("SELECT content, is_encrypted FROM d_mc" + ChannelController.getInstance().getLocalChannelId(channelId) + " WHERE message_id = ? AND metadata_id = ? AND content_type = ?");
+//            statement = connection.prepareStatement("SELECT content, is_encrypted FROM d_mc" + ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId) + " WHERE message_id = ? AND metadata_id = ? AND content_type = ?");
 //            statement.setLong(1, messageId);
 //            
 //            for (ConnectorMessage connectorMessage : dispatchResult.getProcessedMessage().getConnectorMessages().values()) {

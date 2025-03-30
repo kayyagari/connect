@@ -44,11 +44,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 
+import com.mirth.connect.connectors.core.http.BinaryContentTypeResolver;
+import com.mirth.connect.connectors.core.http.HttpRequestMessage;
+import com.mirth.connect.connectors.core.http.IHttpMessageConverter;
 import com.mirth.connect.donkey.util.Base64Util;
 import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.DonkeyElement.DonkeyElementException;
 
-public class HttpMessageConverter {
+public class HttpMessageConverter implements IHttpMessageConverter {
     private static Logger logger = LogManager.getLogger(HttpMessageConverter.class);
 
     private static BinaryContentTypeResolver defaultResolver = new BinaryContentTypeResolver() {
@@ -104,6 +107,10 @@ public class HttpMessageConverter {
         DonkeyElement contentElement = new DonkeyElement("<Content/>");
         processContent(contentElement, content, contentType, parseMultipart, resolver);
         return contentElement.toXml();
+    }
+    
+    public String doContentToXml(Object content, ContentType contentType, boolean parseMultipart, BinaryContentTypeResolver resolver) throws DonkeyElementException, MessagingException, IOException, ParserConfigurationException {
+    	return HttpMessageConverter.contentToXml(content, contentType, parseMultipart, resolver);
     }
 
     private static void processContent(DonkeyElement contentElement, Object content, ContentType contentType, boolean parseMultipart, BinaryContentTypeResolver resolver) throws DonkeyElementException, MessagingException, IOException {

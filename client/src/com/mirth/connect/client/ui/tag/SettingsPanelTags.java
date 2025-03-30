@@ -89,7 +89,7 @@ import com.mirth.connect.client.ui.components.MirthTriStateCheckBox;
 import com.mirth.connect.model.ChannelTag;
 import com.mirth.connect.util.ColorUtil;
 
-public class SettingsPanelTags extends AbstractSettingsPanel {
+public class SettingsPanelTags extends AbstractSettingsPanel implements ISettingsPanelTags {
 
     public static final String TAB_NAME = "Tags";
 
@@ -112,6 +112,7 @@ public class SettingsPanelTags extends AbstractSettingsPanel {
         initLayout();
     }
 
+    @Override
     public Set<ChannelTag> getCachedChannelTags() {
         return cachedChannelTags;
     }
@@ -129,10 +130,10 @@ public class SettingsPanelTags extends AbstractSettingsPanel {
 
             @Override
             public Set<ChannelTag> doInBackground() throws ClientException {
-                if (MapUtils.isEmpty(getFrame().channelPanel.getCachedChannelIdsAndNames())) {
-                    getFrame().channelPanel.retrieveChannelIdsAndNames();
+                if (MapUtils.isEmpty(getFrame().getChannelPanel().getCachedChannelIdsAndNames())) {
+                    getFrame().getChannelPanel().retrieveChannelIdsAndNames();
                 }
-                return getFrame().mirthClient.getChannelTags();
+                return getFrame().getClient().getChannelTags();
             }
 
             @Override
@@ -153,9 +154,10 @@ public class SettingsPanelTags extends AbstractSettingsPanel {
         worker.execute();
     }
 
+    @Override
     public void refresh() {
         try {
-            updateTagsTable(getFrame().mirthClient.getChannelTags(), tagsTable.getSelectedRows(), false);
+            updateTagsTable(getFrame().getClient().getChannelTags(), tagsTable.getSelectedRows(), false);
         } catch (Throwable t) {
             getFrame().alertThrowable(getFrame(), t, "Error loading tags: " + t.toString(), false);
         }
@@ -190,7 +192,7 @@ public class SettingsPanelTags extends AbstractSettingsPanel {
 
         channelsTableAdjusting.set(true);
         try {
-            Map<String, String> channelIdsAndNames = getFrame().channelPanel.getCachedChannelIdsAndNames();
+            Map<String, String> channelIdsAndNames = getFrame().getChannelPanel().getCachedChannelIdsAndNames();
             Object[][] channelData = new Object[channelIdsAndNames.size()][3];
             i = 0;
             for (Entry<String, String> entry : channelIdsAndNames.entrySet()) {
@@ -240,7 +242,7 @@ public class SettingsPanelTags extends AbstractSettingsPanel {
 
             @Override
             public Void doInBackground() throws ClientException {
-                getFrame().mirthClient.setChannelTags(tags);
+                getFrame().getClient().setChannelTags(tags);
                 return null;
             }
 

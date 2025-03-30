@@ -9,23 +9,26 @@
 
 package com.mirth.connect.model.converters;
 
+import static org.junit.Assert.fail;
+
 import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.mirth.connect.client.core.Version;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.MapContent;
-import com.mirth.connect.server.userutil.MirthCachedRowSet;
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.io.xml.Xpp3Driver;
+import com.thoughtworks.xstream.security.AnyTypePermission;
 
 public class ObjectXMLSerializerTest {
 
     @BeforeClass
     public static void setup() throws Exception {
         try {
-            ObjectXMLSerializer.getInstance().init(Version.getLatest().toString());
+            ObjectXMLSerializer.getInstance().init("4.5.0");
         } catch (Exception e) {
             // Ignore if it has already been initialized
         }
@@ -35,12 +38,46 @@ public class ObjectXMLSerializerTest {
     public void testInvalidMapContent() throws Exception {
         ConnectorMessage connectorMessage = new ConnectorMessage();
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("key", ObjectXMLSerializer.getInstance().deserialize(CACHED_ROW_SET_XML, MirthCachedRowSet.class));
+        // Manually allow all types here to deserialize an invalid value
+        XStream xstream = new XStream(new Xpp3Driver());
+        xstream.addPermission(AnyTypePermission.ANY);
+        map.put("key", xstream.fromXML(CACHED_ROW_SET_XML));
         connectorMessage.setChannelMapContent(new MapContent(map, true));
 
         // Shouldn't cause any errors
         String xml = ObjectXMLSerializer.getInstance().serialize(connectorMessage);
         ObjectXMLSerializer.getInstance().deserialize(xml, ConnectorMessage.class);
+    }
+
+    @Test
+    public void testDisallowedTypes() throws Exception {
+        // Internal server classes
+        testDisallowedType("com.mirth.connect.server.Mirth");
+        testDisallowedType("com.mirth.connect.server.builders.JavaScriptBuilder");
+        testDisallowedType("com.mirth.connect.server.tools.ScriptRunner");
+
+        // Internal Java classes
+        testDisallowedType("java.lang.Thread");
+        testDisallowedType("java.lang.ProcessBuilder");
+        testDisallowedType("java.io.InputStream");
+        testDisallowedType("java.nio.channels.Channel");
+        testDisallowedType("javax.activation.DataSource");
+        testDisallowedType("javax.sql.rowset.BaseRowSet");
+        testDisallowedType("javax.mail.internet.MimeMessage");
+
+        // Third-party libraries
+        testDisallowedType("org.apache.commons.io.IO");
+        testDisallowedType("org.eclipse.jetty.server.HttpConnectionFactory");
+        testDisallowedType("software.amazon.awssdk.services.s3.model.CopyObjectRequest");
+    }
+
+    private void testDisallowedType(String className) {
+        try {
+            // Should throw an exception
+            ObjectXMLSerializer.getInstance().deserialize("<" + className + "/>", Class.forName(className));
+            fail("Deserializing " + className + " should have failed, but didn't.");
+        } catch (Exception ignore) {
+        }
     }
 
     // @formatter:off

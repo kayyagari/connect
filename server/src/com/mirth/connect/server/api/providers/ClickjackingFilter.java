@@ -41,6 +41,7 @@ public class ClickjackingFilter implements Filter {
         HttpServletResponse res = (HttpServletResponse) response;
         res.addHeader("Content-Security-Policy", contentSecurityPolicy);
         res.addHeader("X-Frame-Options", xFrameOptions);
+        res.addHeader("X-Content-Type-Options", "nosniff");
         chain.doFilter(request, response);
     }
 

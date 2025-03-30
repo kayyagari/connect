@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.mirth.connect.connectors.core.interop.InteropReceiverPlugin;
 import com.mirth.connect.donkey.model.channel.DeployedState;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.DeployedStateEventType;
@@ -44,60 +45,148 @@ import com.mirth.connect.donkey.server.message.batch.SimpleResponseHandler;
 /**
  * The base class for all source connectors.
  */
-public abstract class SourceConnector extends Connector {
+public class SourceConnector extends Connector implements ISourceConnector {
 
+	protected SourceConnectorPlugin connectorPlugin;
     private boolean respondAfterProcessing = true;
     private MetaDataReplacer metaDataReplacer;
     private BatchAdaptorFactory batchAdaptorFactory;
     private String sourceName = "Source";
 
     private Logger logger = LogManager.getLogger(getClass());
+    
+    public void initialize(SourceConnectorPlugin connectorPlugin) {
+    	this.connectorPlugin = connectorPlugin;
+    }
+    
+    @Override
+    public void onDeploy() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onDeploy();
+    	}
+    }
+    
+    @Override
+    public void onUndeploy() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onUndeploy();
+    	}
+    }
 
+    @Override
+    public void onStart() throws ConnectorTaskException {
+    	if (connectorPlugin != null) { 
+    		connectorPlugin.onStart();
+    	}
+    }
+
+    @Override
+    public void onStop() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStop();
+    	}
+    }
+
+    @Override
+    public void onHalt() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onHalt();
+    	}
+    }
+
+    @Override
     public boolean isRespondAfterProcessing() {
         return respondAfterProcessing;
     }
 
+    @Override
     public void setRespondAfterProcessing(boolean respondAfterProcessing) {
         this.respondAfterProcessing = respondAfterProcessing;
     }
 
+    @Override
     public MetaDataReplacer getMetaDataReplacer() {
         return metaDataReplacer;
     }
 
-    public void setMetaDataReplacer(MetaDataReplacer metaDataReplacer) {
-        this.metaDataReplacer = metaDataReplacer;
+    @Override
+    public void setMetaDataReplacer(Object metaDataReplacer) {
+        this.metaDataReplacer = (MetaDataReplacer) metaDataReplacer;
     }
 
+    @Override
     public BatchAdaptorFactory getBatchAdaptorFactory() {
         return batchAdaptorFactory;
     }
 
+    @Override
     public void setBatchAdaptorFactory(BatchAdaptorFactory batchAdaptorFactory) {
         this.batchAdaptorFactory = batchAdaptorFactory;
     }
 
+    @Override
     public String getSourceName() {
         return sourceName;
     }
 
+    @Override
     public void setSourceName(String sourceName) {
         this.sourceName = sourceName;
     }
-
-    public void updateCurrentState(DeployedState currentState) {
-        setCurrentState(currentState);
-        channel.getEventDispatcher().dispatchEvent(new DeployedStateEvent(getChannelId(), channel.getName(), getMetaDataId(), sourceName, DeployedStateEventType.getTypeFromDeployedState(currentState)));
+    
+    @Override
+    public String getConnectorName() {
+        return getSourceName();
+    }
+    
+    @Override
+    public DeployedState getCurrentState() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropReceiverPlugin) {
+    		return ((InteropReceiverPlugin) connectorPlugin).getCurrentState();
+    	}
+    	return doGetCurrentState();
+    }
+    
+    @Override
+    public DeployedState doGetCurrentState() {
+    	return super.getCurrentState();
     }
 
+    @Override
+    public void updateCurrentState(DeployedState currentState) {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropReceiverPlugin) {
+    		((InteropReceiverPlugin) connectorPlugin).updateCurrentState(currentState);
+    	} else {
+    		doUpdateCurrentState(currentState);
+    	}
+    }
+    
+    @Override
+    public void doUpdateCurrentState(DeployedState currentState) {
+		setCurrentState(currentState);
+		channel.getEventDispatcher().dispatchEvent(new DeployedStateEvent(getChannelId(), channel.getName(), getMetaDataId(), sourceName, DeployedStateEventType.getTypeFromDeployedState(currentState)));    	
+    }
+
+    @Override
     public boolean isProcessBatch() {
         return batchAdaptorFactory != null;
+    }
+    
+    /**
+     * Start the connector
+     */
+    public void start() throws ConnectorTaskException, InterruptedException {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropReceiverPlugin) {
+    		((InteropReceiverPlugin) connectorPlugin).start();
+    	} else {
+    		doStart();
+    	}
     }
 
     /**
      * Start the connector
      */
-    public void start() throws ConnectorTaskException, InterruptedException {
+    public void doStart() throws ConnectorTaskException, InterruptedException {
         updateCurrentState(DeployedState.STARTING);
 
         if (isProcessBatch()) {
@@ -107,11 +196,22 @@ public abstract class SourceConnector extends Connector {
 
         updateCurrentState(DeployedState.STARTED);
     }
-
+    
     /**
      * Stop the connector
      */
     public void stop() throws ConnectorTaskException, InterruptedException {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropReceiverPlugin) {
+    		((InteropReceiverPlugin) connectorPlugin).stop();
+    	} else {
+    		doStop();
+    	}
+    }
+
+    /**
+     * Stop the connector
+     */
+    public void doStop() throws ConnectorTaskException, InterruptedException {
         //TODO make this happen before the poll connector's stop method
         updateCurrentState(DeployedState.STOPPING);
 
@@ -143,11 +243,22 @@ public abstract class SourceConnector extends Connector {
             }
         }
     }
-
+    
     /**
      * Stop the connector
      */
     public void halt() throws ConnectorTaskException, InterruptedException {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropReceiverPlugin) {
+    		((InteropReceiverPlugin) connectorPlugin).halt();
+    	} else {
+    		doHalt();
+    	}    	
+    }
+
+    /**
+     * Stop the connector
+     */
+    public void doHalt() throws ConnectorTaskException, InterruptedException {
         //TODO make this happen before the poll connector's stop method
         updateCurrentState(DeployedState.STOPPING);
 
@@ -168,6 +279,7 @@ public abstract class SourceConnector extends Connector {
      * @return The MessageResponse, containing the message id and a response if one was received
      * @throws ChannelException
      */
+    @Override
     public DispatchResult dispatchRawMessage(RawMessage rawMessage) throws ChannelException {
         return dispatchRawMessage(rawMessage, false);
     }
@@ -194,6 +306,7 @@ public abstract class SourceConnector extends Connector {
         return channel.dispatchRawMessage(rawMessage, false);
     }
 
+    @Override
     public Boolean dispatchBatchMessage(BatchRawMessage batchRawMessage, ResponseHandler responseHandler) throws BatchMessageException {
         return dispatchBatchMessage(batchRawMessage, responseHandler, null);
     }
@@ -299,7 +412,11 @@ public abstract class SourceConnector extends Connector {
      * 
      * @throws ChannelException
      */
-    public abstract void handleRecoveredResponse(DispatchResult dispatchResult);
+    public void handleRecoveredResponse(DispatchResult dispatchResult) {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.handleRecoveredResponse(dispatchResult);
+    	}
+    }
 
     /**
      * Finish a message dispatch
@@ -311,6 +428,7 @@ public abstract class SourceConnector extends Connector {
      * @param responseError
      *            An error message if an error occurred when attempting to send a response
      */
+    @Override
     public void finishDispatch(DispatchResult dispatchResult) {
         if (dispatchResult == null) {
             return;

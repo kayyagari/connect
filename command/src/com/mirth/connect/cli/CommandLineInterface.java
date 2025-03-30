@@ -56,7 +56,6 @@ import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.core.ListHandlerException;
 import com.mirth.connect.client.core.PaginatedEventList;
 import com.mirth.connect.client.core.PaginatedMessageList;
-import com.mirth.connect.client.core.PropertiesConfigurationUtil;
 import com.mirth.connect.donkey.model.channel.DeployedState;
 import com.mirth.connect.donkey.model.message.ContentType;
 import com.mirth.connect.donkey.model.message.Message;
@@ -84,6 +83,7 @@ import com.mirth.connect.model.filters.MessageFilter;
 import com.mirth.connect.util.ConfigurationProperty;
 import com.mirth.connect.util.MessageExporter;
 import com.mirth.connect.util.MessageImporter;
+import com.mirth.connect.util.PropertiesConfigurationUtil;
 import com.mirth.connect.util.MessageImporter.MessageImportException;
 import com.mirth.connect.util.MessageImporter.MessageImportInvalidPathException;
 import com.mirth.connect.util.messagewriter.AttachmentSource;
@@ -1364,7 +1364,7 @@ public class CommandLineInterface {
                     };
                 }
 
-                messageCount = new MessageExporter().exportMessages(messageList, messageWriter, attachmentSource);
+                messageCount = new MessageExporter().exportMessages(messageList, messageWriter, attachmentSource, writerOptions); 
                 messageWriter.finishWrite();
             } catch (Exception e) {
                 Throwable cause = ExceptionUtils.getRootCause(e);
@@ -1663,7 +1663,7 @@ public class CommandLineInterface {
                 String oldName = channel.getName();
                 channel.setName(arguments[3].getText());
                 if (checkChannelName(channel.getName())) {
-                    client.updateChannel(channel, true);
+                    client.updateChannel(channel, true, null);
                     out.println("Channel '" + oldName + "' renamed to '" + channel.getName() + "'");
                 }
             }
@@ -1973,7 +1973,7 @@ public class CommandLineInterface {
 
         importChannelDependencies(importChannel);
 
-        client.updateChannel(importChannel, true);
+        client.updateChannel(importChannel, true, null);
         out.println("Channel '" + channelName + "' imported successfully.");
     }
 

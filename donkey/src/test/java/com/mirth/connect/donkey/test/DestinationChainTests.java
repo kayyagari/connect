@@ -35,7 +35,7 @@ import com.mirth.connect.donkey.server.channel.FilterTransformerExecutor;
 import com.mirth.connect.donkey.server.channel.FilterTransformerResult;
 import com.mirth.connect.donkey.server.channel.MetaDataReplacer;
 import com.mirth.connect.donkey.server.channel.components.FilterTransformerException;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.test.util.TestChannel;
 import com.mirth.connect.donkey.test.util.TestConnectorProperties;
 import com.mirth.connect.donkey.test.util.TestDataType;
@@ -77,7 +77,7 @@ public class DestinationChainTests {
     public final void testStoreData() throws Exception {
         int numChains = 2;
         int numDestinationsPerChain = 2;
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
         TestChannel channel = new TestChannel();
 
@@ -133,8 +133,8 @@ public class DestinationChainTests {
         channel.deploy();
         channel.start(null);
 
-        if (ChannelController.getInstance().channelExists(channelId)) {
-            ChannelController.getInstance().deleteAllMessages(channelId);
+        if (ControllerFactory.getFactory().createChannelController().channelExists(channelId)) {
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channelId);
         }
 
         for (int i = 1; i <= TEST_SIZE; i++) {
@@ -184,7 +184,7 @@ public class DestinationChainTests {
 
         channel.stop();
         channel.undeploy();
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -198,7 +198,7 @@ public class DestinationChainTests {
      */
     @Test
     public final void testCreateNextMessage() throws Exception {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Channel channel = TestUtils.createDefaultChannel(channelId, serverId, true, 2, 2);
 
         channel.getSourceConnector().getFilterTransformerExecutor().setFilterTransformer(new TestFilterTransformer() {
@@ -259,6 +259,6 @@ public class DestinationChainTests {
 
         channel.stop();
         channel.undeploy();
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 }

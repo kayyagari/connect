@@ -18,7 +18,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.mirth.connect.donkey.model.message.MessageSerializerException;
 import com.mirth.connect.donkey.server.channel.Channel;
-import com.mirth.connect.donkey.server.controllers.MessageController;
 import com.mirth.connect.donkey.server.controllers.UnsupportedDataTypeException;
 import com.mirth.connect.server.attachments.MirthAttachmentHandlerProvider;
 import com.mirth.connect.server.attachments.passthru.PassthruAttachmentHandlerProvider;
@@ -114,12 +113,12 @@ public class AttachmentUtil {
     }
 
     /**
-     * Returns a List of attachment IDs associated with the current channel / message.
+     * Returns a list of attachment IDs associated with the current connector message.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message, used to identify the
      *            channel/message ID.
-     * @return A List of attachment IDs associated with the current channel / message.
+     * @return A List of attachment IDs associated with the current channel/message.
      * @throws MessageSerializerException
      *             If the attachment IDs could be retrieved.
      */
@@ -128,13 +127,13 @@ public class AttachmentUtil {
     }
 
     /**
-     * Returns a List of attachment IDs associated with the current channel / message.
+     * Returns a list of attachment IDs associated with the current channel/message.
      * 
      * @param channelId
      *            The ID of the channel the attachments are associated with.
      * @param messageId
      *            The ID of the message the attachments are associated with.
-     * @return A List of attachment IDs associated with the current channel / message.
+     * @return A List of attachment IDs associated with the current channel/message.
      * @throws MessageSerializerException
      *             If the attachment IDs could be retrieved.
      */
@@ -143,7 +142,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves all attachments associated with a connector message.
+     * Retrieves a list of all attachments associated with a connector message.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message, used to identify the
@@ -157,7 +156,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves all attachments associated with a connector message.
+     * Retrieves a list of all attachments associated with a connector message with an additional option to Base64 decode the content.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message, used to identify the
@@ -174,7 +173,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves all attachments associated with a specific channel/message ID.
+     * Retrieves a list of all attachments associated with a specific channel/message ID.
      * 
      * @param channelId
      *            The ID of the channel to retrieve the attachments from.
@@ -190,7 +189,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves all attachments associated with a specific channel/message ID.
+     * Retrieves a list of all attachments associated with a specific channel/message ID with an additional option to Base64 decode the content.
      * 
      * @param channelId
      *            The ID of the channel to retrieve the attachments from.
@@ -209,7 +208,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves an attachment from the current channel/message ID.
+     * Retrieves an attachment associated with a given connector message and attachment ID.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message, used to identify the
@@ -226,7 +225,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves an attachment from the current channel/message ID.
+     * Retrieves an attachment associated with a given connector message and attachment ID with an additional option to Base64 decode the content.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message, used to identify the
@@ -246,7 +245,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves an attachment from a specific channel/message ID.
+     * Retrieves an attachment associated with a given channel/message/attachment ID.
      * 
      * @param channelId
      *            The ID of the channel to retrieve the attachment from.
@@ -265,7 +264,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves an attachment from a specific channel/message ID.
+     * Retrieves an attachment associated with a given channel/message/attachment ID with an additional option to Base64 decode the content.
      * 
      * @param channelId
      *            The ID of the channel to retrieve the attachment from.
@@ -287,7 +286,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves an attachment from an upstream channel that sent a message to the current channel.
+     * Retrieves a list of attachments from an upstream channel that sent a message to the current channel.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message. The channel ID and message ID
@@ -302,7 +301,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Retrieves an attachment from an upstream channel that sent a message to the current channel.
+     * Retrieves a list of attachments from an upstream channel that sent a message to the current channel with an additional option to Base64 decode the content.
      * 
      * @param connectorMessage
      *            The ConnectorMessage associated with this message. The channel ID and message ID
@@ -340,7 +339,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Creates an Attachment and adds it to the provided list.
+     * Creates an attachment and adds it to the provided list.
      * 
      * @param attachments
      *            The list of attachments to add to.
@@ -357,7 +356,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Creates an Attachment and adds it to the provided list.
+     * Creates an attachment and adds it to the provided list with an additional option to Base64 encode the content.
      * 
      * @param attachments
      *            The list of attachments to add to.
@@ -374,14 +373,13 @@ public class AttachmentUtil {
      *             If the attachment content is not a String or byte array.
      */
     public static Attachment addAttachment(List<Attachment> attachments, Object content, String type, boolean base64Encode) throws UnsupportedDataTypeException {
-        Attachment userAttachment = convertFromDonkeyAttachment(MessageController.getInstance().createAttachment(content, type, base64Encode));
+        Attachment userAttachment = convertFromDonkeyAttachment(com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().createAttachment(content, type, base64Encode));
         attachments.add(userAttachment);
         return userAttachment;
     }
 
     /**
-     * Creates an attachment associated with a given connector message, and inserts it into the
-     * database.
+     * Creates an attachment associated with a given connector message and inserts it into the database.
      * 
      * @param connectorMessage
      *            The connector message to be associated with the attachment.
@@ -398,8 +396,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Creates an attachment associated with a given connector message, and inserts it into the
-     * database.
+     * Creates an attachment associated with a given connector message with an additional option to Base64 encode the content and inserts it into the database.
      * 
      * @param connectorMessage
      *            The connector message to be associated with the attachment.
@@ -416,14 +413,14 @@ public class AttachmentUtil {
      *             If the attachment content is not a String or byte array.
      */
     public static Attachment createAttachment(ImmutableConnectorMessage connectorMessage, Object content, String type, boolean base64Encode) throws UnsupportedDataTypeException {
-        com.mirth.connect.donkey.model.message.attachment.Attachment attachment = MessageController.getInstance().createAttachment(content, type, base64Encode);
-        MessageController.getInstance().insertAttachment(attachment, connectorMessage.getChannelId(), connectorMessage.getMessageId());
+        com.mirth.connect.donkey.model.message.attachment.Attachment attachment = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().createAttachment(content, type, base64Encode);
+        com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().insertAttachment(attachment, connectorMessage.getChannelId(), connectorMessage.getMessageId());
         return convertFromDonkeyAttachment(attachment);
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
-     * 
+     * Updates an attachment associated with a given connector message and attachment ID.
+     *
      * @param connectorMessage
      *            The connector message to be associated with the attachment.
      * @param attachmentId
@@ -442,8 +439,8 @@ public class AttachmentUtil {
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
-     * 
+     * Updates an attachment associated with a given connector message and attachment ID with an additional option to Base64 encode the content.
+     *
      * @param connectorMessage
      *            The connector message to be associated with the attachment.
      * @param attachmentId
@@ -466,7 +463,7 @@ public class AttachmentUtil {
 
     /**
      * Updates an attachment associated with a given connector message.
-     * 
+     *
      * @param connectorMessage
      *            The connector message to be associated with the attachment.
      * @param attachment
@@ -481,8 +478,8 @@ public class AttachmentUtil {
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
-     * 
+     * Updates an attachment associated with a given connector message with an additional option to Base64 encode the content.
+     *
      * @param connectorMessage
      *            The connector message to be associated with the attachment.
      * @param attachment
@@ -500,7 +497,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
+     * Updates an attachment associated with a specific channel/message ID.
      * 
      * @param channelId
      *            The ID of the channel the attachment is associated with.
@@ -518,8 +515,8 @@ public class AttachmentUtil {
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
-     * 
+     * Updates an attachment associated with a specific channel/message ID with an additional option to Base64 encode the content.
+     *
      * @param channelId
      *            The ID of the channel the attachment is associated with.
      * @param messageId
@@ -539,7 +536,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
+     * Updates an attachment associated with a specific channel/message/attachment ID with given content.
      * 
      * @param channelId
      *            The ID of the channel the attachment is associated with.
@@ -561,7 +558,7 @@ public class AttachmentUtil {
     }
 
     /**
-     * Updates an attachment associated with a given connector message.
+     * Updates an attachment associated with a specific channel/message/attachment ID with given content with an additional option to Base64 encode the content.
      * 
      * @param channelId
      *            The ID of the channel the attachment is associated with.
@@ -582,9 +579,9 @@ public class AttachmentUtil {
      *             If the attachment content is not a String or byte array.
      */
     public static Attachment updateAttachment(String channelId, Long messageId, String attachmentId, Object content, String type, boolean base64Encode) throws UnsupportedDataTypeException {
-        com.mirth.connect.donkey.model.message.attachment.Attachment attachment = MessageController.getInstance().createAttachment(content, type, base64Encode);
+        com.mirth.connect.donkey.model.message.attachment.Attachment attachment = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().createAttachment(content, type, base64Encode);
         attachment.setId(attachmentId);
-        MessageController.getInstance().updateAttachment(attachment, channelId, messageId);
+        com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().updateAttachment(attachment, channelId, messageId);
         return convertFromDonkeyAttachment(attachment);
     }
 
@@ -613,7 +610,7 @@ public class AttachmentUtil {
     }
 
     private static MirthAttachmentHandlerProvider getAttachmentHandlerProvider(String channelId) {
-        Channel deployedChannel = engineController.getDeployedChannel(channelId);
+        Channel deployedChannel = (Channel) engineController.getDeployedChannel(channelId);
         if (deployedChannel != null) {
             MirthAttachmentHandlerProvider provider = (MirthAttachmentHandlerProvider) deployedChannel.getAttachmentHandlerProvider();
             if (provider != null) {

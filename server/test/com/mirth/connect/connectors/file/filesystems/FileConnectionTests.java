@@ -28,7 +28,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.mirth.connect.connectors.file.FileConnectorException;
+import com.mirth.connect.connectors.core.file.FileConnectorException;
+import com.mirth.connect.connectors.core.file.filesystems.FileConnection;
+import com.mirth.connect.connectors.core.file.filesystems.FileInfo;
 
 public class FileConnectionTests {
     private FileConnection fc;

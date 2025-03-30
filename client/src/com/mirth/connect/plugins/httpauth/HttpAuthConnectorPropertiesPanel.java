@@ -71,7 +71,7 @@ import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.model.Connector.Mode;
 import com.mirth.connect.model.InvalidConnectorPluginProperties;
 import com.mirth.connect.plugins.ConnectorPropertiesPlugin;
-import com.mirth.connect.plugins.httpauth.HttpAuthConnectorPluginProperties.AuthType;
+import com.mirth.connect.plugins.core.httpauth.AuthType;
 import com.mirth.connect.plugins.httpauth.basic.BasicHttpAuthProperties;
 import com.mirth.connect.plugins.httpauth.custom.CustomHttpAuthProperties;
 import com.mirth.connect.plugins.httpauth.digest.DigestHttpAuthProperties;

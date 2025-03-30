@@ -1,0 +1,35 @@
+<pluginMetaData path="ssl">
+	<name>SSL Manager</name>
+	<author>NextGen Healthcare</author>
+	<pluginVersion>4.6.0</pluginVersion>
+	<mirthVersion>@mirthversion</mirthVersion>
+	<minCoreVersions class="java.util.Map">
+		<entry><string>mirth-core-client</string><string>4.6.0</string></entry>
+		<entry><string>mirth-core-client-api</string><string>4.6.1</string></entry>
+		<entry><string>mirth-core-client-base</string><string>4.6.0</string></entry>
+		<entry><string>mirth-core-client-plugins</string><string>4.6.0</string></entry>
+		<entry><string>mirth-core-models</string><string>4.6.0</string></entry>
+		<entry><string>mirth-core-server-plugins</string><string>4.6.0</string></entry>
+		<entry><string>mirth-core-ui</string><string>4.6.0</string></entry>
+		<entry><string>mirth-core-util</string><string>4.6.0</string></entry>
+	</minCoreVersions>
+	<url>http://www.nextgen.com</url>
+	<description>This plugin provides SSL support for existing connectors.</description>
+	<serverClasses>
+		<string>com.mirth.connect.plugins.ssl.server.SSLService</string>
+	</serverClasses>
+	<clientClasses>
+		<string>com.mirth.connect.plugins.ssl.client.SSLClient</string>
+		<string>com.mirth.connect.plugins.ssl.client.SSLConnectorPropertiesPlugin</string>
+	</clientClasses>
+	<userutilPackages>
+		<string>com.mirth.connect.plugins.ssl.model.userutil</string>
+	</userutilPackages>
+	<library type="CLIENT" path="ssl-client.jar" />
+	<library type="SERVER" path="ssl-server.jar" />
+	<library type="SHARED" path="ssl-shared.jar" />
+	<library type="CLIENT" path="src/ssl-userutil-sources.jar" />
+	<apiProvider type="SERVLET_INTERFACE" name="com.mirth.connect.plugins.ssl.model.SSLManagerServletInterface"/>
+	<apiProvider type="SERVER_CLASS" name="com.mirth.connect.plugins.ssl.server.SSLManagerServlet"/>
+	<apiProvider type="SERVER_CLASS" name="com.mirth.connect.plugins.ssl.server.SecureServletFeature"/>
+</pluginMetaData>

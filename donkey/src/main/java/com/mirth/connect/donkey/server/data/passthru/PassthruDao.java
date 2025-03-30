@@ -25,12 +25,14 @@ import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.donkey.server.channel.Statistics;
 import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.StatisticsUpdater;
+import com.mirth.connect.donkey.server.event.DonkeyEventDispatcherProvider;
 
 public class PassthruDao implements DonkeyDao {
     private boolean closed = false;
-    private Statistics transactionStats = new Statistics(false, true);
+    private Statistics transactionStats = new Statistics(new DonkeyEventDispatcherProvider(), false, true);
     private Statistics currentStats;
     private Statistics totalStats;
     private Map<String, Map<Integer, Set<Status>>> resetStats = new HashMap<String, Map<Integer, Set<Status>>>();
@@ -38,17 +40,17 @@ public class PassthruDao implements DonkeyDao {
     private StatisticsUpdater statisticsUpdater;
 
     protected PassthruDao() {
-        ChannelController channelController = ChannelController.getInstance();
+        ChannelController channelController = ControllerFactory.getFactory().createChannelController();
         currentStats = channelController.getStatistics();
         totalStats = channelController.getTotalStatistics();
 
         // make sure these aren't null, otherwise commit() will break
         if (currentStats == null) {
-            currentStats = new Statistics(true);
+            currentStats = new Statistics(new DonkeyEventDispatcherProvider(), true);
         }
 
         if (totalStats == null) {
-            totalStats = new Statistics(false);
+            totalStats = new Statistics(new DonkeyEventDispatcherProvider(), false);
         }
     }
 
@@ -61,7 +63,7 @@ public class PassthruDao implements DonkeyDao {
     }
 
     @Override
-    public void setEncryptData(boolean encryptData) {}
+    public void setEncryptData(boolean encryptMessageContent, boolean encryptAttachments, boolean encryptCustomMetaData) {}
 
     @Override
     public void setDecryptData(boolean decryptData) {}
@@ -337,12 +339,12 @@ public class PassthruDao implements DonkeyDao {
 
     @Override
     public Statistics getChannelStatistics(String serverId) {
-        return new Statistics(false);
+        return new Statistics(new DonkeyEventDispatcherProvider(), false);
     }
 
     @Override
     public Statistics getChannelTotalStatistics(String serverId) {
-        return new Statistics(false);
+        return new Statistics(new DonkeyEventDispatcherProvider(), false);
     }
 
     @Override

@@ -21,11 +21,9 @@ import com.mirth.connect.client.ui.editors.MessageTreePanel;
 /**
  * Package TreeNodes for movement.
  */
-public class TreeTransferable implements Transferable {
+public class TreeTransferable extends TreeTransferableBase {
 
-    public static final DataFlavor MAPPER_DATA_FLAVOR = new DataFlavor(MapperDropData.class, "MapperDropData");
-    public static final DataFlavor MESSAGE_BUILDER_DATA_FLAVOR = new DataFlavor(MessageBuilderDropData.class, "MessageBuilderDropData");
-    public static final DataFlavor RULE_DATA_FLAVOR = new DataFlavor(RuleDropData.class, "RuleDropData");
+    
     private static DataFlavor[] flavors = null;
     private BaseEditorPane<?, ?> editorPane;
     private TreeNode data = null;
@@ -77,7 +75,7 @@ public class TreeTransferable implements Transferable {
                  * This allows CTRL + Drag to be used to mapp into msg where we don't want to append
                  * a ".toString()".
                  */
-                return editorPane.replaceIteratorVariables(MirthTree.constructPath(data.getParent(), prefix, (PlatformUI.MIRTH_FRAME.isAcceleratorKeyPressed() ? "" : suffix)).toString());
+                return editorPane.replaceIteratorVariables(MirthTree.constructPath(data.getParent(), prefix, (((Frame) PlatformUI.MIRTH_FRAME).isAcceleratorKeyPressed() ? "" : suffix)).toString());
             }
             if (df == flavors[1]) {
                 if (prefix.equals(MessageTreePanel.MAPPER_PREFIX)) {

@@ -27,6 +27,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ContextFactory;
 import org.mozilla.javascript.EvaluatorException;
 import org.mozilla.javascript.NativeJavaObject;
 import org.mozilla.javascript.RhinoException;
@@ -60,7 +61,7 @@ import com.mirth.connect.server.util.CompiledScriptCache;
 import com.mirth.connect.server.util.ServerUUIDGenerator;
 import com.mirth.connect.userutil.ImmutableConnectorMessage;
 
-public class JavaScriptUtil {
+public class JavaScriptUtil implements IJavaScriptUtil {
     private static Logger logger = LogManager.getLogger(JavaScriptUtil.class);
     private static CompiledScriptCache compiledScriptCache = CompiledScriptCache.getInstance();
     private static final int SOURCE_CODE_LINE_WRAPPER = 5;
@@ -92,6 +93,11 @@ public class JavaScriptUtil {
             Thread.currentThread().interrupt();
             throw e;
         }
+    }
+    
+    @Override
+    public <T> T doExecute(JavaScriptTask<T> task) throws JavaScriptExecutorException, InterruptedException {
+    	return JavaScriptUtil.execute(task);
     }
 
     public static String executeAttachmentScript(MirthContextFactory contextFactory, RawMessage message, final String channelId, final String channelName, final List<Attachment> attachments) throws InterruptedException, AttachmentException, JavaScriptExecutorException {
@@ -180,7 +186,7 @@ public class JavaScriptUtil {
 
             if (compiledScriptCache.getCompiledScript(ScriptController.PREPROCESSOR_SCRIPT_KEY) != null) {
                 // Pull the channel context factory out first since we're going to overwrite it
-                MirthContextFactory contextFactory = task.getContextFactory();
+                MirthContextFactory contextFactory = (MirthContextFactory) task.getContextFactory();
                 MirthContextFactory globalScriptContextFactory = getGlobalScriptContextFactory();
 
                 try {
@@ -555,11 +561,11 @@ public class JavaScriptUtil {
     }
 
     private static MirthContextFactory getGlobalScriptContextFactory() throws Exception {
-        MirthContextFactory contextFactory = contextFactoryController.getGlobalScriptContextFactory();
+        MirthContextFactory contextFactory = (MirthContextFactory) contextFactoryController.getGlobalScriptContextFactory();
 
         if (!contextFactory.getId().equals(globalScriptContextFactoryId)) {
             synchronized (JavaScriptUtil.class) {
-                contextFactory = contextFactoryController.getGlobalScriptContextFactory();
+                contextFactory = (MirthContextFactory) contextFactoryController.getGlobalScriptContextFactory();
 
                 if (!contextFactory.getId().equals(globalScriptContextFactoryId)) {
                     ControllerFactory.getFactory().createScriptController().compileGlobalScripts(contextFactory, false);
@@ -785,6 +791,11 @@ public class JavaScriptUtil {
 
         return scriptInserted;
     }
+    
+    @Override
+    public boolean doRecompileGeneratedScript(IMirthContextFactory contextFactory, String scriptId) throws Exception {
+    	return JavaScriptUtil.recompileGeneratedScript((MirthContextFactory) contextFactory, scriptId);
+    }
 
     public static void removeScriptFromCache(String scriptId) {
         if (compiledScriptCache.getCompiledScript(scriptId) != null) {
@@ -832,10 +843,10 @@ public class JavaScriptUtil {
         return source.toString();
     }
 
-    public static void compileChannelScripts(Map<String, MirthContextFactory> contextFactories, com.mirth.connect.model.Channel channel) {
-        for (Entry<String, MirthContextFactory> item : contextFactories.entrySet()){
+    public static void compileChannelScripts(Map<String, ContextFactory> contextFactories, com.mirth.connect.model.Channel channel) {
+        for (Entry<String, ContextFactory> item : contextFactories.entrySet()){
             String scriptIdString = item.getKey();
-            MirthContextFactory factory = item.getValue();
+            MirthContextFactory factory = (MirthContextFactory) item.getValue();
             try {
                 JavaScriptUtil.compileAndAddScript(channel.getId(), factory, scriptIdString, factory.getScriptText(), factory.getContextType(), null, null);
             } catch (Exception e) {
@@ -865,22 +876,27 @@ public class JavaScriptUtil {
         
     }
     
-    public static MirthContextFactory generateContextFactory(boolean debug, Set<String> libraryResourceIds, String channelId, String scriptId, String script, ContextType contextType) throws ConnectorTaskException {
+    public static IMirthContextFactory generateContextFactory(boolean debug, Set<String> libraryResourceIds, String channelId, String scriptId, String script, ContextType contextType) throws ConnectorTaskException {
         MirthContextFactory contextFactory;
 		try {
 			if (debug) {
-				contextFactory = contextFactoryController.getDebugContextFactory(libraryResourceIds, channelId, scriptId);
+				contextFactory = (MirthContextFactory) contextFactoryController.getDebugContextFactory(libraryResourceIds, channelId, scriptId);
 				contextFactory.setContextType(contextType);
 				contextFactory.setScriptText(script);
 				contextFactory.setDebugType(debug);
 			} else {
-	            contextFactory = contextFactoryController.getContextFactory(libraryResourceIds);
+	            contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(libraryResourceIds);
 	        }
             JavaScriptUtil.compileAndAddScript(channelId, contextFactory, scriptId, script, contextType);
             return contextFactory;
 	    } catch (Exception e) {
 	    	throw new ConnectorTaskException("Error compiling generating context factory.", e);
 	    }
+    }
+    
+    @Override
+    public IMirthContextFactory doGenerateContextFactory(boolean debug, Set<String> libraryResourceIds, String channelId, String scriptId, String script, ContextType contextType) throws ConnectorTaskException {
+    	return JavaScriptUtil.generateContextFactory(debug, libraryResourceIds, channelId, scriptId, script, contextType);
     }
 
 	public static Object getCompiledScript(String scriptId) {

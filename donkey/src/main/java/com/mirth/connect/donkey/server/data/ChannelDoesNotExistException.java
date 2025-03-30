@@ -14,6 +14,8 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.mirth.connect.donkey.model.DonkeyDaoException;
+
 public class ChannelDoesNotExistException extends DonkeyDaoException {
 
     private Set<String> channelIds;

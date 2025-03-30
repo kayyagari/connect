@@ -16,6 +16,8 @@ import org.apache.logging.log4j.Logger;
 import org.dcm4che2.data.UID;
 import org.dcm4che2.tool.dcmrcv.MirthDcmRcv;
 
+import com.mirth.connect.connectors.core.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.IDICOMReceiver;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.server.ConnectorTaskException;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
@@ -26,7 +28,7 @@ import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.server.controllers.EventController;
 import com.mirth.connect.server.util.TemplateValueReplacer;
 
-public class DICOMReceiver extends SourceConnector {
+public class DICOMReceiver extends SourceConnector implements IDICOMReceiver {
     private Logger logger = LogManager.getLogger(this.getClass());
     private DICOMReceiverProperties connectorProperties;
     private EventController eventController = ControllerFactory.getFactory().createEventController();
@@ -193,6 +195,7 @@ public class DICOMReceiver extends SourceConnector {
         finishDispatch(dispatchResult);
     }
 
+    @Override
     public TemplateValueReplacer getReplacer() {
         return replacer;
     }

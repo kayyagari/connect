@@ -74,7 +74,6 @@ import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.BasicConstraints;
@@ -94,8 +93,15 @@ import com.mirth.commons.encryption.Encryptor;
 import com.mirth.commons.encryption.KeyEncryptor;
 import com.mirth.commons.encryption.Output;
 import com.mirth.connect.client.core.ControllerException;
-import com.mirth.connect.client.core.PropertiesConfigurationUtil;
+import com.mirth.connect.connectors.core.Constants;
+import com.mirth.connect.connectors.core.http.HttpMessageConverter;
+import com.mirth.connect.connectors.http.HttpDispatcherProperties;
+import com.mirth.connect.connectors.http.HttpReceiverProperties;
+import com.mirth.connect.connectors.tcp.TcpDispatcher;
+import com.mirth.connect.connectors.tcp.TcpReceiver;
+import com.mirth.connect.connectors.ws.WebServiceDispatcherProperties;
 import com.mirth.connect.donkey.model.DatabaseConstants;
+import com.mirth.connect.donkey.model.message.batch.BatchStreamReader;
 import com.mirth.connect.donkey.server.data.DonkeyStatisticsUpdater;
 import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.model.Channel;
@@ -115,15 +121,27 @@ import com.mirth.connect.model.ServerSettings;
 import com.mirth.connect.model.UpdateSettings;
 import com.mirth.connect.model.converters.DocumentSerializer;
 import com.mirth.connect.model.converters.ObjectXMLSerializer;
+import com.mirth.connect.model.transmission.batch.DefaultBatchStreamReader;
+import com.mirth.connect.plugins.BasicModeProvider;
+import com.mirth.connect.plugins.TransmissionModeProvider;
 import com.mirth.connect.plugins.directoryresource.DirectoryResourceProperties;
 import com.mirth.connect.server.ExtensionLoader;
+import com.mirth.connect.server.alert.Alert;
+import com.mirth.connect.server.alert.action.UserProtocol;
+import com.mirth.connect.server.extprops.ExtensionStatusFile;
+import com.mirth.connect.server.extprops.ExtensionStatuses;
 import com.mirth.connect.server.mybatis.KeyValuePair;
 import com.mirth.connect.server.tools.ClassPathResource;
 import com.mirth.connect.server.util.DatabaseUtil;
 import com.mirth.connect.server.util.PasswordRequirementsChecker;
 import com.mirth.connect.server.util.ResourceUtil;
+import com.mirth.connect.server.util.ServerSMTPConnection;
+import com.mirth.connect.server.util.ServerSMTPConnectionFactory;
 import com.mirth.connect.server.util.SqlConfig;
 import com.mirth.connect.server.util.StatementLock;
+import com.mirth.connect.server.util.javascript.JavaScriptCoreUtil;
+import com.mirth.connect.server.util.javascript.JavaScriptScopeUtil;
+import com.mirth.connect.server.util.javascript.JavaScriptUtil;
 import com.mirth.connect.util.ChannelDependencyException;
 import com.mirth.connect.util.ChannelDependencyGraph;
 import com.mirth.connect.util.ConfigurationProperty;
@@ -131,6 +149,7 @@ import com.mirth.connect.util.ConnectionTestResponse;
 import com.mirth.connect.util.JavaScriptSharedUtil;
 import com.mirth.connect.util.MigrationUtil;
 import com.mirth.connect.util.MirthSSLUtil;
+import com.mirth.connect.util.PropertiesConfigurationUtil;
 
 /**
  * The ConfigurationController provides access to the Mirth configuration.
@@ -190,6 +209,9 @@ public class DefaultConfigurationController extends ConfigurationController {
     private static final String STATS_UPDATE_INTERVAL = "donkey.statsupdateinterval";
     private static final String RHINO_LANGUAGE_VERSION = "rhino.languageversion";
     private static final String SERVER_STARTUP_LOCK_SLEEP = "server.startuplocksleep";
+    private static final String XSTREAM_DENY_TYPES = "xstream.denytypes";
+    private static final String XSTREAM_ALLOW_TYPES = "xstream.allowtypes";
+    private static final String XSTREAM_ALLOW_TYPE_HIERARCHIES = "xstream.allowtypehierarchies";
 
     private static final String DEFAULT_STOREPASS = "81uWxplDtB";
 
@@ -199,7 +221,7 @@ public class DefaultConfigurationController extends ConfigurationController {
     public DefaultConfigurationController() {
 
     }
-    
+
     public static ConfigurationController create() {
         synchronized (DefaultConfigurationController.class) {
             if (instance == null) {
@@ -211,7 +233,7 @@ public class DefaultConfigurationController extends ConfigurationController {
                     try {
                         instance.getClass().getMethod("initialize").invoke(instance);
                     } catch (Exception e) {
-                    	LogManager.getLogger(DefaultConfigurationController.class).error("Error calling initialize method in DefaultConfigurationController", e);
+                        LogManager.getLogger(DefaultConfigurationController.class).error("Error calling initialize method in DefaultConfigurationController", e);
                     }
                 }
             }
@@ -223,6 +245,8 @@ public class DefaultConfigurationController extends ConfigurationController {
         InputStream versionPropertiesStream = null;
 
         try {
+            initializeCoreClasses();
+
             // Delimiter parsing disabled by default so getString() returns the whole property, even if there are commas
             mirthConfigBuilder = PropertiesConfigurationUtil.createBuilder(new File(ClassPathResource.getResourceURI("mirth.properties")));
             mirthConfig = mirthConfigBuilder.getConfiguration();
@@ -401,6 +425,61 @@ public class DefaultConfigurationController extends ConfigurationController {
             }
 
             startupLockSleep = NumberUtils.toInt(mirthConfig.getString(SERVER_STARTUP_LOCK_SLEEP), 0);
+
+            String[] xstreamAllowTypesArray = mirthConfig.getStringArray(XSTREAM_ALLOW_TYPES);
+            String[] xstreamAllowTypeHierarchiesArray = mirthConfig.getStringArray(XSTREAM_ALLOW_TYPE_HIERARCHIES);
+            if (ArrayUtils.isNotEmpty(xstreamAllowTypesArray) || ArrayUtils.isNotEmpty(xstreamAllowTypeHierarchiesArray)) {
+                List<String> allowTypes = new ArrayList<String>();
+                List<String> allowWildcards = new ArrayList<String>();
+                List<String> typeHierarchies = new ArrayList<String>();
+                if (ArrayUtils.isNotEmpty(xstreamAllowTypesArray)) {
+                    for (String allowTypeElement : xstreamAllowTypesArray) {
+                        if (StringUtils.isNotBlank(allowTypeElement)) {
+                            for (String allowType : StringUtils.split(allowTypeElement, ',')) {
+                                if (StringUtils.isNotBlank(allowType)) {
+                                    if (StringUtils.containsAny(allowType, '*', '?')) {
+                                        allowWildcards.add(allowType);
+                                    } else {
+                                        allowTypes.add(allowType);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (ArrayUtils.isNotEmpty(xstreamAllowTypeHierarchiesArray)) {
+                    for (String allowTypeHierarchyElement : xstreamAllowTypeHierarchiesArray) {
+                        if (StringUtils.isNotBlank(allowTypeHierarchyElement)) {
+                            for (String allowTypeHierarchy : StringUtils.split(allowTypeHierarchyElement, ',')) {
+                                if (StringUtils.isNotBlank(allowTypeHierarchy)) {
+                                    typeHierarchies.add(allowTypeHierarchy);
+                                }
+                            }
+                        }
+                    }
+                }
+                ObjectXMLSerializer.getInstance().allowTypes(allowTypes, allowWildcards, typeHierarchies);
+            }
+
+            String[] xstreamDenyTypesArray = mirthConfig.getStringArray(XSTREAM_DENY_TYPES);
+            if (ArrayUtils.isNotEmpty(xstreamDenyTypesArray)) {
+                List<String> denyTypes = new ArrayList<String>();
+                List<String> denyWildcards = new ArrayList<String>();
+                for (String denyTypeElement : xstreamDenyTypesArray) {
+                    if (StringUtils.isNotBlank(denyTypeElement)) {
+                        for (String denyType : StringUtils.split(denyTypeElement, ',')) {
+                            if (StringUtils.isNotBlank(denyType)) {
+                                if (StringUtils.containsAny(denyType, '*', '?')) {
+                                    denyWildcards.add(denyType);
+                                } else {
+                                    denyTypes.add(denyType);
+                                }
+                            }
+                        }
+                    }
+                }
+                ObjectXMLSerializer.getInstance().denyTypes(denyTypes, denyWildcards);
+            }
         } catch (Exception e) {
             logger.error("Failed to initialize configuration controller", e);
         } finally {
@@ -503,12 +582,12 @@ public class DefaultConfigurationController extends ConfigurationController {
         String environmentName = getProperty(PROPERTIES_CORE, "environment.name");
         serverName = getProperty(PROPERTIES_CORE + "." + serverId, "server.name");
         Properties serverSettings = getPropertiesForGroup(PROPERTIES_CORE);
-        return new ServerSettings(environmentName, serverName, serverSettings);
+        return new ServerSettings(environmentName, serverName, serverSettings, ObjectXMLSerializer.getInstance());
     }
-    
+
     @Override
     public PublicServerSettings getPublicServerSettings() throws ControllerException {
-        return new PublicServerSettings(getServerSettings());
+        return new PublicServerSettings(getServerSettings(), ObjectXMLSerializer.getInstance());
     }
 
     @Override
@@ -522,11 +601,11 @@ public class DefaultConfigurationController extends ConfigurationController {
     }
 
     @Override
-    public void setServerSettings(ServerSettings settings) throws ControllerException {        
-        Properties properties = settings.getProperties();
+    public void setServerSettings(ServerSettings settings) throws ControllerException {
+        Properties properties = settings.getProperties(ObjectXMLSerializer.getInstance());
 
         validateServerSettings(properties);
-        
+
         String environmentName = settings.getEnvironmentName();
         if (environmentName != null) {
             saveProperty(PROPERTIES_CORE, "environment.name", environmentName);
@@ -542,15 +621,15 @@ public class DefaultConfigurationController extends ConfigurationController {
             saveProperty(PROPERTIES_CORE, (String) name, (String) properties.get(name));
         }
     }
-    
-    public void validateServerSettings(Properties properties) throws ControllerException {  
+
+    public void validateServerSettings(Properties properties) throws ControllerException {
         Boolean autoLogoutEnabled = false;
         Integer autoLogoutTime = null;
-        
+
         if (properties.getProperty("administratorautologoutinterval.enabled") != null) {
             autoLogoutEnabled = intToBooleanObject(properties.getProperty("administratorautologoutinterval.enabled"), false);
         }
-        
+
         if (autoLogoutEnabled == true) {
             try {
                 autoLogoutTime = Integer.parseInt(properties.getProperty("administratorautologoutinterval.field"));
@@ -562,7 +641,7 @@ public class DefaultConfigurationController extends ConfigurationController {
             }
         }
     }
-    
+
     /**
      * Takes a String and returns a Boolean Object. "1" = true "0" = false null or not a number =
      * defaultValue
@@ -588,12 +667,12 @@ public class DefaultConfigurationController extends ConfigurationController {
 
     @Override
     public UpdateSettings getUpdateSettings() throws ControllerException {
-        return new UpdateSettings(getPropertiesForGroup(PROPERTIES_CORE));
+        return new UpdateSettings(getPropertiesForGroup(PROPERTIES_CORE), ObjectXMLSerializer.getInstance());
     }
 
     @Override
     public void setUpdateSettings(UpdateSettings settings) throws ControllerException {
-        Properties properties = settings.getProperties();
+        Properties properties = settings.getProperties(ObjectXMLSerializer.getInstance());
         for (Object name : properties.keySet()) {
             saveProperty(PROPERTIES_CORE, (String) name, (String) properties.get(name));
         }
@@ -659,8 +738,8 @@ public class DefaultConfigurationController extends ConfigurationController {
 
     List<DriverInfo> parseDbdriversXml(Reader reader) throws Exception {
         List<DriverInfo> drivers = new ArrayList<DriverInfo>();
-		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-		dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
         Document document = dbf.newDocumentBuilder().parse(new InputSource(reader));
         Element driversElement = document.getDocumentElement();
 
@@ -1159,7 +1238,7 @@ public class DefaultConfigurationController extends ConfigurationController {
             /*
              * Load the encryption settings so that they can be referenced client side.
              */
-            encryptionConfig = new EncryptionSettings(ConfigurationConverter.getProperties(mirthConfig));
+            encryptionConfig = new EncryptionSettings(ConfigurationConverter.getProperties(mirthConfig), ObjectXMLSerializer.getInstance());
 
             File keyStoreFile = new File(mirthConfig.getString("keystore.path"));
             char[] keyStorePassword = mirthConfig.getString("keystore.storepass").toCharArray();
@@ -1230,7 +1309,7 @@ public class DefaultConfigurationController extends ConfigurationController {
     @Override
     public void initializeDatabaseSettings() {
         try {
-            databaseConfig = new DatabaseSettings(ConfigurationConverter.getProperties(mirthConfig));
+            databaseConfig = new DatabaseSettings(ConfigurationConverter.getProperties(mirthConfig), ObjectXMLSerializer.getInstance());
 
             // dir.base is not included in mirth.properties, so set it manually
             databaseConfig.setDirBase(getBaseDir());
@@ -1266,6 +1345,12 @@ public class DefaultConfigurationController extends ConfigurationController {
                 databaseConfig.setDatabaseReadOnlyPassword(decryptedPassword);
             } else {
                 databaseConfig.setDatabasePassword(decryptedPassword);
+            }
+
+            if (!StringUtils.startsWith(encryptedPassword, "{")) {
+                // Re-encrypt if still using the old-style format
+                mirthConfig.setProperty(readOnly ? DatabaseConstants.DATABASE_READONLY_PASSWORD : DatabaseConstants.DATABASE_PASSWORD, EncryptionSettings.ENCRYPTION_PREFIX + encryptor.encrypt(decryptedPassword));
+                saveMirthConfig();
             }
         } else if (StringUtils.isNotBlank(password)) {
             // encrypt the password and write it back to the file
@@ -1395,7 +1480,7 @@ public class DefaultConfigurationController extends ConfigurationController {
 
         if (!keyStore.containsAlias(SECRET_KEY_ALIAS)) {
             logger.debug("encryption key not found, generating new one");
-            KeyGenerator keyGenerator = KeyGenerator.getInstance(encryptionConfig.getEncryptionAlgorithm(), provider);
+            KeyGenerator keyGenerator = KeyGenerator.getInstance(encryptionConfig.getEncryptionBaseAlgorithm(), provider);
             keyGenerator.init(encryptionConfig.getEncryptionKeyLength());
             secretKey = keyGenerator.generateKey();
             KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(secretKey);
@@ -1414,12 +1499,34 @@ public class DefaultConfigurationController extends ConfigurationController {
         encryptor = new KeyEncryptor();
         encryptor.setProvider(provider);
         encryptor.setKey(secretKey);
+        encryptor.setAlgorithm(encryptionConfig.getEncryptionAlgorithm());
+        encryptor.setCharset(encryptionConfig.getEncryptionCharset());
+        encryptor.setFallbackAlgorithm(encryptionConfig.getEncryptionFallbackAlgorithm());
+        encryptor.setFallbackCharset(encryptionConfig.getEncryptionFallbackCharset());
         encryptor.setFormat(Output.BASE64);
 
         digester = new Digester();
         digester.setProvider(provider);
         digester.setAlgorithm(encryptionConfig.getDigestAlgorithm());
+        digester.setSaltSizeBytes(encryptionConfig.getDigestSaltSize());
+        digester.setIterations(encryptionConfig.getDigestIterations());
+        digester.setUsePBE(encryptionConfig.getDigestUsePBE());
+        digester.setKeySizeBits(encryptionConfig.getDigestKeySize());
+        digester.setFallbackAlgorithm(encryptionConfig.getDigestFallbackAlgorithm());
+        digester.setFallbackSaltSizeBytes(encryptionConfig.getDigestFallbackSaltSize());
+        digester.setFallbackIterations(encryptionConfig.getDigestFallbackIterations());
+        digester.setFallbackUsePBE(encryptionConfig.getDigestFallbackUsePBE());
+        digester.setFallbackKeySizeBits(encryptionConfig.getDigestFallbackKeySize());
         digester.setFormat(Output.BASE64);
+
+        if (StringUtils.equalsAnyIgnoreCase(encryptionConfig.getEncryptionAlgorithm(), "AES", "DES", "DESede")) {
+            // @formatter:off
+            logger.error("Encryption algorithm is currently set to: \"" + encryptionConfig.getEncryptionAlgorithm() + "\"\n"
+                + "You should update the \"encryption.algorithm\" in mirth.properties to a more secure option, such as \"" + encryptionConfig.getEncryptionAlgorithm() + "/CBC/PKCS5Padding\".\n"
+                + "Support for the currently set algorithm will be REMOVED in a future version, so if you do not update it, Mirth Connect will fail to start.\n"
+                + "Please see the Security Best Practices -> Encryption Settings section of the User Guide for more information.");
+            // @formatter:on
+        }
     }
 
     /**
@@ -1442,7 +1549,7 @@ public class DefaultConfigurationController extends ConfigurationController {
 
             // Generate CA cert
             X500Name caSubjectName = new X500Name("CN=Mirth Connect Certificate Authority");
-            SubjectPublicKeyInfo caSubjectKey = new SubjectPublicKeyInfo(ASN1Sequence.getInstance(caKeyPair.getPublic().getEncoded()));
+            SubjectPublicKeyInfo caSubjectKey = SubjectPublicKeyInfo.getInstance(caKeyPair.getPublic().getEncoded());
             X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(caSubjectName, BigInteger.ONE, startDate, expiryDate, caSubjectName, caSubjectKey);
             certBuilder.addExtension(org.bouncycastle.asn1.x509.Extension.basicConstraints, true, new BasicConstraints(0));
             ContentSigner sigGen = new JcaContentSignerBuilder("SHA256withRSA").setProvider(provider).build(caKeyPair.getPrivate());
@@ -1453,7 +1560,7 @@ public class DefaultConfigurationController extends ConfigurationController {
             logger.debug("generated new key pair for SSL cert using provider: " + provider.getName());
 
             X500Name sslSubjectName = new X500Name("CN=mirth-connect");
-            SubjectPublicKeyInfo sslSubjectKey = new SubjectPublicKeyInfo(ASN1Sequence.getInstance(sslKeyPair.getPublic().getEncoded()));
+            SubjectPublicKeyInfo sslSubjectKey = SubjectPublicKeyInfo.getInstance(sslKeyPair.getPublic().getEncoded());
             X509v3CertificateBuilder sslCertBuilder = new X509v3CertificateBuilder(caSubjectName, new BigInteger(50, new SecureRandom()), startDate, expiryDate, sslSubjectName, sslSubjectKey);
             sslCertBuilder.addExtension(org.bouncycastle.asn1.x509.Extension.authorityKeyIdentifier, false, new AuthorityKeyIdentifier(caCert.getEncoded()));
             sslCertBuilder.addExtension(org.bouncycastle.asn1.x509.Extension.subjectKeyIdentifier, false, new SubjectKeyIdentifier(sslKeyPair.getPublic().getEncoded()));
@@ -1464,8 +1571,7 @@ public class DefaultConfigurationController extends ConfigurationController {
             logger.debug("generated new certificate with serial number: " + ((X509Certificate) sslCert).getSerialNumber());
 
             // add the generated SSL cert to the keystore using the key password
-            keyStore.setKeyEntry(certificateAlias, sslKeyPair.getPrivate(), keyPassword, new Certificate[] {
-                    sslCert });
+            keyStore.setKeyEntry(certificateAlias, sslKeyPair.getPrivate(), keyPassword, new Certificate[] {sslCert});
         } else {
             logger.debug("found certificate in keystore");
         }
@@ -1537,6 +1643,23 @@ public class DefaultConfigurationController extends ConfigurationController {
         }
     }
 
+    private void initializeCoreClasses() {
+        Alert.USER_PROTOCOL_CLASS = UserProtocol.class;
+        UserController.DEFAULT_USER_CONTROLLER_CLASS = DefaultUserController.class;
+        JavaScriptCoreUtil.JAVASCRIPT_UTIL_CLASS = JavaScriptUtil.class;
+        JavaScriptCoreUtil.JAVASCRIPT_SCOPE_UTIL_CLASS = JavaScriptScopeUtil.class;
+        ExtensionStatuses.DEFAULT_EXTENSION_STATUS_PROVIDER = ExtensionStatusFile.class;
+        TransmissionModeProvider.BASIC_MODE_PROVIDER = BasicModeProvider.class;
+        BatchStreamReader.DEFAULT_BATCH_STREAM_READER = DefaultBatchStreamReader.class;
+        ServerSMTPConnectionFactory.SERVER_SMTP_CONNECTION = ServerSMTPConnection.class;
+        HttpMessageConverter.HTTP_MESSAGE_CONVERTER_CLASS = com.mirth.connect.connectors.core.http.HttpMessageConverter.class;
+        Constants.HTTP_DISPATCHER_PROPERTIES_CLASS = HttpDispatcherProperties.class;
+        Constants.HTTP_RECEIVER_PROPERTIES_CLASS = HttpReceiverProperties.class;
+        Constants.WEB_SERVICE_DISPATCHER_PROPERTIES_CLASS = WebServiceDispatcherProperties.class;
+        Constants.TCP_DISPATCHER_CLASS = TcpDispatcher.class;
+        Constants.TCP_RECEIVER_CLASS = TcpReceiver.class;
+    }
+
     @Override
     public ConnectionTestResponse sendTestEmail(Properties properties) throws Exception {
         String portString = properties.getProperty("port");
@@ -1557,7 +1680,6 @@ public class DefaultConfigurationController extends ConfigurationController {
         }
 
         Email email = new SimpleEmail();
-        email.setDebug(true);
         email.setHostName(host);
         email.setSmtpPort(port);
 
@@ -1606,7 +1728,7 @@ public class DefaultConfigurationController extends ConfigurationController {
             email.setMsg("Receipt of this email confirms that mail originating from this Mirth Connect Server is capable of reaching its intended destination.\n\nSMTP Configuration:\n- Host: " + host + "\n- Port: " + port);
 
             email.send();
-            return new ConnectionTestResponse(ConnectionTestResponse.Type.SUCCESS, "Sucessfully sent test email to: " + to);
+            return new ConnectionTestResponse(ConnectionTestResponse.Type.SUCCESS, "Successfully sent test email to: " + to);
         } catch (EmailException e) {
             return new ConnectionTestResponse(ConnectionTestResponse.Type.FAILURE, e.getMessage());
         }

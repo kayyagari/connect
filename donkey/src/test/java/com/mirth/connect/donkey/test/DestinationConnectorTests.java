@@ -39,7 +39,7 @@ import com.mirth.connect.donkey.server.channel.Channel;
 import com.mirth.connect.donkey.server.channel.DestinationChainProvider;
 import com.mirth.connect.donkey.server.channel.DestinationConnector;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.test.util.TestChannel;
 import com.mirth.connect.donkey.test.util.TestConnectorProperties;
 import com.mirth.connect.donkey.test.util.TestDestinationConnector;
@@ -132,7 +132,7 @@ public class DestinationConnectorTests {
 
         destinationConnector.stop();
         destinationConnector.onUndeploy();
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -148,7 +148,7 @@ public class DestinationConnectorTests {
      */
     @Test
     public final void testStop() throws Exception {
-        ChannelController.getInstance().getLocalChannelId(channelId);
+        ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
         TestChannel channel = new TestChannel();
 
@@ -221,7 +221,7 @@ public class DestinationConnectorTests {
         // Assert that the destination connector queue thread is not running
         assertFalse(destinationConnector.isQueueThreadRunning());
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -261,7 +261,7 @@ public class DestinationConnectorTests {
 //    }
 
     private void testProcess(boolean queueNull, boolean queueEnabled, boolean queueSendFirst, boolean queueRegenerate, int retryCount) throws Exception {
-        ChannelController.getInstance().getLocalChannelId(channelId);
+        ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
         TestChannel channel = new TestChannel();
 
@@ -313,7 +313,7 @@ public class DestinationConnectorTests {
 
         channel.deploy();
         channel.start(null);
-        ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
 
         Connection connection = null;
         PreparedStatement statement = null;
@@ -332,7 +332,7 @@ public class DestinationConnectorTests {
                 } else {
                     if (queueNull || !queueEnabled || queueSendFirst) {
                         // Assert that the sent content was stored
-                        long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+                        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
                         statement = connection.prepareStatement("SELECT * FROM d_mc" + localChannelId + " WHERE message_id = ? AND metadata_id = ? AND content_type = ?");
                         statement.setLong(1, dispatchResult.getMessageId());
                         statement.setInt(2, 1);
@@ -360,7 +360,7 @@ public class DestinationConnectorTests {
 
         channel.stop();
         channel.undeploy();
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -374,7 +374,7 @@ public class DestinationConnectorTests {
      */
     @Test
     public final void testAfterSend() throws Exception {
-        ChannelController.getInstance().getLocalChannelId(channelId);
+        ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
         final TestChannel channel = new TestChannel();
 
@@ -428,8 +428,8 @@ public class DestinationConnectorTests {
         chain.addDestination(1, destinationConnector);
         channel.addDestinationChainProvider(chain);
 
-        if (ChannelController.getInstance().channelExists(channelId)) {
-            ChannelController.getInstance().deleteAllMessages(channelId);
+        if (ControllerFactory.getFactory().createChannelController().channelExists(channelId)) {
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channelId);
         }
 
         channel.deploy();
@@ -466,7 +466,7 @@ public class DestinationConnectorTests {
 
             try {
                 connection = TestUtils.getConnection();
-                long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+                long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
                 statement = connection.prepareStatement("SELECT * FROM d_mc" + localChannelId + " WHERE message_id = ? AND metadata_id = ? AND content_type = ?");
                 statement.setLong(1, tempClass.messageId);
                 statement.setInt(2, 1);
@@ -510,7 +510,7 @@ public class DestinationConnectorTests {
 
         channel.stop();
         channel.undeploy();
-        //ChannelController.getInstance().removeChannel(channel.getChannelId());
+        //ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -562,7 +562,7 @@ public class DestinationConnectorTests {
         }
         channel.getDestinationConnector(1).getResponseTransformerExecutor().setResponseTransformer(new TestResponseTransformer2());
 
-        //ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+        //ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
         channel.deploy();
         channel.start(null);
 
@@ -585,6 +585,6 @@ public class DestinationConnectorTests {
 
         channel.stop();
         channel.undeploy();
-        //ChannelController.getInstance().removeChannel(channel.getChannelId());
+        //ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 }

@@ -31,7 +31,7 @@ import org.apache.commons.collections4.map.CaseInsensitiveMap;
 import org.apache.commons.fileupload.FileUploadBase;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -90,6 +90,10 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.mirth.connect.connectors.core.http.BinaryContentTypeResolver;
+import com.mirth.connect.connectors.core.http.HttpConfiguration;
+import com.mirth.connect.connectors.core.http.IHttpDispatcher;
+import com.mirth.connect.connectors.core.http.IHttpDispatcherProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.ErrorEventType;
@@ -110,7 +114,7 @@ import com.mirth.connect.util.CharsetUtils;
 import com.mirth.connect.util.ErrorMessageBuilder;
 import com.mirth.connect.util.HttpUtil;
 
-public class HttpDispatcher extends DestinationConnector {
+public class HttpDispatcher extends DestinationConnector implements IHttpDispatcher {
 
     private static final String PROXY_CONTEXT_KEY = "dispatcherProxy";
     private static final Pattern AUTH_HEADER_PATTERN = Pattern.compile("([^\\s=,]+)\\s*=\\s*([^=,;\"\\s]+|\"([^\"]|\\\\[\\s\\S])*(?<!\\\\)\")");
@@ -123,6 +127,7 @@ public class HttpDispatcher extends DestinationConnector {
     protected TemplateValueReplacer replacer = new TemplateValueReplacer();
 
     private Map<Long, CloseableHttpClient> clients = new ConcurrentHashMap<Long, CloseableHttpClient>();
+    private Map<Long, Object> userTokens = new ConcurrentHashMap<Long, Object>();
     private HttpConfiguration configuration;
     private RegistryBuilder<ConnectionSocketFactory> socketFactoryRegistry;
     private Map<String, String[]> binaryMimeTypesArrayMap;
@@ -130,6 +135,15 @@ public class HttpDispatcher extends DestinationConnector {
 
     @Override
     public void onDeploy() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onDeploy();
+    	} else {
+    		doOnDeploy();
+    	}
+    }
+    
+    @Override
+    public void doOnDeploy() throws ConnectorTaskException {
         // load the default configuration
         String configurationClass = getConfigurationClass();
 
@@ -147,41 +161,88 @@ public class HttpDispatcher extends DestinationConnector {
             throw new ConnectorTaskException(e);
         }
 
-        if (getConnectorProperties().isResponseBinaryMimeTypesRegex()) {
+        if (((IHttpDispatcherProperties) getConnectorProperties()).isResponseBinaryMimeTypesRegex()) {
             binaryMimeTypesRegexMap = new ConcurrentHashMap<String, Pattern>();
         } else {
             binaryMimeTypesArrayMap = new ConcurrentHashMap<String, String[]>();
         }
     }
-
+    
     @Override
     public void onUndeploy() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onUndeploy();
+    	} else {
+    		doOnUndeploy();
+    	}
+    }
+
+    @Override
+    public void doOnUndeploy() throws ConnectorTaskException {
         configuration.configureConnectorUndeploy(this);
     }
+    
+    @Override
+    public void onStart() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStart();
+    	} else {
+    		doOnStart();
+    	}
+    }
 
     @Override
-    public void onStart() throws ConnectorTaskException {}
-
+    public void doOnStart() throws ConnectorTaskException {}
+    
     @Override
     public void onStop() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStop();
+    	} else {
+    		doOnStop();
+    	}
+    }
+
+    @Override
+    public void doOnStop() throws ConnectorTaskException {
         for (CloseableHttpClient client : clients.values().toArray(new CloseableHttpClient[clients.size()])) {
             HttpClientUtils.closeQuietly(client);
         }
 
         clients.clear();
+        userTokens.clear();
     }
-
+    
     @Override
     public void onHalt() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onHalt();
+    	} else {
+    		doOnHalt();
+    	}
+    }
+
+    @Override
+    public void doOnHalt() throws ConnectorTaskException {
         for (CloseableHttpClient client : clients.values().toArray(new CloseableHttpClient[clients.size()])) {
             HttpClientUtils.closeQuietly(client);
         }
 
         clients.clear();
+        userTokens.clear();
+    }
+    
+    @Override
+    public void replaceConnectorProperties(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.replaceConnectorProperties(connectorProperties, connectorMessage);
+    	} else {
+    		doReplaceConnectorProperties(connectorProperties, connectorMessage);
+    	}
     }
 
     @Override
-    public void replaceConnectorProperties(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
+    public void doReplaceConnectorProperties(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
         HttpDispatcherProperties httpDispatcherProperties = (HttpDispatcherProperties) connectorProperties;
 
         // Replace all values in connector properties
@@ -199,9 +260,18 @@ public class HttpDispatcher extends DestinationConnector {
         httpDispatcherProperties.setContentType(replacer.replaceValues(httpDispatcherProperties.getContentType(), connectorMessage));
         httpDispatcherProperties.setSocketTimeout(replacer.replaceValues(httpDispatcherProperties.getSocketTimeout(), connectorMessage));
     }
-
+    
     @Override
     public Response send(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.send(connectorProperties, connectorMessage);
+    	} else {
+    		return doSend((IHttpDispatcherProperties) connectorProperties, connectorMessage);
+    	}
+    }
+    
+    @Override
+    public Response doSend(IHttpDispatcherProperties connectorProperties, ConnectorMessage connectorMessage) {
         HttpDispatcherProperties httpDispatcherProperties = (HttpDispatcherProperties) connectorProperties;
         eventController.dispatchEvent(new ConnectionStatusEvent(getChannelId(), getMetaDataId(), getDestinationName(), ConnectionStatusEventType.WRITING));
 
@@ -316,12 +386,26 @@ public class HttpDispatcher extends DestinationConnector {
                 context.setAttribute(PROXY_CONTEXT_KEY, new HttpHost(httpDispatcherProperties.getProxyAddress(), Integer.parseInt(httpDispatcherProperties.getProxyPort())));
             }
 
+            Object userToken = userTokens.get(dispatcherId);
+            logger.debug("cached user token: " + userToken);
+            if (userToken != null) {
+                context.setUserToken(userToken);
+            }
+
             // execute the method
             logger.debug("executing method: type=" + httpMethod.getMethod() + ", uri=" + httpMethod.getURI().toString());
             httpResponse = client.execute(target, httpMethod, context);
             StatusLine statusLine = httpResponse.getStatusLine();
             int statusCode = statusLine.getStatusCode();
             logger.debug("received status code: " + statusCode);
+
+            userToken = context.getUserToken();
+            logger.debug("updating user token to: " + userToken);
+            if (userToken != null) {
+                userTokens.put(dispatcherId, userToken);
+            } else {
+                userTokens.remove(dispatcherId);
+            }
 
             Map<String, List<String>> headers = new HashMap<String, List<String>>();
             for (Header header : httpResponse.getAllHeaders()) {
@@ -407,6 +491,7 @@ public class HttpDispatcher extends DestinationConnector {
                 HttpUtil.closeVeryQuietly(httpResponse);
                 HttpClientUtils.closeQuietly(client);
                 clients.remove(dispatcherId);
+                userTokens.remove(dispatcherId);
             }
         } finally {
             try {
@@ -431,10 +516,11 @@ public class HttpDispatcher extends DestinationConnector {
     }
 
     @Override
-    protected String getConfigurationClass() {
+    public String getConfigurationClass() {
         return configurationController.getProperty(getConnectorProperties().getProtocol(), "httpConfigurationClass");
     }
 
+    @Override
     public RegistryBuilder<ConnectionSocketFactory> getSocketFactoryRegistry() {
         return socketFactoryRegistry;
     }
@@ -653,7 +739,7 @@ public class HttpDispatcher extends DestinationConnector {
     private boolean isBinaryContentType(String binaryMimeTypes, ContentType contentType) {
         String mimeType = contentType.getMimeType();
 
-        if (getConnectorProperties().isResponseBinaryMimeTypesRegex()) {
+        if (((IHttpDispatcherProperties) getConnectorProperties()).isResponseBinaryMimeTypesRegex()) {
             Pattern binaryMimeTypesRegex = binaryMimeTypesRegexMap.get(binaryMimeTypes);
 
             if (binaryMimeTypesRegex == null) {
@@ -690,7 +776,7 @@ public class HttpDispatcher extends DestinationConnector {
     }
 
     @Override
-    public HttpDispatcherProperties getConnectorProperties() {
-        return (HttpDispatcherProperties) super.getConnectorProperties();
+    public ConnectorProperties getConnectorProperties() {
+        return super.getConnectorProperties();
     }
 }

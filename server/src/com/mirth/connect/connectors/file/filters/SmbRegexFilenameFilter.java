@@ -9,6 +9,8 @@
 
 package com.mirth.connect.connectors.file.filters;
 
+import com.mirth.connect.connectors.core.file.filters.RegexFilenameFilter;
+
 import jcifs.smb.SmbFile;
 
 public class SmbRegexFilenameFilter extends RegexFilenameFilter {

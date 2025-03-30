@@ -42,7 +42,9 @@ import org.junit.Test;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.mirth.connect.connectors.file.filesystems.FileSystemConnectionFactory;
+import com.mirth.connect.connectors.core.file.FileConnector;
+import com.mirth.connect.connectors.core.file.FileScheme;
+import com.mirth.connect.connectors.core.file.filesystems.FileSystemConnectionFactory;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.RawMessage;
 import com.mirth.connect.donkey.model.message.Response;
@@ -622,7 +624,7 @@ public class FileReceiverTest {
     private TestFileReceiver createReceiver(String directory, boolean directoryRecursion, boolean batchProcess, String sortBy, String fileSizeMaximum, boolean fileTypeBinary) throws Exception {
         TestFileReceiver receiver = spy(new TestFileReceiver() {
             @Override
-            protected String getConfigurationClass() {
+            public String getConfigurationClass() {
                 return null;
             }
         });

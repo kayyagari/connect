@@ -30,7 +30,6 @@ import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
@@ -40,12 +39,11 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreePath;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.lang3.StringUtils;
 import org.jdesktop.swingx.treetable.MutableTreeTableNode;
 
 import com.mirth.connect.client.ui.AbstractSortableTreeTableNode;
+import com.mirth.connect.client.ui.Frame;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.SortableTreeTableModel;
 import com.mirth.connect.client.ui.UIConstants;
@@ -55,7 +53,10 @@ import com.mirth.connect.model.ChannelStatus;
 import com.mirth.connect.model.Connector;
 import com.mirth.connect.model.alert.AlertChannels;
 
-public class AlertChannelPane extends JPanel {
+import net.miginfocom.swing.MigLayout;
+
+@SuppressWarnings("serial")
+public class AlertChannelPane extends AlertChannelPaneBase {
 
     public AlertChannelPane() {
         initComponents();
@@ -169,16 +170,18 @@ public class AlertChannelPane extends JPanel {
         channelTreeTable.repaint();
     }
 
+    @Override
     public AlertChannels getChannels() {
         return ((ChannelTreeTableModel) channelTreeTable.getTreeTableModel()).getAlertChannels();
     }
 
+    @Override
     public void setChannels(AlertChannels alertChannels, boolean includeConnectors) {
-        if (PlatformUI.MIRTH_FRAME.channelPanel.getCachedChannelStatuses() != null) {
+        if (((Frame) PlatformUI.MIRTH_FRAME).channelPanel.getCachedChannelStatuses() != null) {
             TreeMap<String, Channel> channelMap = new TreeMap<String, Channel>(String.CASE_INSENSITIVE_ORDER);
 
             // Sort the channels by channel name
-            for (ChannelStatus channelStatus : PlatformUI.MIRTH_FRAME.channelPanel.getCachedChannelStatuses().values()) {
+            for (ChannelStatus channelStatus : ((Frame) PlatformUI.MIRTH_FRAME).channelPanel.getCachedChannelStatuses().values()) {
                 Channel channel = channelStatus.getChannel();
                 channelMap.put(channel.getName(), channel);
             }

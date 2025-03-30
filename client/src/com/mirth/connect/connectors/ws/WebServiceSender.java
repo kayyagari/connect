@@ -10,6 +10,7 @@
 package com.mirth.connect.connectors.ws;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.datatransfer.DataFlavor;
@@ -37,7 +38,6 @@ import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -47,10 +47,8 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jdesktop.swingx.decorator.Highlighter;
 import org.jdesktop.swingx.decorator.HighlighterFactory;
 import org.syntax.jedit.SyntaxDocument;
@@ -58,7 +56,7 @@ import org.syntax.jedit.tokenmarker.XMLTokenMarker;
 
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.ui.ConnectorTypeDecoration;
-import com.mirth.connect.client.ui.Frame;
+import com.mirth.connect.client.ui.FrameBase;
 import com.mirth.connect.client.ui.Mirth;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.RefreshTableModel;
@@ -74,18 +72,22 @@ import com.mirth.connect.client.ui.components.MirthTable;
 import com.mirth.connect.client.ui.components.MirthTextField;
 import com.mirth.connect.client.ui.panels.connectors.ConnectorSettingsPanel;
 import com.mirth.connect.client.ui.panels.connectors.ResponseHandler;
-import com.mirth.connect.connectors.ws.DefinitionServiceMap.DefinitionPortMap;
-import com.mirth.connect.connectors.ws.DefinitionServiceMap.PortInformation;
+import com.mirth.connect.connectors.core.ConnectorSettingsPanelPlugin;
+import com.mirth.connect.connectors.core.InteropConnectorSettingsPanelPlugin;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap;
+import com.mirth.connect.connectors.core.ws.WebServiceConnectorServletInterface;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap.DefinitionPortMap;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap.PortInformation;
+import com.mirth.connect.connectors.core.ws.IWebServiceDispatcherProperties;
+import com.mirth.connect.connectors.core.ws.IWebServiceSender;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.model.Connector.Mode;
 import com.mirth.connect.model.converters.ObjectXMLSerializer;
 import com.mirth.connect.util.ConnectionTestResponse;
 
-public class WebServiceSender extends ConnectorSettingsPanel {
+import net.miginfocom.swing.MigLayout;
 
-    protected static final ImageIcon ICON_LOCK_X = new ImageIcon(Frame.class.getResource("images/lock_x.png"));
-    protected static final Color COLOR_SSL_NOT_CONFIGURED = new Color(0xFFF099);
-    protected static final String SSL_TOOL_TIP = "<html>The default system certificate store will be used for this connection.<br/>As a result, certain security options are not available and mutual<br/>authentication (two-way authentication) is not supported.</html>";
+public class WebServiceSender extends ConnectorSettingsPanel implements IWebServiceSender {
 
     private final int ID_COLUMN_NUMBER = 0;
     private final int CONTENT_COLUMN_NUMBER = 1;
@@ -101,23 +103,40 @@ public class WebServiceSender extends ConnectorSettingsPanel {
     private int headerLastIndex = -1;
 
     ObjectXMLSerializer serializer = ObjectXMLSerializer.getInstance();
-    private Frame parent;
+    private FrameBase parent;
     private DefinitionServiceMap currentServiceMap;
+    
+    private ConnectorSettingsPanelPlugin connectorPlugin;
 
     public WebServiceSender() {
         this.parent = PlatformUI.MIRTH_FRAME;
+
+    }
+    
+	@Override
+	public void initialize(ConnectorSettingsPanelPlugin connectorPlugin) {
+		this.connectorPlugin = connectorPlugin;
+		
         initComponents();
         initToolTips();
         initLayout();
-    }
+	}
 
     @Override
     public String getConnectorName() {
         return new WebServiceDispatcherProperties().getName();
     }
-
+    
     @Override
     public ConnectorProperties getProperties() {
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.getProperties();
+    	}
+    	return doGetProperties();
+    }
+
+    @Override
+    public ConnectorProperties doGetProperties() {
         WebServiceDispatcherProperties properties = new WebServiceDispatcherProperties();
 
         properties.setWsdlUrl(wsdlUrlField.getText());
@@ -161,10 +180,19 @@ public class WebServiceSender extends ConnectorSettingsPanel {
 
         return properties;
     }
+    
+    @Override
+	public void setProperties(ConnectorProperties properties) {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.setProperties(properties);
+    	} else {
+    		doSetProperties(properties);
+    	}	
+	}
 
     @Override
-    public void setProperties(ConnectorProperties properties) {
-        WebServiceDispatcherProperties props = (WebServiceDispatcherProperties) properties;
+    public void doSetProperties(ConnectorProperties properties) {
+        IWebServiceDispatcherProperties props = (IWebServiceDispatcherProperties) properties;
 
         wsdlUrlField.setText(props.getWsdlUrl());
 
@@ -247,7 +275,16 @@ public class WebServiceSender extends ConnectorSettingsPanel {
 
     @Override
     public boolean checkProperties(ConnectorProperties properties, boolean highlight) {
-        WebServiceDispatcherProperties props = (WebServiceDispatcherProperties) properties;
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.checkProperties(properties, highlight);
+    	}
+    	
+    	return doCheckProperties(properties, highlight);
+    }
+    
+    @Override
+    public boolean doCheckProperties(ConnectorProperties properties, boolean highlight) {
+        IWebServiceDispatcherProperties props = (IWebServiceDispatcherProperties) properties;
 
         boolean valid = true;
 
@@ -302,9 +339,18 @@ public class WebServiceSender extends ConnectorSettingsPanel {
 
         return valid;
     }
-
+    
     @Override
     public void resetInvalidProperties() {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.resetInvalidProperties();
+    	} else {
+    		doResetInvalidProperties();
+    	}
+    }
+
+    @Override
+    public void doResetInvalidProperties() {
         wsdlUrlField.setBackground(null);
         urlFieldChanged();
         serviceComboBox.setBackground(new Color(0xDEDEDE));
@@ -315,18 +361,35 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         headersVariableField.setBackground(null);
         attachmentsVariableField.setBackground(null);
     }
-
+    
     @Override
     public ConnectorTypeDecoration getConnectorTypeDecoration() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).getConnectorTypeDecoration();
+    	}
+    	return doGetConnectorTypeDecoration();
+    }
+
+    @Override
+    public ConnectorTypeDecoration doGetConnectorTypeDecoration() {
         if (isUsingHttps(wsdlUrlField.getText()) || isUsingHttps(String.valueOf(locationURIComboBox.getSelectedItem()))) {
             return new ConnectorTypeDecoration(Mode.DESTINATION, "(SSL Not Configured)", ICON_LOCK_X, SSL_TOOL_TIP, sslWarningPanel, COLOR_SSL_NOT_CONFIGURED);
         } else {
             return new ConnectorTypeDecoration(Mode.DESTINATION);
         }
     }
-
+    
     @Override
     public void doLocalDecoration(ConnectorTypeDecoration connectorTypeDecoration) {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		((InteropConnectorSettingsPanelPlugin) connectorPlugin).doLocalDecoration(connectorTypeDecoration);
+    	} else {
+    		doDoLocalDecoration(connectorTypeDecoration);
+    	}
+    }
+
+    @Override
+    public void doDoLocalDecoration(ConnectorTypeDecoration connectorTypeDecoration) {
         if (connectorTypeDecoration != null) {
             wsdlUrlField.setIcon(connectorTypeDecoration.getIcon());
             wsdlUrlField.setAlternateToolTipText(connectorTypeDecoration.getIconToolTipText());
@@ -336,19 +399,30 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         }
     }
 
-    protected DefinitionServiceMap getCurrentServiceMap() {
+    @Override
+    public DefinitionServiceMap getCurrentServiceMap() {
         return currentServiceMap;
     }
 
-    protected void setCurrentServiceMap(DefinitionServiceMap serviceMap) {
+    @Override
+    public void setCurrentServiceMap(DefinitionServiceMap serviceMap) {
         currentServiceMap = serviceMap;
     }
 
-    protected boolean canSetLocationURI() {
+    public boolean canSetLocationURI() {
+        if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+        	((InteropConnectorSettingsPanelPlugin) connectorPlugin).canSetLocationURI();
+        }
+        return doCanSetLocationURI();
+    }
+    
+    @Override
+    public boolean doCanSetLocationURI() {
         return true;
     }
 
-    protected void loadServiceMap() {
+    @Override
+    public void loadServiceMap() {
         // First reset the service/port/operation
         serviceComboBox.setModel(new DefaultComboBoxModel<>());
         portComboBox.setModel(new DefaultComboBoxModel());
@@ -370,7 +444,8 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         }
     }
 
-    protected boolean isUsingHttps(String url) {
+    @Override
+    public boolean isUsingHttps(String url) {
         if (StringUtils.isNotBlank(url)) {
             try {
                 URI hostURI = new URI(url);
@@ -435,6 +510,38 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         }
 
         return properties;
+    }
+    
+    @Override
+    public String getRequiredInboundDataType() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).getRequiredInboundDataType();
+    	}
+    	return super.getRequiredInboundDataType();
+    }
+    
+    @Override
+    public String getInitialOutboundDataType() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).getInitialOutboundDataType();
+    	}
+    	return super.getInitialOutboundDataType();
+    }
+    
+    @Override
+	public String getInitialInboundResponseDataType() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).getInitialInboundResponseDataType();
+    	}
+    	return super.getInitialInboundResponseDataType();
+    }
+    
+    @Override
+    public String getInitialOutboundResponseDataType() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).getInitialOutboundResponseDataType();
+    	}
+    	return super.getInitialOutboundResponseDataType();
     }
 
     /** Clears the selection in the table and sets the tasks appropriately */
@@ -535,6 +642,15 @@ public class WebServiceSender extends ConnectorSettingsPanel {
     }
 
     protected void initComponents() {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.initComponents();
+    	} else {
+    		doInitComponents();
+    	}
+    }
+    
+    @Override
+    public void doInitComponents() {
         setBackground(UIConstants.BACKGROUND_COLOR);
 
         wsdlUrlLabel = new JLabel("WSDL URL:");
@@ -989,8 +1105,17 @@ public class WebServiceSender extends ConnectorSettingsPanel {
 
         attachmentsVariableField = new MirthTextField();
     }
-
+    
     protected void initToolTips() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		((InteropConnectorSettingsPanelPlugin) connectorPlugin).initToolTips();
+    	} else {
+    		doInitToolTips();
+    	}
+    }
+
+    @Override
+    public void doInitToolTips() {
         wsdlUrlField.setToolTipText("Enter the full URL to the WSDL describing the web service method to be called, and then click the Get Operations button.");
         getOperationsButton.setToolTipText("<html>Clicking this button fetches the WSDL from the specified URL<br> and parses it to obtain a description of the data types and methods used by the web service to be called.<br>It replaces the values of all of the controls below by values taken from the WSDL.</html>");
         serviceComboBox.setToolTipText("<html>The service name for the WSDL defined above. This field<br/>is filled in automatically when the Get Operations button<br/>is clicked and does not usually need to be changed,<br/>unless multiple services are defined in the WSDL.</html>");
@@ -1017,8 +1142,17 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         attachmentsVariableField.setToolTipText("<html>The name of the Java list to use to populate attachments.<br/>The list must contain AttachmentEntry values.</html>");
         attachmentsTable.setToolTipText("<html>Attachments should be added with an ID, Base64 encoded content,<br>and a valid MIME type. Once an attachment is added<br>the row can be dropped into an argument in the envelope.</html>");
     }
-
+    
     protected void initLayout() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		((InteropConnectorSettingsPanelPlugin) connectorPlugin).initLayout();
+    	} else {
+    		doInitLayout();
+    	}
+    }
+
+    @Override
+    public void doInitLayout() {
         setLayout(new MigLayout("insets 0, novisualpadding, hidemode 3, fill, gapy 6", "[]12[grow][]"));
 
         add(wsdlUrlLabel, "right");
@@ -1145,7 +1279,7 @@ public class WebServiceSender extends ConnectorSettingsPanel {
                 };
 
                 try {
-                    WebServiceDispatcherProperties props = (WebServiceDispatcherProperties) getFilledProperties();
+                    IWebServiceDispatcherProperties props = (IWebServiceDispatcherProperties) getFilledProperties();
                     getServlet(WebServiceConnectorServletInterface.class, "Retrieving cached WSDL definition map...", "There was an error retrieving the cached WSDL definition map.\n\n", handler).getDefinition(getChannelId(), getChannelName(), props.getWsdlUrl(), props.getUsername(), props.getPassword());
                 } catch (ClientException e) {
                     // Should not happen
@@ -1154,13 +1288,20 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         };
 
         try {
-            getServlet(WebServiceConnectorServletInterface.class, "Getting operations...", "Error caching WSDL. Please check the WSDL URL and authentication settings.\n\n", handler).cacheWsdlFromUrl(getChannelId(), getChannelName(), (WebServiceDispatcherProperties) getFilledProperties());
+            getServlet(WebServiceConnectorServletInterface.class, "Getting operations...", "Error caching WSDL. Please check the WSDL URL and authentication settings.\n\n", handler).cacheWsdlFromUrl(getChannelId(), getChannelName(), getFilledProperties());
         } catch (ClientException e) {
             // Should not happen
         }
     }
 
     protected boolean canTestConnection(boolean wsdlUrl) {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).canTestConnection(wsdlUrl);
+    	}
+    	return doCanTestConnection(wsdlUrl);
+    }
+
+    private boolean doCanTestConnection(boolean wsdlUrl) {
         if (wsdlUrl) {
             if (StringUtils.isBlank(wsdlUrlField.getText())) {
                 parent.alertError(parent, "WSDL URL is blank.");
@@ -1174,8 +1315,16 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         return true;
     }
 
-    protected WebServiceDispatcherProperties getTestConnectionPropeties() {
-        return (WebServiceDispatcherProperties) getFilledProperties();
+    protected IWebServiceDispatcherProperties getTestConnectionProperties() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		return ((InteropConnectorSettingsPanelPlugin) connectorPlugin).getTestConnectionPropeties();
+    	}
+    	return doGetTestConnectionProperties();  	
+    }
+    
+    @Override
+    public IWebServiceDispatcherProperties doGetTestConnectionProperties() {
+        return (IWebServiceDispatcherProperties) getFilledProperties();
     }
 
     private void testConnectionButtonActionPerformed(boolean wsdlUrl) {
@@ -1183,7 +1332,7 @@ public class WebServiceSender extends ConnectorSettingsPanel {
             return;
         }
 
-        WebServiceDispatcherProperties properties = getTestConnectionPropeties();
+        IWebServiceDispatcherProperties properties = getTestConnectionProperties();
 
         // Blank out the other property so that it isn't tested
         if (wsdlUrl) {
@@ -1208,7 +1357,7 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         };
 
         try {
-            getServlet(WebServiceConnectorServletInterface.class, "Testing connection...", "Error testing Web Service connection: ", handler).testConnection(getChannelId(), getChannelName(), properties);
+            getServlet(WebServiceConnectorServletInterface.class, "Testing connection...", "Error testing Web Service connection: ", handler).testConnection(getChannelId(), getChannelName(), (ConnectorProperties) properties);
         } catch (ClientException e) {
             // Should not happen
         }
@@ -1289,18 +1438,24 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         generateEnvelope();
     }
 
+    
     protected void generateEnvelope() {
-        generateEnvelope(((WebServiceDispatcherProperties) getFilledProperties()).getWsdlUrl(), getChannelId(), getChannelName(), true);
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		((InteropConnectorSettingsPanelPlugin) connectorPlugin).generateEnvelope();
+    	} else {
+    		generateEnvelope(((IWebServiceDispatcherProperties) getFilledProperties()).getWsdlUrl(), getChannelId(), getChannelName(), true);
+    	}
     }
 
-    protected void generateEnvelope(String wsdlUrl, String channelId, String channelName, boolean buildOptional) {
+    @Override
+    public void generateEnvelope(String wsdlUrl, String channelId, String channelName, boolean buildOptional) {
         if (soapEnvelopeTextArea.getText().length() > 0 || soapActionField.getText().length() > 0) {
             if (!parent.alertOkCancel(parent, "This will replace your current SOAP envelope and SOAP action. Press OK to continue.")) {
                 return;
             }
         }
 
-        final WebServiceDispatcherProperties props = (WebServiceDispatcherProperties) getFilledProperties();
+        final IWebServiceDispatcherProperties props = (IWebServiceDispatcherProperties) getFilledProperties();
         props.setWsdlUrl(wsdlUrl);
 
         ResponseHandler isWsdlCachedHandler = new ResponseHandler() {
@@ -1351,8 +1506,17 @@ public class WebServiceSender extends ConnectorSettingsPanel {
             // Should not happen
         }
     }
-
+    
     protected void setSoapEnvelopeText(String text) {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropConnectorSettingsPanelPlugin) {
+    		((InteropConnectorSettingsPanelPlugin) connectorPlugin).setSoapEnvelopeText(text);
+    	} else {
+    		doSetSoapEnvelopeText(text);
+    	}
+    }
+
+    @Override
+    public void doSetSoapEnvelopeText(String text) {
         if (text != null) {
             soapEnvelopeTextArea.setText(text);
             parent.setSaveEnabled(true);
@@ -1427,7 +1591,8 @@ public class WebServiceSender extends ConnectorSettingsPanel {
         }
     }
 
-    protected void updateGenerateEnvelopeButtonEnabled() {
+    @Override
+    public void updateGenerateEnvelopeButtonEnabled() {
         generateEnvelopeButton.setEnabled(!isDefaultOperations());
     }
 
@@ -1455,8 +1620,258 @@ public class WebServiceSender extends ConnectorSettingsPanel {
             parent.setSaveEnabled(true);
         }
     }
+    
+    @Override
+	public JLabel getWsdlUrlLabel() {
+		return wsdlUrlLabel;
+	}
+    
+    @Override
+    public MirthIconTextField getWsdlUrlField() {
+    	return wsdlUrlField;
+    }
 
-    protected JLabel wsdlUrlLabel;
+    @Override
+	public JButton getGetOperationsButton() {
+		return getOperationsButton;
+	}
+
+    @Override
+	public JButton getWsdlUrlTestConnectionButton() {
+		return wsdlUrlTestConnectionButton;
+	}
+
+    @Override
+	public JLabel getServiceLabel() {
+		return serviceLabel;
+	}
+    
+    @Override
+	public MirthEditableComboBox getServiceComboBox() {
+		return serviceComboBox;
+	}
+
+    @Override
+	public JLabel getPortLabel() {
+		return portLabel;
+	}
+    
+    @Override
+	public MirthEditableComboBox getPortComboBox() {
+    	return portComboBox;
+    }
+
+    @Override
+	public JLabel getLocationURILabel() {
+		return locationURILabel;
+	}
+    
+    @Override
+    public MirthEditableComboBox getLocationURIComboBox() {
+    	return locationURIComboBox;
+    }
+
+    @Override
+	public JButton getLocationURITestConnectionButton() {
+		return locationURITestConnectionButton;
+	}
+
+    @Override
+	public JLabel getSocketTimeoutLabel() {
+		return socketTimeoutLabel;
+	}
+    
+    @Override
+    public MirthTextField getSocketTimeoutField() {
+    	return socketTimeoutField;
+    }
+
+    @Override
+	public JLabel getAuthenticationLabel() {
+		return authenticationLabel;
+	}
+
+    @Override
+	public MirthRadioButton getAuthenticationYesRadio() {
+		return authenticationYesRadio;
+	}
+
+    @Override
+	public MirthRadioButton getAuthenticationNoRadio() {
+		return authenticationNoRadio;
+	}
+
+    @Override
+	public JLabel getUsernameLabel() {
+		return usernameLabel;
+	}
+
+    @Override
+	public MirthTextField getUsernameField() {
+		return usernameField;
+	}
+
+    @Override
+	public JLabel getPasswordLabel() {
+		return passwordLabel;
+	}
+
+    @Override
+	public MirthPasswordField getPasswordField() {
+		return passwordField;
+	}
+
+    @Override
+	public JLabel getInvocationTypeLabel() {
+		return invocationTypeLabel;
+	}
+
+    @Override
+	public MirthRadioButton getInvocationOneWayRadio() {
+		return invocationOneWayRadio;
+	}
+
+    @Override
+	public MirthRadioButton getInvocationTwoWayRadio() {
+		return invocationTwoWayRadio;
+	}
+
+    @Override
+	public JLabel getOperationLabel() {
+		return operationLabel;
+	}
+    
+    @Override
+    public MirthComboBox getOperationComboBox() {
+    	return operationComboBox;
+    }
+
+    @Override
+	public JButton getGenerateEnvelopeButton() {
+		return generateEnvelopeButton;
+	}
+
+    @Override
+	public JLabel getSoapActionLabel() {
+		return soapActionLabel;
+	}
+
+    @Override
+	public MirthIconTextField getSoapActionField() {
+		return soapActionField;
+	}
+
+    @Override
+	public JLabel getSoapEnvelopeLabel() {
+		return soapEnvelopeLabel;
+	}
+    
+    @Override
+    public MirthSyntaxTextArea getSoapEnvelopeTextArea() {
+    	return soapEnvelopeTextArea;
+    }
+
+    @Override
+	public JLabel getHeadersLabel() {
+		return headersLabel;
+	}
+
+    @Override
+	public MirthTable getHeadersTable() {
+		return headersTable;
+	}
+
+    @Override
+	public JScrollPane getHeadersScrollPane() {
+		return headersScrollPane;
+	}
+
+    @Override
+	public JButton getHeadersNewButton() {
+		return headersNewButton;
+	}
+
+    @Override
+	public JButton getHeadersDeleteButton() {
+		return headersDeleteButton;
+	}
+
+    @Override
+	public MirthTextField getHeadersVariableField() {
+		return headersVariableField;
+	}
+
+    @Override
+	public MirthRadioButton getUseHeadersTableRadio() {
+		return useHeadersTableRadio;
+	}
+
+    @Override
+	public MirthRadioButton getUseHeadersVariableRadio() {
+		return useHeadersVariableRadio;
+	}
+
+    @Override
+	public JLabel getUseMtomLabel() {
+		return useMtomLabel;
+	}
+
+    @Override
+	public MirthRadioButton getUseMtomYesRadio() {
+		return useMtomYesRadio;
+	}
+
+    @Override
+	public MirthRadioButton getUseMtomNoRadio() {
+		return useMtomNoRadio;
+	}
+
+    @Override
+	public JLabel getAttachmentsLabel() {
+		return attachmentsLabel;
+	}
+
+    @Override
+	public MirthTable getAttachmentsTable() {
+		return attachmentsTable;
+	}
+
+    @Override
+	public JScrollPane getAttachmentsScrollPane() {
+		return attachmentsScrollPane;
+	}
+
+    @Override
+	public JButton getAttachmentsNewButton() {
+		return attachmentsNewButton;
+	}
+
+    @Override
+	public JButton getAttachmentsDeleteButton() {
+		return attachmentsDeleteButton;
+	}
+    
+    @Override
+    public MirthTextField getAttachmentsVariableField() {
+    	return attachmentsVariableField;
+    }
+
+    @Override
+	public MirthRadioButton getUseAttachmentsTableRadio() {
+		return useAttachmentsTableRadio;
+	}
+
+    @Override
+	public MirthRadioButton getUseAttachmentsVariableRadio() {
+		return useAttachmentsVariableRadio;
+	}
+    
+    @Override
+    public Component getSslWarningPanel() {
+    	return sslWarningPanel;
+    }
+
+	protected JLabel wsdlUrlLabel;
     protected MirthIconTextField wsdlUrlField;
     protected JButton getOperationsButton;
     protected JButton wsdlUrlTestConnectionButton;
@@ -1506,4 +1921,5 @@ public class WebServiceSender extends ConnectorSettingsPanel {
     protected MirthRadioButton useAttachmentsTableRadio;
     protected MirthRadioButton useAttachmentsVariableRadio;
     protected SSLWarningPanel sslWarningPanel;
+
 }

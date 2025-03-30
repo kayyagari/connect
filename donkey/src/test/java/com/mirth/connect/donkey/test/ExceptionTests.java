@@ -33,7 +33,7 @@ import com.mirth.connect.donkey.server.channel.DestinationChainProvider;
 import com.mirth.connect.donkey.server.channel.MetaDataReplacer;
 import com.mirth.connect.donkey.server.channel.ResponseSelector;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.test.util.TestChannel;
 import com.mirth.connect.donkey.test.util.TestConnectorProperties;
 import com.mirth.connect.donkey.test.util.TestDataType;
@@ -73,7 +73,7 @@ public class ExceptionTests {
      */
     @Test
     final public void testChannelPause() throws Exception {
-        ChannelController.getInstance().getLocalChannelId(channelId);
+        ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
         TestChannel channel = new TestChannel();
 
@@ -139,7 +139,7 @@ public class ExceptionTests {
             assertNotNull(e);
         } finally {
             channel.undeploy();
-            ChannelController.getInstance().removeChannel(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
         }
     }
 
@@ -165,7 +165,7 @@ public class ExceptionTests {
         try {
             logger.info("Testing Channel.process exceptions...");
 
-            ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
             channel.deploy();
             channel.start(null);
 

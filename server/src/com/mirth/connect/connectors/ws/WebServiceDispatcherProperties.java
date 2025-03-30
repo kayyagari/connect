@@ -19,8 +19,10 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
-import com.mirth.connect.connectors.ws.DefinitionServiceMap.DefinitionPortMap;
-import com.mirth.connect.connectors.ws.DefinitionServiceMap.PortInformation;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap;
+import com.mirth.connect.connectors.core.ws.IWebServiceDispatcherProperties;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap.DefinitionPortMap;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap.PortInformation;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorPropertiesInterface;
@@ -30,7 +32,7 @@ import com.mirth.connect.donkey.util.purge.PurgeUtil;
 import com.mirth.connect.donkey.util.xstream.SerializerException;
 import com.mirth.connect.model.converters.ObjectXMLSerializer;
 
-public class WebServiceDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface {
+public class WebServiceDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface, IWebServiceDispatcherProperties {
 
     private DestinationConnectorProperties destinationConnectorProperties;
 
@@ -86,9 +88,9 @@ public class WebServiceDispatcherProperties extends ConnectorProperties implemen
         this.soapAction = "";
     }
 
-    public WebServiceDispatcherProperties(WebServiceDispatcherProperties props) {
-        super(props);
-        destinationConnectorProperties = new DestinationConnectorProperties(props.getDestinationConnectorProperties());
+    public WebServiceDispatcherProperties(IWebServiceDispatcherProperties props) {
+        super((ConnectorProperties) props);
+        destinationConnectorProperties = new DestinationConnectorProperties(((DestinationConnectorPropertiesInterface) props).getDestinationConnectorProperties());
 
         wsdlUrl = props.getWsdlUrl();
         operation = props.getOperation();
@@ -120,178 +122,222 @@ public class WebServiceDispatcherProperties extends ConnectorProperties implemen
         soapAction = props.getSoapAction();
     }
 
+    @Override
     public String getWsdlUrl() {
         return wsdlUrl;
     }
 
+    @Override
     public void setWsdlUrl(String wsdlUrl) {
         this.wsdlUrl = wsdlUrl;
     }
 
+    @Override
     public String getService() {
         return service;
     }
 
+    @Override
     public void setService(String service) {
         this.service = service;
     }
 
+    @Override
     public String getPort() {
         return port;
     }
 
+    @Override
     public void setPort(String port) {
         this.port = port;
     }
 
+    @Override
     public String getLocationURI() {
         return locationURI;
     }
 
+    @Override
     public void setLocationURI(String locationURI) {
         this.locationURI = locationURI;
     }
 
+    @Override
     public String getSocketTimeout() {
         return socketTimeout;
     }
 
+    @Override
     public void setSocketTimeout(String socketTimeout) {
         this.socketTimeout = socketTimeout;
     }
 
+    @Override
     public String getOperation() {
         return operation;
     }
 
+    @Override
     public void setOperation(String operation) {
         this.operation = operation;
     }
 
+    @Override
     public boolean isUseAuthentication() {
         return useAuthentication;
     }
 
+    @Override
     public void setUseAuthentication(boolean useAuthentication) {
         this.useAuthentication = useAuthentication;
     }
 
+    @Override
     public String getUsername() {
         return username;
     }
 
+    @Override
     public void setUsername(String username) {
         this.username = username;
     }
 
+    @Override
     public String getPassword() {
         return password;
     }
 
+    @Override
     public void setPassword(String password) {
         this.password = password;
     }
 
+    @Override
     public String getEnvelope() {
         return envelope;
     }
 
+    @Override
     public void setEnvelope(String envelope) {
         this.envelope = envelope;
     }
 
+    @Override
     public boolean isOneWay() {
         return oneWay;
     }
 
+    @Override
     public void setOneWay(boolean oneWay) {
         this.oneWay = oneWay;
     }
 
+    @Override
     public String getHeadersVariable() {
         return headersVariable;
     }
 
+    @Override
     public void setHeadersVariable(String headersVariable) {
         this.headersVariable = headersVariable;
     }
 
+    @Override
     public boolean isUseHeadersVariable() {
         return isUseHeadersVariable;
     }
 
+    @Override
     public void setUseHeadersVariable(boolean isUseHeadersVariable) {
         this.isUseHeadersVariable = isUseHeadersVariable;
     }
 
+    @Override
     public Map<String, List<String>> getHeadersMap() {
         return headers;
     }
 
+    @Override
     public void setHeadersMap(Map<String, List<String>> headers) {
         this.headers = headers;
     }
 
+    @Override
     public boolean isUseMtom() {
         return useMtom;
     }
 
+    @Override
     public void setUseMtom(boolean useMtom) {
         this.useMtom = useMtom;
     }
 
+    @Override
     public String getAttachmentsVariable() {
         return attachmentsVariable;
     }
 
+    @Override
     public void setAttachmentsVariable(String attachmentsVariable) {
         this.attachmentsVariable = attachmentsVariable;
     }
 
+    @Override
     public List<String> getAttachmentNames() {
         return attachmentNames;
     }
 
+    @Override
     public void setAttachmentNames(List<String> attachmentNames) {
         this.attachmentNames = attachmentNames;
     }
 
+    @Override
     public List<String> getAttachmentContents() {
         return attachmentContents;
     }
 
+    @Override
     public void setAttachmentContents(List<String> attachmentContents) {
         this.attachmentContents = attachmentContents;
     }
 
+    @Override
     public List<String> getAttachmentTypes() {
         return attachmentTypes;
     }
 
+    @Override
     public void setAttachmentTypes(List<String> attachmentTypes) {
         this.attachmentTypes = attachmentTypes;
     }
 
+    @Override
     public boolean isUseAttachmentsVariable() {
         return isUseAttachmentsVariable;
     }
 
+    @Override
     public void setUseAttachmentsVariable(boolean isUseAttachmentsVariable) {
         this.isUseAttachmentsVariable = isUseAttachmentsVariable;
     }
 
+    @Override
     public String getSoapAction() {
         return soapAction;
     }
 
+    @Override
     public void setSoapAction(String soapAction) {
         this.soapAction = soapAction;
     }
 
+    @Override
     public DefinitionServiceMap getWsdlDefinitionMap() {
         return wsdlDefinitionMap;
     }
 
+    @Override
     public void setWsdlDefinitionMap(DefinitionServiceMap wsdlDefinitionMap) {
         this.wsdlDefinitionMap = wsdlDefinitionMap;
     }
@@ -485,6 +531,34 @@ public class WebServiceDispatcherProperties extends ConnectorProperties implemen
     @Override public void migrate3_11_0(DonkeyElement element) {}
     @Override public void migrate3_11_1(DonkeyElement element) {} 
     @Override public void migrate3_12_0(DonkeyElement element) {}// @formatter:on
+
+    @Override
+    public void migrate4_6_0(DonkeyElement element) {
+        DonkeyElement wsdlDefinitionMapElement = element.getChildElement("wsdlDefinitionMap");
+        if (wsdlDefinitionMapElement != null) {
+            DonkeyElement mapElement = wsdlDefinitionMapElement.getChildElement("map");
+            if (mapElement != null) {
+                for (DonkeyElement entryElement : mapElement.getChildElements()) {
+                    for (DonkeyElement entrySubElement : entryElement.getChildElements()) {
+                        if (StringUtils.equals("com.mirth.connect.connectors.ws.DefinitionServiceMap_-DefinitionPortMap", entrySubElement.getLocalName())) {
+                            entrySubElement.setNodeName("com.mirth.connect.connectors.core.ws.DefinitionServiceMap_-DefinitionPortMap");
+
+                            DonkeyElement subMapElement = entrySubElement.getChildElement("map");
+                            if (subMapElement != null) {
+                                for (DonkeyElement subMapEntryElement : subMapElement.getChildElements()) {
+                                    for (DonkeyElement subMapEntrySubElement : subMapEntryElement.getChildElements()) {
+                                        if (StringUtils.equals("com.mirth.connect.connectors.ws.DefinitionServiceMap_-PortInformation", subMapEntrySubElement.getLocalName())) {
+                                            subMapEntrySubElement.setNodeName("com.mirth.connect.connectors.core.ws.DefinitionServiceMap_-PortInformation");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     @Override
     public Map<String, Object> getPurgedProperties() {

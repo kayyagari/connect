@@ -16,12 +16,15 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.mirth.connect.donkey.server.channel.Connector;
+import com.mirth.connect.connectors.core.tcp.StateAwareServerSocket;
+import com.mirth.connect.connectors.core.tcp.StateAwareSocket;
+import com.mirth.connect.connectors.core.tcp.TcpConfiguration;
+import com.mirth.connect.donkey.server.channel.IConnector;
 
 public class DefaultTcpConfiguration implements TcpConfiguration {
 
     @Override
-    public void configureConnectorDeploy(Connector connector) throws Exception {}
+    public void configureConnectorDeploy(IConnector connector) throws Exception {}
 
     @Override
     public ServerSocket createServerSocket(int port, int backlog) throws IOException {

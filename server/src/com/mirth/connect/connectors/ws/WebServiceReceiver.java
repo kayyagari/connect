@@ -28,12 +28,15 @@ import javax.xml.ws.Endpoint;
 import javax.xml.ws.handler.Handler;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.mirth.connect.connectors.core.ws.IWebServiceReceiver;
+import com.mirth.connect.connectors.core.ws.WebServiceConfiguration;
 import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.ErrorEventType;
@@ -49,14 +52,14 @@ import com.mirth.connect.donkey.server.message.batch.BatchMessageException;
 import com.mirth.connect.donkey.server.message.batch.BatchMessageReader;
 import com.mirth.connect.donkey.server.message.batch.ResponseHandler;
 import com.mirth.connect.donkey.server.message.batch.SimpleResponseHandler;
-import com.mirth.connect.plugins.httpauth.AuthenticationResult;
-import com.mirth.connect.plugins.httpauth.Authenticator;
-import com.mirth.connect.plugins.httpauth.AuthenticatorProvider;
 import com.mirth.connect.plugins.httpauth.AuthenticatorProviderFactory;
 import com.mirth.connect.plugins.httpauth.HttpAuthConnectorPluginProperties;
-import com.mirth.connect.plugins.httpauth.HttpAuthConnectorPluginProperties.AuthType;
-import com.mirth.connect.plugins.httpauth.RequestInfo;
-import com.mirth.connect.plugins.httpauth.RequestInfo.EntityProvider;
+import com.mirth.connect.plugins.core.httpauth.AuthType;
+import com.mirth.connect.plugins.core.httpauth.AuthenticationResultBase;
+import com.mirth.connect.plugins.core.httpauth.Authenticator;
+import com.mirth.connect.plugins.core.httpauth.AuthenticatorProvider;
+import com.mirth.connect.plugins.core.httpauth.RequestInfo;
+import com.mirth.connect.plugins.core.httpauth.RequestInfo.EntityProvider;
 import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.ContextFactoryController;
 import com.mirth.connect.server.controllers.ControllerFactory;
@@ -68,7 +71,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpPrincipal;
 import com.sun.net.httpserver.HttpServer;
 
-public class WebServiceReceiver extends SourceConnector {
+public class WebServiceReceiver extends SourceConnector implements IWebServiceReceiver {
     // This determines how many client requests can queue up while waiting for the server socket to accept
     private static final int DEFAULT_BACKLOG = 256;
 
@@ -174,7 +177,7 @@ public class WebServiceReceiver extends SourceConnector {
 
         try {
             try {
-                MirthContextFactory contextFactory = contextFactoryController.getContextFactory(getResourceIds());
+                MirthContextFactory contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(getResourceIds());
 
                 // Set the current thread context classloader in case custom web service classes need it 
                 Thread.currentThread().setContextClassLoader(contextFactory.getApplicationClassLoader());
@@ -271,7 +274,7 @@ public class WebServiceReceiver extends SourceConnector {
     }
 
     @Override
-    protected String getConfigurationClass() {
+	public String getConfigurationClass() {
         return configurationController.getProperty(connectorProperties.getProtocol(), "wsConfigurationClass");
     }
 
@@ -336,6 +339,7 @@ public class WebServiceReceiver extends SourceConnector {
         return dispatchResult;
     }
 
+    @Override
     public void setServer(HttpServer server) {
         this.server = server;
     }
@@ -386,7 +390,7 @@ public class WebServiceReceiver extends SourceConnector {
                 RequestInfo requestInfo = new RequestInfo(remoteAddress, remotePort, localAddress, localPort, protocol, method, requestURI, headers, queryParameters, entityProvider);
 
                 try {
-                    AuthenticationResult result = authenticator.authenticate(requestInfo);
+                    AuthenticationResultBase result = authenticator.authenticate(requestInfo);
 
                     for (Entry<String, List<String>> entry : result.getResponseHeaders().entrySet()) {
                         if (StringUtils.isNotBlank(entry.getKey()) && entry.getValue() != null) {

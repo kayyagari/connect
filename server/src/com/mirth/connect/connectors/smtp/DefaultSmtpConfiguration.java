@@ -14,8 +14,9 @@ import java.util.Properties;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.mail.Email;
 
+import com.mirth.connect.connectors.core.smtp.SmtpConfiguration;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
-import com.mirth.connect.donkey.server.channel.Connector;
+import com.mirth.connect.donkey.server.channel.IConnector;
 import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.util.MirthSSLUtil;
@@ -27,21 +28,24 @@ public class DefaultSmtpConfiguration implements SmtpConfiguration {
     private String cipherSuites;
 
     @Override
-    public void configureConnectorDeploy(Connector connector) {
+    public void configureConnectorDeploy(IConnector connector) {
         protocols = StringUtils.join(MirthSSLUtil.getEnabledHttpsProtocols(configurationController.getHttpsClientProtocols()), ' ');
         cipherSuites = StringUtils.join(MirthSSLUtil.getEnabledHttpsCipherSuites(configurationController.getHttpsCipherSuites()), ' ');
     }
 
     @Override
-    public void configureEncryption(ConnectorProperties connectorProperties, Email email) throws Exception {
+    public void configureEncryption(ConnectorProperties connectorProperties, Object email) throws Exception {
         SmtpDispatcherProperties props = (SmtpDispatcherProperties) connectorProperties;
-
-        if ("SSL".equalsIgnoreCase(props.getEncryption())) {
-            email.setSSLOnConnect(true);
-            email.setSslSmtpPort(props.getSmtpPort());
-        } else if ("TLS".equalsIgnoreCase(props.getEncryption())) {
-            email.setStartTLSEnabled(true);
-        }
+        
+        if (email instanceof Email) {
+        	Email emailObj = (Email) email; 
+        	if ("SSL".equalsIgnoreCase(props.getEncryption())) {
+        		emailObj.setSSLOnConnect(true);
+        		emailObj.setSslSmtpPort(props.getSmtpPort());
+            } else if ("TLS".equalsIgnoreCase(props.getEncryption())) {
+            	emailObj.setStartTLSEnabled(true);
+            }
+        }  
     }
 
     @Override

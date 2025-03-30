@@ -23,6 +23,8 @@ import java.util.TreeMap;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.mirth.connect.client.ui.ChannelSetup;
+import com.mirth.connect.client.ui.Frame;
 import com.mirth.connect.client.ui.LoadedExtensions;
 import com.mirth.connect.client.ui.MapperDropData;
 import com.mirth.connect.client.ui.MessageBuilderDropData;
@@ -30,6 +32,7 @@ import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.TreeTransferable;
 import com.mirth.connect.client.ui.components.MirthTree;
 import com.mirth.connect.client.ui.editors.BaseEditorPane;
+import com.mirth.connect.client.ui.editors.TabbedTemplatePanel;
 import com.mirth.connect.client.ui.editors.TransformerTreeTableNode;
 import com.mirth.connect.client.ui.util.VariableListUtil;
 import com.mirth.connect.model.Connector;
@@ -43,9 +46,6 @@ import com.mirth.connect.plugins.TransformerStepPlugin;
 import com.mirth.connect.util.StringUtil;
 
 public class TransformerPane extends BaseEditorPane<Transformer, Step> {
-
-    public static final String MAPPER = "Mapper";
-    public static final String MESSAGE_BUILDER = "Message Builder";
 
     private Map<String, FilterTransformerTypePlugin<Transformer, Step>> sourcePlugins;
     private Map<String, FilterTransformerTypePlugin<Transformer, Step>> destinationPlugins;
@@ -133,7 +133,7 @@ public class TransformerPane extends BaseEditorPane<Transformer, Step> {
             if (connector.getMetaDataId() == 0) {
                 String sourceDataType = properties.getOutboundDataType();
 
-                for (Connector destinationConnector : PlatformUI.MIRTH_FRAME.channelEditPanel.currentChannel.getDestinationConnectors()) {
+                for (Connector destinationConnector : PlatformUI.MIRTH_FRAME.getChannelSetup().getCurrentChannel().getDestinationConnectors()) {
                     String destinationDataType = destinationConnector.getTransformer().getInboundDataType();
 
                     if (!StringUtils.equals(sourceDataType, destinationDataType)) {
@@ -167,10 +167,10 @@ public class TransformerPane extends BaseEditorPane<Transformer, Step> {
         setOutboundDataTypeProperties(properties.getOutboundProperties());
         setInboundTemplate(properties.getInboundTemplate());
         setOutboundTemplate(properties.getOutboundTemplate());
-        templatePanel.setTransformerView();
+        ((TabbedTemplatePanel) templatePanel).setTransformerView();
 
         if (connector.getMetaDataId() == 0) {
-            PlatformUI.MIRTH_FRAME.channelEditPanel.updateAttachmentHandler(properties.getInboundDataType());
+            ((ChannelSetup) PlatformUI.MIRTH_FRAME.getChannelSetup()).updateAttachmentHandler(properties.getInboundDataType());
         }
     }
 
@@ -206,11 +206,11 @@ public class TransformerPane extends BaseEditorPane<Transformer, Step> {
             Object mapperTransferData = tr.getTransferData(TreeTransferable.MAPPER_DATA_FLAVOR);
             Object messageBuilderTransferData = tr.getTransferData(TreeTransferable.MESSAGE_BUILDER_DATA_FLAVOR);
 
-            if (mapperTransferData != null && !PlatformUI.MIRTH_FRAME.isAcceleratorKeyPressed()) {
+            if (mapperTransferData != null && !((Frame) PlatformUI.MIRTH_FRAME).isAcceleratorKeyPressed()) {
                 Object transferData = tr.getTransferData(TreeTransferable.MAPPER_DATA_FLAVOR);
                 MapperDropData data = (MapperDropData) transferData;
                 addNewElement(data.getVariable(), data.getVariable(), data.getMapping(), MAPPER, true);
-            } else if (mapperTransferData != null && PlatformUI.MIRTH_FRAME.isAcceleratorKeyPressed()) {
+            } else if (mapperTransferData != null && ((Frame) PlatformUI.MIRTH_FRAME).isAcceleratorKeyPressed()) {
                 Object transferData = tr.getTransferData(TreeTransferable.MAPPER_DATA_FLAVOR);
                 MapperDropData data2 = (MapperDropData) transferData;
                 MessageBuilderDropData data = new MessageBuilderDropData(data2.getNode(), MirthTree.constructPath(data2.getNode().getParent(), "msg", "").toString(), "");

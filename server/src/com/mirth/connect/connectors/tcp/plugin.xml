@@ -2,7 +2,9 @@
 	<name>TCP Connector Service Plugin</name>
 	<author>NextGen Healthcare</author>
 	<pluginVersion>@mirthversion</pluginVersion>
-	<mirthVersion>4.1.1</mirthVersion>
+	<mirthVersion>@mirthversion</mirthVersion>
+	<pluginBuildNumber>@pluginbuildnumber</pluginBuildNumber>
+	<coreExtension>true</coreExtension>
 	<url>http://www.nextgen.com</url>
 	<description>This plugin is required for correct use of the TCP connectors.</description>
 	<serverClasses>

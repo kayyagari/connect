@@ -18,6 +18,7 @@ import com.mirth.connect.donkey.server.ConnectorTaskException;
 import com.mirth.connect.donkey.server.channel.Channel;
 import com.mirth.connect.model.datatype.SerializerProperties;
 import com.mirth.connect.server.controllers.ContextFactoryController;
+import com.mirth.connect.server.util.javascript.IMirthContextFactory;
 import com.mirth.connect.server.util.javascript.MirthContextFactory;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
 
@@ -82,7 +83,7 @@ public class DelimitedBatchAdaptorFactoryTest {
         }
         
         @Override
-        protected MirthMain getDebugger(MirthContextFactory contextFactory, boolean showDebugger) {
+        protected MirthMain getDebugger(IMirthContextFactory contextFactory, boolean showDebugger) {
             return debugger;
         }
         

@@ -30,9 +30,9 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 
 import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
+import com.mirth.connect.plugins.core.httpauth.Authenticator;
+import com.mirth.connect.plugins.core.httpauth.RequestInfo;
 import com.mirth.connect.plugins.httpauth.AuthenticationResult;
-import com.mirth.connect.plugins.httpauth.Authenticator;
-import com.mirth.connect.plugins.httpauth.RequestInfo;
 import com.mirth.connect.plugins.httpauth.oauth2.OAuth2HttpAuthProperties.TokenLocation;
 import com.mirth.connect.server.util.TemplateValueReplacer;
 import com.mirth.connect.util.HttpUtil;
@@ -116,7 +116,7 @@ public class OAuth2Authenticator extends Authenticator {
     private OAuth2HttpAuthProperties getReplacedProperties(RequestInfo request) {
         OAuth2HttpAuthProperties properties = new OAuth2HttpAuthProperties((OAuth2HttpAuthProperties) provider.getProperties());
         String channelId = provider.getConnector().getChannelId();
-        String channelName = provider.getConnector().getChannel().getName();
+        String channelName = provider.getConnector().getChannelName();
         Map<String, Object> map = new HashMap<String, Object>();
         request.populateMap(map);
 

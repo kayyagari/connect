@@ -16,6 +16,8 @@ import java.util.Map;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import com.mirth.connect.connectors.core.http.HttpStaticResource;
+import com.mirth.connect.connectors.core.http.IHttpReceiverProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.ListenerConnectorProperties;
 import com.mirth.connect.donkey.model.channel.ListenerConnectorPropertiesInterface;
@@ -24,7 +26,7 @@ import com.mirth.connect.donkey.model.channel.SourceConnectorPropertiesInterface
 import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
 
-public class HttpReceiverProperties extends ConnectorProperties implements ListenerConnectorPropertiesInterface, SourceConnectorPropertiesInterface {
+public class HttpReceiverProperties extends ConnectorProperties implements ListenerConnectorPropertiesInterface, SourceConnectorPropertiesInterface, IHttpReceiverProperties {
     private ListenerConnectorProperties listenerConnectorProperties;
     private SourceConnectorProperties sourceConnectorProperties;
 
@@ -64,123 +66,176 @@ public class HttpReceiverProperties extends ConnectorProperties implements Liste
         this.responseHeadersVariable = "";
         this.useResponseHeadersVariable = false;
     }
+    
+    public HttpReceiverProperties(IHttpReceiverProperties props) {
+    	super((ConnectorProperties) props);
+    	
+    	listenerConnectorProperties = new ListenerConnectorProperties(((ListenerConnectorPropertiesInterface) props).getListenerConnectorProperties());
+    	sourceConnectorProperties = new SourceConnectorProperties(((SourceConnectorPropertiesInterface) props).getSourceConnectorProperties());
+    	
+    	xmlBody = props.isXmlBody();
+    	parseMultipart = props.isParseMultipart();
+    	includeMetadata = props.isIncludeMetadata();
+        binaryMimeTypes = props.getBinaryMimeTypes();
+        binaryMimeTypesRegex = props.isBinaryMimeTypesRegex();
+        responseContentType = props.getResponseContentType();
+        responseDataTypeBinary = props.isResponseDataTypeBinary();
+        responseStatusCode = props.getResponseStatusCode(); 
+        responseHeaders = props.getResponseHeadersMap();
+        charset = props.getCharset();
+        contextPath = props.getContextPath(); 
+        timeout = props.getTimeout();
+        staticResources = props.getStaticResources();
+        responseHeadersVariable = props.getResponseHeadersVariable(); 
+        useResponseHeadersVariable = props.isUseHeadersVariable();
+    }
 
+    @Override
     public boolean isXmlBody() {
         return xmlBody;
     }
 
+    @Override
     public void setXmlBody(boolean xmlBody) {
         this.xmlBody = xmlBody;
     }
 
+    @Override
     public boolean isParseMultipart() {
         return parseMultipart;
     }
 
+    @Override
     public void setParseMultipart(boolean parseMultipart) {
         this.parseMultipart = parseMultipart;
     }
 
+    @Override
     public boolean isIncludeMetadata() {
         return includeMetadata;
     }
 
+    @Override
     public void setIncludeMetadata(boolean includeMetadata) {
         this.includeMetadata = includeMetadata;
     }
 
+    @Override
     public String getBinaryMimeTypes() {
         return binaryMimeTypes;
     }
 
+    @Override
     public void setBinaryMimeTypes(String binaryMimeTypes) {
         this.binaryMimeTypes = binaryMimeTypes;
     }
-
+    
+    @Override
     public boolean isBinaryMimeTypesRegex() {
         return binaryMimeTypesRegex;
     }
 
+    @Override
     public void setBinaryMimeTypesRegex(boolean binaryMimeTypesRegex) {
         this.binaryMimeTypesRegex = binaryMimeTypesRegex;
     }
 
+    @Override
     public String getResponseContentType() {
         return responseContentType;
     }
 
+    @Override
     public void setResponseContentType(String responseContentType) {
         this.responseContentType = responseContentType;
     }
 
+    @Override
     public boolean isResponseDataTypeBinary() {
         return responseDataTypeBinary;
     }
 
+    @Override
     public void setResponseDataTypeBinary(boolean responseDataTypeBinary) {
         this.responseDataTypeBinary = responseDataTypeBinary;
     }
 
+    @Override
     public String getResponseStatusCode() {
         return responseStatusCode;
     }
 
+    @Override
     public void setResponseStatusCode(String responseStatusCode) {
         this.responseStatusCode = responseStatusCode;
     }
     
+    @Override
     public Map<String, List<String>> getResponseHeadersMap() {
         return responseHeaders;
     }
 
+    @Override
     public void setResponseHeadersMap(Map<String, List<String>> responseHeaders) {
         this.responseHeaders = responseHeaders;
     }
 
+    @Override
     public boolean isUseHeadersVariable() {
         return useResponseHeadersVariable;
     }
     
+    @Override
     public void setUseHeadersVariable(boolean useResponseHeadersVariable) {
         this.useResponseHeadersVariable = useResponseHeadersVariable;
     }
 
+    @Override
     public void setResponseHeadersVariable(String headersVariable) {
         this.responseHeadersVariable = headersVariable;
     }
     
+    @Override
     public String getResponseHeadersVariable() {
         return this.responseHeadersVariable;
     }
     
+    @Override
     public String getCharset() {
         return charset;
     }
 
+    @Override
     public void setCharset(String charset) {
         this.charset = charset;
     }
 
+    @Override
     public String getContextPath() {
         return contextPath;
     }
 
+    @Override
     public void setContextPath(String contextPath) {
         this.contextPath = contextPath;
     }
 
+    @Override
     public String getTimeout() {
         return timeout;
     }
 
+    @Override
     public void setTimeout(String timeout) {
         this.timeout = timeout;
     }
 
+    @Override
     public List<HttpStaticResource> getStaticResources() {
         return staticResources;
     }
 
+    @Override
     public void setStaticResources(List<HttpStaticResource> staticResources) {
         this.staticResources = staticResources;
     }
@@ -277,6 +332,22 @@ public class HttpReceiverProperties extends ConnectorProperties implements Liste
     @Override public void migrate3_11_0(DonkeyElement element) {}
     @Override public void migrate3_11_1(DonkeyElement element) {} 
     @Override public void migrate3_12_0(DonkeyElement element) {}// @formatter:on
+    
+    @Override
+    public void migrate4_6_0(DonkeyElement element) {
+    	super.migrate4_6_0(element);
+    	
+    	DonkeyElement staticResourcesEl = element.getChildElement("staticResources");
+    	if (staticResourcesEl != null) {
+    		List<DonkeyElement> resources = staticResourcesEl.getChildElements();
+    		
+    		for (DonkeyElement resource : resources) {
+    			if (resource.getNodeName().equals("com.mirth.connect.connectors.http.HttpStaticResource")) {
+    				resource.setNodeName("com.mirth.connect.connectors.core.http.HttpStaticResource");
+    			}
+    		}
+    	}
+    }
 
     @Override
     public Map<String, Object> getPurgedProperties() {

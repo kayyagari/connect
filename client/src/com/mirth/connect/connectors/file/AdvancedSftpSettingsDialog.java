@@ -47,6 +47,8 @@ import com.mirth.connect.client.ui.TextFieldCellEditor;
 import com.mirth.connect.client.ui.UIConstants;
 import com.mirth.connect.client.ui.components.MirthTable;
 import com.mirth.connect.client.ui.util.DisplayUtil;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
+import com.mirth.connect.connectors.core.file.SftpSchemeProperties;
 
 public class AdvancedSftpSettingsDialog extends AdvancedSettingsDialog {
     private final int NAME_COLUMN = 0;

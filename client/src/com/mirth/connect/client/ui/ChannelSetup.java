@@ -68,8 +68,6 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableModel;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -133,8 +131,10 @@ import com.mirth.connect.plugins.ChannelTabPlugin;
 import com.mirth.connect.util.JavaScriptSharedUtil;
 import com.mirth.connect.util.PropertyVerifier;
 
+import net.miginfocom.swing.MigLayout;
+
 /** The channel editor panel. Majority of the client application */
-public class ChannelSetup extends JPanel {
+public class ChannelSetup extends ChannelSetupBase {
     private static final String METADATA_NAME_COLUMN_NAME = "Column Name";
     private static final String METADATA_TYPE_COLUMN_NAME = "Type";
     private static final String METADATA_MAPPING_COLUMN_NAME = "Variable Mapping";
@@ -153,28 +153,66 @@ public class ChannelSetup extends JPanel {
     private static final String PRUNING_WARNING_DEFAULT_TEXT = "(incomplete, errored, and queued messages will not be pruned)";
     private static final String PRUNING_WARNING_ERRORED_TEXT = "(incomplete and queued messages will not be pruned)";
 
-    public Channel currentChannel;
     public Map<Integer, Map<String, String>> resourceIds = new HashMap<Integer, Map<String, String>>();
     public int defaultQueueBufferSize = 1000;
     public int lastModelIndex = -1;
-    public TransformerPane transformerPane = new TransformerPane();
-    public FilterPane filterPane = new FilterPane();
 
     private Frame parent;
     private String saveGroupId;
     private boolean isDeleting = false;
     private boolean loadingChannel = false;
     private boolean channelValidationFailed = false;
+    private Calendar dateStartEdit;
 
     private int previousTab = -1;
 
     public ChannelSetup() {
-        this.parent = PlatformUI.MIRTH_FRAME;
+        this.parent = (Frame) PlatformUI.MIRTH_FRAME;
+        
+        filterPane = new FilterPane();
+        transformerPane = new TransformerPane();
+        
         initComponents();
         initToolTips();
         initLayout();
     }
+    
+    @Override
+    public int getDefaultQueueBufferSize() {
+        return defaultQueueBufferSize;
+    }
+    
+    @Override
+    public Channel getCurrentChannel() {
+        return currentChannel;
+    }
+    
+    @Override
+    public Map<Integer, Map<String, String>> getResourceIds() {
+        return resourceIds;
+    }
+    
+    @Override
+    public int getLastModelIndex() {
+        return lastModelIndex;
+    }
 
+    @Override
+    public TransformerPane getTransformerPane() {
+        return (TransformerPane) transformerPane;
+    }
+    
+    @Override
+    public VariableList getDestinationVariableList() {
+        return destinationVariableList;
+    }
+
+    @Override
+    public ConnectorPanel getSourceConnectorPanel() {
+        return sourceConnectorPanel;
+    }
+
+    @Override
     public void closePopupWindow() {
         tagsField.closePopupWindow();
     }
@@ -290,6 +328,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Is called to load the transformer pane on either the source or destination
      */
+    @Override
     public String editTransformer() {
         String name = "";
 
@@ -315,6 +354,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Is called to load the response transformer pane on the destination
      */
+    @Override
     public String editResponseTransformer() {
         String name = "";
 
@@ -334,7 +374,10 @@ public class ChannelSetup extends JPanel {
         return name;
     }
 
-    /** Is called to load the filter pane on either the source or destination */
+    /**
+     * Is called to load the filter pane on either the source or destination 
+     */
+    @Override
     public String editFilter() {
         String name = "";
 
@@ -508,9 +551,13 @@ public class ChannelSetup extends JPanel {
         return false;
     }
 
-    /** Sets the overall panel to edit the channel with the given channel index. */
+    /** 
+     * Sets the overall panel to edit the channel with the given channel index. 
+     */
+    @Override
     public void editChannel(Channel channel) {
         loadingChannel = true;
+        dateStartEdit = Calendar.getInstance();
 
         Set<FilterCompletion> channelTags = new HashSet<FilterCompletion>();
         for (ChannelTag channelTag : parent.channelPanel.getCachedChannelTags()) {
@@ -532,7 +579,7 @@ public class ChannelSetup extends JPanel {
         destinationConnectorTypeComboBox.setModel(new DefaultComboBoxModel(LoadedExtensions.getInstance().getDestinationConnectors().keySet().toArray()));
 
         try {
-            ServerSettings serverSettings = parent.mirthClient.getServerSettings();
+            ServerSettings serverSettings = parent.mirthClient.getPublicServerSettings();
             if (serverSettings.getQueueBufferSize() != null && serverSettings.getQueueBufferSize() > 0) {
                 defaultQueueBufferSize = serverSettings.getQueueBufferSize();
             }
@@ -572,6 +619,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Adds a new channel that is passed in and then sets the overall panel to edit that channel.
      */
+    @Override
     public void addChannel(Channel channel, String groupId) {
         loadingChannel = true;
         lastModelIndex = -1;
@@ -608,7 +656,7 @@ public class ChannelSetup extends JPanel {
         setLastModified();
 
         try {
-            ServerSettings serverSettings = parent.mirthClient.getServerSettings();
+            ServerSettings serverSettings = parent.mirthClient.getPublicServerSettings();
             currentChannel.getProperties().setMetaDataColumns(serverSettings.getDefaultMetaDataColumns());
             if (serverSettings.getQueueBufferSize() != null && serverSettings.getQueueBufferSize() > 0) {
                 defaultQueueBufferSize = serverSettings.getQueueBufferSize();
@@ -774,14 +822,16 @@ public class ChannelSetup extends JPanel {
         attachmentComboBox.setSelectedItem(AttachmentHandlerType.fromString(properties.getAttachmentProperties().getType()));
 
         clearGlobalChannelMapCheckBox.setSelected(properties.isClearGlobalChannelMap());
-        encryptMessagesCheckBox.setSelected(properties.isEncryptData());
+        encryptMessagesCheckBox.setSelected(properties.isEncryptMessageContent());
+        encryptAttachmentsCheckBox.setSelected(properties.isEncryptAttachments());
+        encryptCustomMetaDataCheckBox.setSelected(properties.isEncryptCustomMetaData());
 
         // Fix dataTypes and properties not set by previous versions of Mirth Connect
         fixNullDataTypesAndProperties();
 
         // load message storage settings
         messageStorageSlider.setValue(properties.getMessageStorageMode().getValue());
-        encryptMessagesCheckBox.setSelected(properties.isEncryptData());
+        encryptMessagesCheckBox.setSelected(properties.isEncryptMessageContent());
         removeContentCheckBox.setSelected(properties.isRemoveContentOnCompletion());
         removeOnlyFilteredCheckBox.setSelected(properties.isRemoveOnlyFilteredOnCompletion());
         removeAttachmentsCheckBox.setSelected(properties.isRemoveAttachmentsOnCompletion());
@@ -858,8 +908,8 @@ public class ChannelSetup extends JPanel {
             String decompiledDefaultScript = "";
 
             try {
-                decompiledSavedScript = context.decompileScript(context.compileString("function doScript() {" + savedScript + "}", PlatformUI.MIRTH_FRAME.mirthClient.getGuid(), 1, null), 1);
-                decompiledDefaultScript = context.decompileScript(context.compileString("function doScript() {" + defualtScript + "}", PlatformUI.MIRTH_FRAME.mirthClient.getGuid(), 1, null), 1);
+                decompiledSavedScript = context.decompileScript(context.compileString("function doScript() {" + savedScript + "}", PlatformUI.MIRTH_FRAME.getClient().getGuid(), 1, null), 1);
+                decompiledDefaultScript = context.decompileScript(context.compileString("function doScript() {" + defualtScript + "}", PlatformUI.MIRTH_FRAME.getClient().getGuid(), 1, null), 1);
             } catch (Exception e) {
                 //If any script fails to compile for any reason, we can just assume they aren't equal.
                 return false;
@@ -871,6 +921,7 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public void decorateConnectorType(ConnectorTypeDecoration connectorTypeDecoration, boolean isDestination) {
         if (connectorTypeDecoration != null && isDestination && destinationTable.getSelectedModelIndex() >= 0) {
             ConnectorTypeData connectorTypeData = (ConnectorTypeData) destinationTable.getModel().getValueAt(destinationTable.getSelectedModelIndex(), destinationTable.getColumnModelIndex(CONNECTOR_TYPE_COLUMN_NAME));
@@ -883,6 +934,7 @@ public class ChannelSetup extends JPanel {
         return checkInvalidPluginProperties(null, connector);
     }
 
+    @Override
     public String checkInvalidPluginProperties(Channel channel) {
         return checkInvalidPluginProperties(channel, null);
     }
@@ -933,6 +985,8 @@ public class ChannelSetup extends JPanel {
                 durableStatusLabel.setForeground(new Color(0, 130, 0));
                 messageStorageProgressBar.setValue(20);
                 encryptMessagesCheckBox.setEnabled(true);
+                encryptAttachmentsCheckBox.setEnabled(true);
+                encryptCustomMetaDataCheckBox.setEnabled(true);
                 removeContentCheckBox.setEnabled(true);
                 removeOnlyFilteredCheckBox.setEnabled(removeContentCheckBox.isSelected());
                 removeAttachmentsCheckBox.setEnabled(true);
@@ -946,6 +1000,8 @@ public class ChannelSetup extends JPanel {
                 durableStatusLabel.setForeground(new Color(0, 130, 0));
                 messageStorageProgressBar.setValue(25);
                 encryptMessagesCheckBox.setEnabled(true);
+                encryptAttachmentsCheckBox.setEnabled(true);
+                encryptCustomMetaDataCheckBox.setEnabled(true);
                 removeContentCheckBox.setEnabled(true);
                 removeOnlyFilteredCheckBox.setEnabled(removeContentCheckBox.isSelected());
                 removeAttachmentsCheckBox.setEnabled(true);
@@ -959,6 +1015,8 @@ public class ChannelSetup extends JPanel {
                 durableStatusLabel.setForeground(new Color(255, 102, 0));
                 messageStorageProgressBar.setValue(60);
                 encryptMessagesCheckBox.setEnabled(true);
+                encryptAttachmentsCheckBox.setEnabled(true);
+                encryptCustomMetaDataCheckBox.setEnabled(true);
                 removeContentCheckBox.setEnabled(true);
                 removeOnlyFilteredCheckBox.setEnabled(removeContentCheckBox.isSelected());
                 removeAttachmentsCheckBox.setEnabled(true);
@@ -972,6 +1030,8 @@ public class ChannelSetup extends JPanel {
                 durableStatusLabel.setForeground(new Color(130, 0, 0));
                 messageStorageProgressBar.setValue(65);
                 encryptMessagesCheckBox.setEnabled(false);
+                encryptAttachmentsCheckBox.setEnabled(false);
+                encryptCustomMetaDataCheckBox.setEnabled(true);
                 removeContentCheckBox.setEnabled(false);
                 removeOnlyFilteredCheckBox.setEnabled(false);
                 removeAttachmentsCheckBox.setEnabled(false);
@@ -985,6 +1045,8 @@ public class ChannelSetup extends JPanel {
                 durableStatusLabel.setForeground(new Color(130, 0, 0));
                 messageStorageProgressBar.setValue(100);
                 encryptMessagesCheckBox.setEnabled(false);
+                encryptAttachmentsCheckBox.setEnabled(false);
+                encryptCustomMetaDataCheckBox.setEnabled(false);
                 removeContentCheckBox.setEnabled(false);
                 removeOnlyFilteredCheckBox.setEnabled(false);
                 removeAttachmentsCheckBox.setEnabled(false);
@@ -993,6 +1055,9 @@ public class ChannelSetup extends JPanel {
 
         // if content encryption is enabled, subtract a percentage from the progress bar
         if (encryptMessagesCheckBox.isEnabled() && encryptMessagesCheckBox.isSelected()) {
+            messageStorageProgressBar.setValue(messageStorageProgressBar.getValue() - 3);
+        }
+        if (encryptAttachmentsCheckBox.isEnabled() && encryptAttachmentsCheckBox.isSelected()) {
             messageStorageProgressBar.setValue(messageStorageProgressBar.getValue() - 3);
         }
 
@@ -1011,10 +1076,12 @@ public class ChannelSetup extends JPanel {
         destinationConnectorPanel.updateQueueWarning(messageStorageMode);
     }
 
+    @Override
     public MessageStorageMode getMessageStorageMode() {
         return MessageStorageMode.fromInt(messageStorageSlider.getValue());
     }
 
+    @Override
     public void updateQueueWarning(MessageStorageMode messageStorageMode) {
         String errorString = getQueueErrorString(messageStorageMode);
 
@@ -1096,6 +1163,7 @@ public class ChannelSetup extends JPanel {
         return scriptMap;
     }
 
+    @Override
     public void saveSourcePanel() {
         currentChannel.getSourceConnector().setProperties(sourceConnectorPanel.getProperties());
         
@@ -1104,6 +1172,7 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public void saveDestinationPanel() {
         Connector temp;
 
@@ -1118,17 +1187,17 @@ public class ChannelSetup extends JPanel {
     /**
      * Save all of the current channel information in the editor to the actual channel
      */
+    @Override
     public boolean saveChanges() {
-    	String otherUsername = "unknown";
+    	Integer userId = null;
     	Channel originalStateChannel = null;
-    	
         try {
 			originalStateChannel = parent.mirthClient.getChannel(currentChannel.getId(), false);
         	if (originalStateChannel != null) {
-        		Integer userId = originalStateChannel.getExportData().getMetadata().getUserId();
-    			if (userId != 0 && userId != null) {
-    				otherUsername = parent.mirthClient.getUser(userId).getUsername();
-    			}
+        		userId = originalStateChannel.getExportData().getMetadata().getUserId();
+    		// this is a new channel because the originalStateChannel is empty
+        	} else {
+        		userId = parent.mirthClient.getCurrentUser().getId();
         	}
 		} catch (ClientException e1) {
 			
@@ -1236,7 +1305,9 @@ public class ChannelSetup extends JPanel {
         setUserId();
 
         currentChannel.getProperties().setClearGlobalChannelMap(clearGlobalChannelMapCheckBox.isSelected());
-        currentChannel.getProperties().setEncryptData(encryptMessagesCheckBox.isSelected());
+        currentChannel.getProperties().setEncryptMessageContent(encryptMessagesCheckBox.isSelected());
+        currentChannel.getProperties().setEncryptAttachments(encryptAttachmentsCheckBox.isSelected());
+        currentChannel.getProperties().setEncryptCustomMetaData(encryptCustomMetaDataCheckBox.isSelected());
         currentChannel.getProperties().setInitialState((DeployedState) initialStateComboBox.getSelectedItem());
         currentChannel.getProperties().setStoreAttachments(attachmentStoreCheckBox.isSelected());
 
@@ -1280,8 +1351,7 @@ public class ChannelSetup extends JPanel {
         try {
             // Will throw exception if the connection died or there was an exception
             // saving the channel, skipping the rest of this code.
-            updated = parent.updateChannel(currentChannel, parent.channelPanel.getCachedChannelStatuses().containsKey(currentChannel.getId()), otherUsername);
-
+            updated = parent.updateChannel(currentChannel, parent.channelPanel.getCachedChannelStatuses().containsKey(currentChannel.getId()), userId, dateStartEdit);
             try {
                 currentChannel = (Channel) SerializationUtils.clone(parent.channelPanel.getCachedChannelStatuses().get(currentChannel.getId()).getChannel());
 
@@ -1322,7 +1392,9 @@ public class ChannelSetup extends JPanel {
 	private void saveMessageStorage(MessageStorageMode messageStorageMode) {
         ChannelProperties properties = currentChannel.getProperties();
         properties.setMessageStorageMode(messageStorageMode);
-        properties.setEncryptData(encryptMessagesCheckBox.isSelected());
+        properties.setEncryptMessageContent(encryptMessagesCheckBox.isSelected());
+        properties.setEncryptAttachments(encryptAttachmentsCheckBox.isSelected());
+        properties.setEncryptCustomMetaData(encryptCustomMetaDataCheckBox.isSelected());
         properties.setRemoveContentOnCompletion(removeContentCheckBox.isSelected());
         properties.setRemoveOnlyFilteredOnCompletion(removeOnlyFilteredCheckBox.isSelected());
         properties.setRemoveAttachmentsOnCompletion(removeAttachmentsCheckBox.isSelected());
@@ -1421,13 +1493,17 @@ public class ChannelSetup extends JPanel {
         }
     }
 
-    /** Adds a new destination. */
+    /** 
+     * Adds a new destination. 
+     */
+    @Override
     public void addNewDestination() {
         makeDestinationTable(true);
         destinationTableScrollPane.getViewport().setViewPosition(new Point(0, destinationTable.getRowHeight() * destinationTable.getRowCount()));
         parent.setSaveEnabled(true);
     }
 
+    @Override
     public void cloneDestination() {
         if (parent.changesHaveBeenMade()) {
             if (!parent.alertOption(this.parent, "You must save your channel before cloning.  Would you like to save your channel now?") || !saveChanges()) {
@@ -1452,6 +1528,7 @@ public class ChannelSetup extends JPanel {
         parent.setSaveEnabled(true);
     }
 
+    @Override
     public void enableDestination() {
         List<Connector> destinationConnectors = currentChannel.getDestinationConnectors();
         Connector destination = destinationConnectors.get(destinationTable.getSelectedModelIndex());
@@ -1465,6 +1542,7 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public void disableDestination() {
         List<Connector> destinationConnectors = currentChannel.getDestinationConnectors();
 
@@ -1492,7 +1570,10 @@ public class ChannelSetup extends JPanel {
         }
     }
 
-    /** Deletes the selected destination. */
+    /** 
+     * Deletes the selected destination. 
+     */
+    @Override
     public void deleteDestination() {
         isDeleting = true;
         List<Connector> destinationConnectors = currentChannel.getDestinationConnectors();
@@ -1562,6 +1643,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Moves the selected destination to the previous spot in the array list.
      */
+    @Override
     public void moveDestinationUp() {
         List<Connector> destinationConnectors = currentChannel.getDestinationConnectors();
         int destinationIndex = destinationTable.getSelectedModelIndex();
@@ -1578,6 +1660,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Moves the selected destination to the next spot in the array list.
      */
+    @Override
     public void moveDestinationDown() {
         List<Connector> destinationConnectors = currentChannel.getDestinationConnectors();
         int destinationIndex = destinationTable.getSelectedModelIndex();
@@ -1597,6 +1680,7 @@ public class ChannelSetup extends JPanel {
      * @param channel
      * @return
      */
+    @Override
     public String checkAllForms(Channel channel) {
         String errors = "";
         ConnectorSettingsPanel tempConnector = null;
@@ -1725,6 +1809,7 @@ public class ChannelSetup extends JPanel {
         return errors;
     }
 
+    @Override
     public void doValidate() {
         if (sourcePanel.isVisible()) {
             String validationMessage = sourceConnectorPanel.doValidate(sourceConnectorPanel.getProperties(), true);
@@ -1743,6 +1828,7 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public void validateScripts() {
         scriptsPanel.validateCurrentScript();
     }
@@ -1969,6 +2055,24 @@ public class ChannelSetup extends JPanel {
         encryptMessagesCheckBox = new MirthCheckBox("Encrypt message content");
         encryptMessagesCheckBox.setBackground(messageStoragePanel.getBackground());
         encryptMessagesCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent evt) {
+                encryptMessagesCheckBoxActionPerformed(evt);
+            }
+        });
+
+        encryptAttachmentsCheckBox = new MirthCheckBox("Attachments");
+        encryptAttachmentsCheckBox.setBackground(messageStoragePanel.getBackground());
+        encryptAttachmentsCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent evt) {
+                encryptMessagesCheckBoxActionPerformed(evt);
+            }
+        });
+
+        encryptCustomMetaDataCheckBox = new MirthCheckBox("Custom metadata");
+        encryptCustomMetaDataCheckBox.setBackground(messageStoragePanel.getBackground());
+        encryptCustomMetaDataCheckBox.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent evt) {
                 encryptMessagesCheckBoxActionPerformed(evt);
@@ -2395,6 +2499,8 @@ public class ChannelSetup extends JPanel {
         clearGlobalChannelMapCheckBox.setToolTipText("Clear the global channel map on both single channel deploy and a full redeploy.");
         attachmentStoreCheckBox.setToolTipText("If checked, attachments will be stored in the database and available for reattachment.");
         encryptMessagesCheckBox.setToolTipText("<html>Encrypt message content that is stored in the database. Messages that<br>are stored while this option is enabled will still be viewable in the<br>message browser, but the content will not be searchable.</html>");
+        encryptAttachmentsCheckBox.setToolTipText("<html>Encrypt message attachments that are stored in the database.<br>Attachments that are stored while this option is enabled<br>will still be viewable in the message browser.</html>");
+        encryptCustomMetaDataCheckBox.setToolTipText("<html>Encrypt custom metadata columns that are stored in the database.<br/>Custom metadata values that are stored while this option is<br/>enabled will still be viewable in the message browser, but<br/>the metadata will not be searchable.<br/><br/>This will only apply to STRING type custom metadata columns.</html>");
         removeContentCheckBox.setToolTipText("<html>Remove message content once the message has completed processing.<br/>Not applicable for messages that are errored or queued.</html>");
         removeAttachmentsCheckBox.setToolTipText("<html>Remove message attachments once the message has completed processing.<br/>Not applicable for messages that are errored or queued.</html>");
         removeOnlyFilteredCheckBox.setToolTipText("<html>If checked, only content for filtered connector messages will be removed.</html>");
@@ -2407,7 +2513,7 @@ public class ChannelSetup extends JPanel {
 
     private void initLayout() {
         setLayout(new MigLayout("insets 0, novisualpadding, hidemode 3, fill"));
-
+        
         channelPropertiesPanel.setLayout(new MigLayout("insets 0 10 10 10, novisualpadding, hidemode 3, fill, gap 6", "[]12[]12[][grow]"));
         channelPropertiesPanel.add(nameLabel, "right");
         channelPropertiesPanel.add(nameField, "w 185!");
@@ -2439,7 +2545,9 @@ public class ChannelSetup extends JPanel {
         messageStoragePanel.add(durableStatusLabel);
         messageStoragePanel.add(performanceLabel, "newline, sx, split 2");
         messageStoragePanel.add(messageStorageProgressBar, "growx, gapbefore 12");
-        messageStoragePanel.add(encryptMessagesCheckBox, "newline");
+        messageStoragePanel.add(encryptMessagesCheckBox, "newline, split 3");
+        messageStoragePanel.add(encryptAttachmentsCheckBox);
+        messageStoragePanel.add(encryptCustomMetaDataCheckBox);
         messageStoragePanel.add(removeContentCheckBox, "newline, split 2");
         messageStoragePanel.add(removeOnlyFilteredCheckBox);
         messageStoragePanel.add(removeAttachmentsCheckBox, "newline");
@@ -2493,7 +2601,7 @@ public class ChannelSetup extends JPanel {
         channelView.addTab("Source", sourcePanel);
         channelView.addTab("Destinations", destinationsPanel);
         channelView.addTab("Scripts", scriptsPanel);
-        add(channelView, "grow, h 600, w 600");
+        add(channelView, "grow, h 600, w 600");        
     }
 
     private void scriptsComponentShown(ComponentEvent evt) {
@@ -2997,6 +3105,7 @@ public class ChannelSetup extends JPanel {
     }
 
     /** Sets the destination variable list from the transformer steps */
+    @Override
     public void setDestinationVariableList() {
         int destination = destinationTable.getSelectedModelIndex();
         Set<String> concatenatedRuleVariables = getMultipleDestinationRules(currentChannel.getDestinationConnectors().get(destination));
@@ -3050,6 +3159,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Returns the required source data type of this channel.
      */
+    @Override
     public String getRequiredInboundDataType() {
         return sourceConnectorPanel.getRequiredInboundDataType();
     }
@@ -3057,6 +3167,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Returns the required source data type of this channel.
      */
+    @Override
     public String getRequiredOutboundDataType() {
         return sourceConnectorPanel.getRequiredOutboundDataType();
     }
@@ -3064,6 +3175,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Returns the initial, or default, source inbound data type of this channel.
      */
+    @Override
     public String getInitialInboundDataType() {
         return sourceConnectorPanel.getInitialInboundDataType();
     }
@@ -3078,6 +3190,7 @@ public class ChannelSetup extends JPanel {
     /*
      * Set Data Types for source inbound and outbound which also means destination inbound
      */
+    @Override
     public void checkAndSetSourceDataType() {
         // Inbound
         String requiredInboundDataType = getRequiredInboundDataType();
@@ -3110,6 +3223,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Returns the required data type for the selected destination of this channel.
      */
+    @Override
     public String getRequiredOutboundDestinationDataType() {
         return destinationConnectorPanel.getRequiredOutboundDataType();
     }
@@ -3126,6 +3240,7 @@ public class ChannelSetup extends JPanel {
      * Returns the initial, or default, inbound data type for the selected destination response of
      * this channel.
      */
+    @Override
     public String getInitialInboundResponseDataType() {
         return destinationConnectorPanel.getInitialInboundResponseDataType();
     }
@@ -3134,6 +3249,7 @@ public class ChannelSetup extends JPanel {
      * Returns the initial, or default, outbound data type for the selected destination response of
      * this channel.
      */
+    @Override
     public String getInitialOutboundResponseDataType() {
         return destinationConnectorPanel.getInitialOutboundResponseDataType();
     }
@@ -3141,6 +3257,7 @@ public class ChannelSetup extends JPanel {
     /**
      * Set Data types specified by selected destination for destination and response
      */
+    @Override
     public void checkAndSetDestinationAndResponseDataType() {
         // Destination inbound set by source outbound
 
@@ -3179,6 +3296,7 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public Connector exportSelectedConnector() {
         if (channelView.getSelectedIndex() == SOURCE_TAB_INDEX) {
             return currentChannel.getSourceConnector();
@@ -3189,6 +3307,7 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public void importConnector(Connector connector) {
         String alertMessage = checkInvalidPluginProperties(connector);
         if (StringUtils.isNotBlank(alertMessage)) {
@@ -3275,10 +3394,12 @@ public class ChannelSetup extends JPanel {
         }
     }
 
+    @Override
     public int getSelectedDestinationIndex() {
         return destinationTable.getSelectedModelIndex();
     }
     
+    @Override
     public void setChannelEnabledField(boolean enabled) {
     	summaryEnabledCheckBox.setSelected(enabled);
     }
@@ -3323,6 +3444,8 @@ public class ChannelSetup extends JPanel {
     private JLabel performanceLabel;
     private JProgressBar messageStorageProgressBar;
     private MirthCheckBox encryptMessagesCheckBox;
+    private MirthCheckBox encryptAttachmentsCheckBox;
+    private MirthCheckBox encryptCustomMetaDataCheckBox;
     private MirthCheckBox removeContentCheckBox;
     private MirthCheckBox removeOnlyFilteredCheckBox;
     private MirthCheckBox removeAttachmentsCheckBox;

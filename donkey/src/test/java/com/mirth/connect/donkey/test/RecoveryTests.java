@@ -40,7 +40,7 @@ import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
 import com.mirth.connect.donkey.server.channel.ResponseSelector;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.buffered.BufferedDaoFactory;
@@ -188,7 +188,7 @@ public class RecoveryTests {
         responseSelector.setRespondFromName(SourceConnectorProperties.RESPONSE_SOURCE_TRANSFORMED);
         channel.setResponseSelector(responseSelector);
 
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
 
         for (int i = 0; i < testSize; i++) {
             ConnectorMessage message = TestUtils.createAndStoreNewMessage(testMessage, channelId, channelName, serverId, daoFactory).getConnectorMessages().get(0);
@@ -301,7 +301,7 @@ public class RecoveryTests {
         } finally {
             channel.stop();
             channel.undeploy();
-            ChannelController.getInstance().removeChannel(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
         }
     }
 

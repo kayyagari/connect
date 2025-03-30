@@ -36,9 +36,7 @@ import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.filter.Filterable;
 import org.apache.velocity.runtime.RuntimeConstants;
 
-import com.mirth.connect.client.core.ConnectServiceUtil;
 import com.mirth.connect.client.core.ControllerException;
-import com.mirth.connect.client.core.PropertiesConfigurationUtil;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.DonkeyConnectionPools;
 import com.mirth.connect.model.LibraryProperties;
@@ -66,6 +64,8 @@ import com.mirth.connect.server.util.NetworkUtil;
 import com.mirth.connect.server.util.ResourceUtil;
 import com.mirth.connect.server.util.SqlConfig;
 import com.mirth.connect.server.util.javascript.MirthContextFactory;
+import com.mirth.connect.util.ConnectServiceUtil;
+import com.mirth.connect.util.PropertiesConfigurationUtil;
 
 /**
  * Instantiate a Mirth server that listens for commands from the CommandQueue.
@@ -228,7 +228,7 @@ public class Mirth extends Thread {
             int maxRetryTimeout = configurationController.getDatabaseSettings().getDatabaseConnectionMaxRetryWaitTimeInMs();
             do {
                 try {
-                    DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties());
+                    DonkeyConnectionPools.getInstance().init(configurationController.getDatabaseSettings().getProperties(ObjectXMLSerializer.getInstance()));
                     break;
                 }catch(Exception e) {
                     maxRetry--;
@@ -380,13 +380,13 @@ public class Mirth extends Thread {
 
             MirthContextFactory contextFactory;
             try {
-                contextFactory = contextFactoryController.getGlobalScriptContextFactory();
+                contextFactory = (MirthContextFactory) contextFactoryController.getGlobalScriptContextFactory();
             } catch (LinkageError e) {
                 logger.warn("Unable to initialize global script context factory.", e);
-                contextFactory = contextFactoryController.getGlobalContextFactory();
+                contextFactory = (MirthContextFactory) contextFactoryController.getGlobalContextFactory();
             } catch (Exception e) {
                 logger.warn("Unable to initialize global script context factory.", e);
-                contextFactory = contextFactoryController.getGlobalContextFactory();
+                contextFactory = (MirthContextFactory) contextFactoryController.getGlobalContextFactory();
             }
             scriptController.compileGlobalScripts(contextFactory, false);
 
@@ -396,6 +396,7 @@ public class Mirth extends Thread {
         }
 
         configurationController.setStatus(ConfigurationController.STATUS_OK);
+        eventController.dispatchEvent(new ServerEvent(configurationController.getServerId(), "Server startup complete"));
         printSplashScreen();
 
         // schedule usage statistics to be sent at startup and every 24 hours

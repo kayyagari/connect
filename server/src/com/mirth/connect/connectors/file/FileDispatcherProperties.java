@@ -13,6 +13,9 @@ import java.util.Map;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import com.mirth.connect.connectors.core.file.FileScheme;
+import com.mirth.connect.connectors.core.file.IFileDispatcherProperties;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorPropertiesInterface;
@@ -20,7 +23,7 @@ import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
 import com.mirth.connect.util.CharsetUtils;
 
-public class FileDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface {
+public class FileDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface, IFileDispatcherProperties {
     public static final String NAME = "File Writer";
 
     private DestinationConnectorProperties destinationConnectorProperties;
@@ -99,6 +102,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         template = props.getTemplate();
     }
 
+    @Override
     public FileScheme getScheme() {
         return scheme;
     }
@@ -107,6 +111,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.scheme = scheme;
     }
 
+    @Override
     public SchemeProperties getSchemeProperties() {
         return schemeProperties;
     }
@@ -115,6 +120,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.schemeProperties = schemeProperties;
     }
 
+    @Override
     public String getHost() {
         return host;
     }
@@ -131,6 +137,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.outputPattern = outputPattern;
     }
 
+    @Override
     public boolean isAnonymous() {
         return anonymous;
     }
@@ -139,6 +146,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.anonymous = anonymous;
     }
 
+    @Override
     public String getUsername() {
         return username;
     }
@@ -147,6 +155,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.username = username;
     }
 
+    @Override
     public String getPassword() {
         return password;
     }
@@ -155,6 +164,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.password = password;
     }
 
+    @Override
     public String getTimeout() {
         return timeout;
     }
@@ -163,6 +173,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.timeout = timeout;
     }
 
+    @Override
     public boolean isKeepConnectionOpen() {
         return keepConnectionOpen;
     }
@@ -171,6 +182,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.keepConnectionOpen = keepConnectionOpen;
     }
 
+    @Override
     public String getMaxIdleTime() {
         return maxIdleTime;
     }
@@ -179,6 +191,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.maxIdleTime = maxIdleTime;
     }
 
+    @Override
     public boolean isSecure() {
         return secure;
     }
@@ -187,6 +200,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.secure = secure;
     }
 
+    @Override
     public boolean isPassive() {
         return passive;
     }
@@ -195,6 +209,7 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
         this.passive = passive;
     }
 
+    @Override
     public boolean isValidateConnection() {
         return validateConnection;
     }
@@ -394,6 +409,35 @@ public class FileDispatcherProperties extends ConnectorProperties implements Des
     @Override public void migrate3_11_0(DonkeyElement element) {} 
     @Override public void migrate3_11_1(DonkeyElement element) {} 
     @Override public void migrate3_12_0(DonkeyElement element) {}// @formatter:on
+
+    @Override
+    public void migrate4_6_0(DonkeyElement element) {
+        // Change fully-qualified names of classes moved to different packages
+        DonkeyElement schemeElement = element.getChildElement("scheme");
+        if (schemeElement != null) {
+            if (schemeElement.getTextContent().equalsIgnoreCase("ftp")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.FTPSchemeProperties");
+                }
+            } else if (schemeElement.getTextContent().equalsIgnoreCase("sftp")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.SftpSchemeProperties");
+                }
+            } else if (schemeElement.getTextContent().equalsIgnoreCase("smb")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.SmbSchemeProperties");
+                }
+            } else if (schemeElement.getTextContent().equalsIgnoreCase("S3")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.S3SchemeProperties");
+                }
+            }
+        }
+    }
 
     @Override
     public Map<String, Object> getPurgedProperties() {

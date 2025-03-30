@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.session.SqlSession;
@@ -36,6 +37,7 @@ import com.mirth.connect.client.core.ControllerException;
 import com.mirth.connect.donkey.model.DonkeyException;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.ContentType;
+import com.mirth.connect.donkey.model.message.DataType;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
 import com.mirth.connect.donkey.model.message.RawMessage;
@@ -45,9 +47,7 @@ import com.mirth.connect.donkey.server.Constants;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.channel.Channel;
 import com.mirth.connect.donkey.server.channel.ChannelException;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
-import com.mirth.connect.donkey.server.message.DataType;
 import com.mirth.connect.donkey.util.MapUtil;
 import com.mirth.connect.donkey.util.xstream.SerializerException;
 import com.mirth.connect.model.MessageImportResult;
@@ -156,7 +156,7 @@ public class DonkeyMessageController extends MessageController {
         long maxMessageId = filterOptions.getMaxMessageId();
         long minMessageId = filterOptions.getMinMessageId();
 
-        Long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId, true);
+        Long localChannelId = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId, true);
         Map<String, Object> params = getBasicParameters(filter, localChannelId);
 
         try {
@@ -189,6 +189,11 @@ public class DonkeyMessageController extends MessageController {
 
     @Override
     public List<Message> getMessages(MessageFilter filter, String channelId, Boolean includeContent, Integer offset, Integer limit) {
+        // Provide a default value if any of the below 3 parameters are null.
+        includeContent = includeContent == null ? false : includeContent;
+        offset = offset == null ? 0 : offset;
+        limit = limit == null ? 20 : limit;
+        
         List<Message> messages = new ArrayList<Message>();
 
         if (filter.getIncludedMetaDataIds() != null && filter.getIncludedMetaDataIds().isEmpty() && filter.getExcludedMetaDataIds() == null) {
@@ -232,7 +237,7 @@ public class DonkeyMessageController extends MessageController {
 
         try {
             Map<String, Object> params = new HashMap<String, Object>();
-            params.put("localChannelId", ChannelController.getInstance().getLocalChannelId(channelId, true));
+            params.put("localChannelId", com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId, true));
             params.put("messageId", messageId);
 
             Message message = SqlConfig.getInstance().getReadOnlySqlSessionManager().selectOne("Message.selectMessageById", params);
@@ -259,7 +264,7 @@ public class DonkeyMessageController extends MessageController {
     @Override
     public List<Attachment> getMessageAttachmentIds(String channelId, Long messageId, boolean readOnly) {
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("localChannelId", ChannelController.getInstance().getLocalChannelId(channelId, readOnly));
+        params.put("localChannelId", com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId, readOnly));
         params.put("messageId", messageId);
 
         return getSqlSessionManager(readOnly).selectList("Message.selectMessageAttachmentIds", params);
@@ -295,7 +300,7 @@ public class DonkeyMessageController extends MessageController {
         long maxMessageId = filterOptions.getMaxMessageId();
         long minMessageId = filterOptions.getMinMessageId();
 
-        Long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        Long localChannelId = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Map<String, Object> params = getBasicParameters(filter, localChannelId);
         /*
          * Include the processed boolean with the result set in order to determine whether the
@@ -327,7 +332,7 @@ public class DonkeyMessageController extends MessageController {
             }
         }
 
-        Channel channel = engineController.getDeployedChannel(channelId);
+        Channel channel = (Channel) engineController.getDeployedChannel(channelId);
         if (channel != null) {
             // Invalidate the queue buffer to ensure stats are updated.
             channel.invalidateQueues();
@@ -336,7 +341,7 @@ public class DonkeyMessageController extends MessageController {
 
     public void reprocessMessages(String channelId, MessageFilter filter, boolean replace, Collection<Integer> reprocessMetaDataIds) throws ControllerException {
         EngineController engineController = ControllerFactory.getFactory().createEngineController();
-        Channel deployedChannel = engineController.getDeployedChannel(channelId);
+        Channel deployedChannel = (Channel) engineController.getDeployedChannel(channelId);
         if (deployedChannel == null) {
             throw new ControllerException("Channel is no longer deployed!");
         }
@@ -350,7 +355,7 @@ public class DonkeyMessageController extends MessageController {
         long maxMessageId = filterOptions.getMaxMessageId();
         long minMessageId = filterOptions.getMinMessageId();
 
-        Long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        Long localChannelId = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Map<String, Object> params = getBasicParameters(filter, localChannelId);
         /*
          * Include the import id with the result set in order to determine whether the message was
@@ -406,12 +411,19 @@ public class DonkeyMessageController extends MessageController {
                     connectorMessage.setMetaDataId(0);
                     connectorMessage.setRaw(rawContent);
 
+                    Map<String, Attachment> remainingAttachments = new HashMap<String, Attachment>();
+
                     RawMessage rawMessage = null;
 
                     if (isBinary) {
                         rawMessage = new RawMessage(DICOMMessageUtil.getDICOMRawBytes(connectorMessage));
                     } else {
-                        rawMessage = new RawMessage(org.apache.commons.codec.binary.StringUtils.newString(attachmentHandlerProvider.reAttachMessage(rawContent.getContent(), connectorMessage, Constants.ATTACHMENT_CHARSET, false, true, true), Constants.ATTACHMENT_CHARSET));
+                        rawMessage = new RawMessage(org.apache.commons.codec.binary.StringUtils.newString(attachmentHandlerProvider.reAttachMessage(rawContent.getContent(), connectorMessage, Constants.ATTACHMENT_CHARSET, false, true, true, remainingAttachments), Constants.ATTACHMENT_CHARSET));
+                    }
+
+                    // If there are any attachments that were not reattached into the raw data, then include them here
+                    if (MapUtils.isNotEmpty(remainingAttachments)) {
+                        rawMessage.setAttachments(new ArrayList<Attachment>(remainingAttachments.values()));
                     }
 
                     rawMessage.setOverwrite(replace);
@@ -492,7 +504,7 @@ public class DonkeyMessageController extends MessageController {
             }
 
             try {
-                int numExported = new MessageExporter().exportMessages(messageList, messageWriter, attachmentSource);
+                int numExported = new MessageExporter().exportMessages(messageList, messageWriter, attachmentSource, options); 
                 messageWriter.finishWrite();
                 return numExported;
             } finally {
@@ -543,7 +555,7 @@ public class DonkeyMessageController extends MessageController {
         long maxMessageId = filterOptions.getMaxMessageId();
         long minMessageId = filterOptions.getMinMessageId();
 
-        Long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId, true);
+        Long localChannelId = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId, true);
         Map<String, Object> params = getBasicParameters(filter, localChannelId);
 
         try {

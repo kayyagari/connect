@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang.ObjectUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,9 +51,11 @@ import com.mirth.connect.donkey.model.channel.SourceConnectorPropertiesInterface
 import com.mirth.connect.donkey.model.event.ErrorEventType;
 import com.mirth.connect.donkey.model.event.Event;
 import com.mirth.connect.donkey.model.message.BatchRawMessage;
+import com.mirth.connect.donkey.model.message.DataType;
 import com.mirth.connect.donkey.model.message.MessageSerializer;
 import com.mirth.connect.donkey.model.message.MessageSerializerException;
 import com.mirth.connect.donkey.model.message.RawMessage;
+import com.mirth.connect.donkey.model.message.ResponseValidator;
 import com.mirth.connect.donkey.model.message.SerializationType;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.AttachmentHandlerProperties;
@@ -72,12 +74,16 @@ import com.mirth.connect.donkey.model.channel.DebugOptions;
 import com.mirth.connect.donkey.server.channel.DefaultChannelProcessLock;
 import com.mirth.connect.donkey.server.channel.DestinationChainProvider;
 import com.mirth.connect.donkey.server.channel.DestinationConnector;
+import com.mirth.connect.donkey.server.channel.DestinationConnectorPlugin;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
 import com.mirth.connect.donkey.server.channel.FilterTransformerExecutor;
 import com.mirth.connect.donkey.server.channel.MetaDataReplacer;
+import com.mirth.connect.donkey.server.channel.PollConnector;
+import com.mirth.connect.donkey.server.channel.PollSourceConnectorPlugin;
 import com.mirth.connect.donkey.server.channel.ResponseSelector;
 import com.mirth.connect.donkey.server.channel.ResponseTransformerExecutor;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
+import com.mirth.connect.donkey.server.channel.SourceConnectorPlugin;
 import com.mirth.connect.donkey.server.channel.Statistics;
 import com.mirth.connect.donkey.server.channel.StorageSettings;
 import com.mirth.connect.donkey.server.channel.components.PostProcessor;
@@ -87,8 +93,6 @@ import com.mirth.connect.donkey.server.data.buffered.BufferedDaoFactory;
 import com.mirth.connect.donkey.server.data.passthru.PassthruDaoFactory;
 import com.mirth.connect.donkey.server.event.ErrorEvent;
 import com.mirth.connect.donkey.server.event.EventDispatcher;
-import com.mirth.connect.donkey.server.message.DataType;
-import com.mirth.connect.donkey.server.message.ResponseValidator;
 import com.mirth.connect.donkey.server.message.batch.BatchAdaptorFactory;
 import com.mirth.connect.donkey.server.message.batch.BatchMessageException;
 import com.mirth.connect.donkey.server.message.batch.BatchMessageReader;
@@ -118,6 +122,7 @@ import com.mirth.connect.model.converters.ObjectXMLSerializer;
 import com.mirth.connect.model.datatype.BatchProperties;
 import com.mirth.connect.model.datatype.DataTypeProperties;
 import com.mirth.connect.model.datatype.SerializerProperties;
+import com.mirth.connect.model.message.DefaultResponseValidator;
 import com.mirth.connect.plugins.ChannelPlugin;
 import com.mirth.connect.plugins.DataTypeServerPlugin;
 import com.mirth.connect.server.ExtensionLoader;
@@ -133,7 +138,6 @@ import com.mirth.connect.server.channel.LoggingTaskHandler;
 import com.mirth.connect.server.channel.MirthMessageMaps;
 import com.mirth.connect.server.channel.MirthMetaDataReplacer;
 import com.mirth.connect.server.message.DataTypeFactory;
-import com.mirth.connect.server.message.DefaultResponseValidator;
 import com.mirth.connect.server.mybatis.MessageSearchResult;
 import com.mirth.connect.server.transformers.JavaScriptFilterTransformer;
 import com.mirth.connect.server.transformers.JavaScriptInitializationException;
@@ -173,7 +177,7 @@ public class DonkeyEngineController implements EngineController {
     protected ConfigurationController configurationController = getConfigurationController();
     protected ScriptController scriptController = getScriptController();
     protected ChannelController channelController = getChannelController();
-    protected com.mirth.connect.donkey.server.controllers.ChannelController donkeyChannelController = com.mirth.connect.donkey.server.controllers.ChannelController.getInstance();
+    protected com.mirth.connect.donkey.server.controllers.ChannelController donkeyChannelController = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController();
     protected EventController eventController = getEventController();
     protected ExtensionController extensionController = getExtensionController();
     protected ContextFactoryController contextFactoryController = getContextFactoryController();
@@ -240,8 +244,19 @@ public class DonkeyEngineController implements EngineController {
             }
 
             @Override
+            public EncryptedData encrypt(byte[] data) {
+                com.mirth.commons.encryption.Encryptor.EncryptedData result = encryptor.encrypt(data);
+                return new EncryptedData(result.getHeader(), result.getEncryptedData());
+            }
+
+            @Override
             public String decrypt(String text) {
                 return encryptor.decrypt(text);
+            }
+
+            @Override
+            public byte[] decrypt(String header, byte[] data) {
+                return encryptor.decrypt(header, data);
             }
         };
 
@@ -253,7 +268,7 @@ public class DonkeyEngineController implements EngineController {
             }
         };
 
-        Properties donkeyProperties = configurationController.getDatabaseSettings().getProperties();
+        Properties donkeyProperties = configurationController.getDatabaseSettings().getProperties(ObjectXMLSerializer.getInstance());
         donkeyProperties.setProperty("donkey.statsupdateinterval", String.valueOf(configurationController.getStatsUpdateInterval()));
 
         donkey.startEngine(new DonkeyConfiguration(configurationController.getApplicationDataDir(), donkeyProperties, donkeyEncryptor, eventDispatcher, configurationController.getServerId()));
@@ -1149,7 +1164,7 @@ public class DonkeyEngineController implements EngineController {
         Channel channel = new Channel();
 
         channel.setResourceIds(channelModel.getProperties().getResourceIds().keySet());
-        MirthContextFactory contextFactory = contextFactoryController.getContextFactory(channelModel.getProperties().getResourceIds().keySet());
+        MirthContextFactory contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(channelModel.getProperties().getResourceIds().keySet());
         channel.setContextFactoryId(contextFactory.getId());
 
         Map<String, Integer> destinationIdMap = new LinkedHashMap<String, Integer>();
@@ -1186,7 +1201,7 @@ public class DonkeyEngineController implements EngineController {
         if (storageSettings.isEnabled()) {
             SerializerProvider serializerProvider = createSerializerProvider(channelModel);
             BufferedDaoFactory bufferedDaoFactory = new BufferedDaoFactory(donkey.getDaoFactory(), serializerProvider, donkey.getStatisticsUpdater());
-            bufferedDaoFactory.setEncryptData(channelProperties.isEncryptData());
+            bufferedDaoFactory.setEncryptData(channelProperties.isEncryptMessageContent(), channelProperties.isEncryptAttachments(), channelProperties.isEncryptCustomMetaData());
 
             channel.setDaoFactory(bufferedDaoFactory);
         } else {
@@ -1244,7 +1259,7 @@ public class DonkeyEngineController implements EngineController {
             @Override
             public Serializer getSerializer(Integer metaDataId) {
                 try {
-                    MirthContextFactory contextFactory = contextFactoryController.getContextFactory(resourceIdMap.get(metaDataId));
+                    MirthContextFactory contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(resourceIdMap.get(metaDataId));
                     if (contextFactory != null) {
                         return contextFactory.getSerializer();
                     }
@@ -1364,7 +1379,26 @@ public class DonkeyEngineController implements EngineController {
         ExtensionController extensionController = ControllerFactory.getFactory().createExtensionController();
         ConnectorProperties connectorProperties = connectorModel.getProperties();
         ConnectorMetaData connectorMetaData = extensionController.getConnectorMetaData().get(connectorProperties.getName());
-        SourceConnector sourceConnector = (SourceConnector) Class.forName(connectorMetaData.getServerClassName()).newInstance();
+        
+        SourceConnector sourceConnector = null;
+        Object sourceConn = Class.forName(connectorMetaData.getServerClassName()).newInstance();
+        
+        if (sourceConn instanceof SourceConnector) {
+        	sourceConnector = (SourceConnector) sourceConn;
+        } else if (sourceConn instanceof SourceConnectorPlugin) {
+        	
+        	if (!StringUtils.isEmpty(connectorMetaData.getServerBaseClassName())) {
+        		sourceConnector = (SourceConnector) Class.forName(connectorMetaData.getServerBaseClassName()).newInstance();
+        	} else if (sourceConn instanceof PollSourceConnectorPlugin) {
+        		sourceConnector = new PollConnector();
+        	} else {
+        		sourceConnector = new SourceConnector();
+        	}
+
+            SourceConnectorPlugin sourceConnectorPlugin = (SourceConnectorPlugin) sourceConn;
+            sourceConnector.initialize(sourceConnectorPlugin);
+            sourceConnectorPlugin.initialize(sourceConnector);
+        }
 
         setCommonConnectorProperties(channel.getChannelId(), sourceConnector, connectorModel, destinationIdMap);
 
@@ -1526,7 +1560,24 @@ public class DonkeyEngineController implements EngineController {
         ConnectorProperties connectorProperties = connectorModel.getProperties();
         ConnectorMetaData connectorMetaData = extensionController.getConnectorMetaData().get(connectorProperties.getName());
         String className = connectorMetaData.getServerClassName();
-        DestinationConnector destinationConnector = (DestinationConnector) Class.forName(className).newInstance();
+        
+        DestinationConnector destinationConnector = null;
+        Object destinationConn = Class.forName(className).newInstance();
+        
+        if (destinationConn instanceof DestinationConnector) {
+        	destinationConnector = (DestinationConnector) destinationConn;
+        } else {
+        	
+        	if (!StringUtils.isEmpty(connectorMetaData.getServerBaseClassName())) {
+        		destinationConnector = (DestinationConnector) Class.forName(connectorMetaData.getServerBaseClassName()).newInstance();
+        	} else {
+        		destinationConnector = new DestinationConnector();
+        	}
+
+            DestinationConnectorPlugin destinationConnectorPlugin = (DestinationConnectorPlugin) destinationConn;
+            destinationConnector.initialize(destinationConnectorPlugin);
+            destinationConnectorPlugin.initialize(destinationConnector);
+        }
 
         setCommonConnectorProperties(channel.getChannelId(), destinationConnector, connectorModel, destinationIdMap);
         destinationConnector.setChannel(channel);
@@ -1896,7 +1947,7 @@ public class DonkeyEngineController implements EngineController {
                     if (debug) {
                         //DEPLOY
                         String deployScriptId = ScriptController.getScriptId(ScriptController.DEPLOY_SCRIPT_KEY, getChannelId());
-                        contextFactory = contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), deployScriptId);
+                        contextFactory = (MirthContextFactory) contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), deployScriptId);
 
                         MirthMain debugger = JavaScriptUtil.getDebugger(contextFactory, scopeProvider, channelModel, deployScriptId, true);
                         if (!JavaScriptUtil.compileAndAddScript(channelId, contextFactory, deployScriptId, channelModel.getDeployScript(), ContextType.CHANNEL_DEPLOY)) {
@@ -1905,7 +1956,7 @@ public class DonkeyEngineController implements EngineController {
                          
                         //UNDEPLOY
                         String undeployScriptId = ScriptController.getScriptId(ScriptController.UNDEPLOY_SCRIPT_KEY, getChannelId());
-                        MirthContextFactory undeployContextFactory = contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), undeployScriptId);
+                        MirthContextFactory undeployContextFactory = (MirthContextFactory) contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), undeployScriptId);
                        
                         MirthMain undeployDebugger = JavaScriptUtil.getDebugger(undeployContextFactory, scopeProvider, channelModel, undeployScriptId, false);
                         if (!JavaScriptUtil.compileAndAddScript(channelId, undeployContextFactory, undeployScriptId, channelModel.getUndeployScript(), ContextType.CHANNEL_UNDEPLOY)) {
@@ -1914,7 +1965,7 @@ public class DonkeyEngineController implements EngineController {
                         
                         //PREPROC
                         String preprocScriptId = ScriptController.getScriptId(ScriptController.PREPROCESSOR_SCRIPT_KEY, getChannelId());
-                        MirthContextFactory preprocContextFactory = contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), preprocScriptId);
+                        MirthContextFactory preprocContextFactory = (MirthContextFactory) contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), preprocScriptId);
                         
                         MirthMain preprocDebugger = JavaScriptUtil.getDebugger(preprocContextFactory, scopeProvider, channelModel, preprocScriptId, false);
                         if (!JavaScriptUtil.compileAndAddScript(channelId, preprocContextFactory, preprocScriptId, channelModel.getPreprocessingScript(), ContextType.CHANNEL_PREPROCESSOR)) {
@@ -1923,7 +1974,7 @@ public class DonkeyEngineController implements EngineController {
             
                         //POSTPROC
                         String postprocScriptId = ScriptController.getScriptId(ScriptController.POSTPROCESSOR_SCRIPT_KEY, getChannelId());
-                        MirthContextFactory postprocContextFactory = contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), postprocScriptId);   
+                        MirthContextFactory postprocContextFactory = (MirthContextFactory) contextFactoryController.getDebugContextFactory(channelModel.getProperties().getResourceIds().keySet(),getChannelId(), postprocScriptId);   
                         MirthMain postprocDebugger = JavaScriptUtil.getDebugger(postprocContextFactory, scopeProvider, channelModel, postprocScriptId, false);
                         if (!JavaScriptUtil.compileAndAddScript(channelId, postprocContextFactory, postprocScriptId, channelModel.getPostprocessingScript(), ContextType.CHANNEL_POSTPROCESSOR)) {
                            postprocDebugger.dispose();
@@ -1931,7 +1982,7 @@ public class DonkeyEngineController implements EngineController {
             
                     } else {
                         //ALL 4
-                        contextFactory = contextFactoryController.getContextFactory(channelModel.getProperties().getResourceIds().keySet());
+                        contextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(channelModel.getProperties().getResourceIds().keySet());
                         contextFactory.setContextType(ContextType.CHANNEL_DEPLOY);
                         contextFactory.setScriptText(channelModel.getDeployScript());
                         contextFactory.setDebugType(false);
@@ -2050,7 +2101,7 @@ public class DonkeyEngineController implements EngineController {
         @Override
         public Void execute() throws Exception {
             // Get a reference to the deployed channel for later
-            Channel channel = getDeployedChannel(channelId);
+            Channel channel = (Channel) getDeployedChannel(channelId);
 
             if (channel != null) {
                 doUndeploy(channel);
@@ -2101,12 +2152,12 @@ public class DonkeyEngineController implements EngineController {
 	                MirthContextFactory undeployContextFactory = null;
 	                
 	                if (debug) {
-	                    undeployContextFactory = contextFactoryController.getDebugContextFactory(channel.getResourceIds(),getChannelId(), undeployScriptId);
+	                    undeployContextFactory = (MirthContextFactory) contextFactoryController.getDebugContextFactory(channel.getResourceIds(),getChannelId(), undeployScriptId);
 	                    if (JavaScriptUtil.getCompiledScript(undeployScriptId) != null) {
 	                        undeployDebugger = JavaScriptUtil.getDebugger(undeployContextFactory, scopeProvider, channel, undeployScriptId, true);
 	                    }
 	                } else {
-	                    undeployContextFactory = contextFactoryController.getContextFactory(channel.getResourceIds());
+	                    undeployContextFactory = (MirthContextFactory) contextFactoryController.getContextFactory(channel.getResourceIds());
     	                if (!channel.getContextFactoryId().equals(undeployContextFactory.getId())) {
                             JavaScriptUtil.recompileChannelScript(undeployContextFactory, channelId, ScriptController.UNDEPLOY_SCRIPT_KEY);
                             channel.setContextFactoryId(undeployContextFactory.getId());
@@ -2155,7 +2206,7 @@ public class DonkeyEngineController implements EngineController {
 
         @Override
         public Void execute() throws Exception {
-            Channel channel = getDeployedChannel(channelId);
+            Channel channel = (Channel) getDeployedChannel(channelId);
 
             if (channel != null) {
                 if (task == StatusTask.START) {
@@ -2184,7 +2235,7 @@ public class DonkeyEngineController implements EngineController {
 
         @Override
         public Void execute() throws Exception {
-            Channel channel = getDeployedChannel(channelId);
+            Channel channel = (Channel) getDeployedChannel(channelId);
 
             if (channel != null) {
                 if (task == StatusTask.START) {
@@ -2206,7 +2257,7 @@ public class DonkeyEngineController implements EngineController {
 
         @Override
         public Void execute() throws Exception {
-            Channel channel = getDeployedChannel(channelId);
+            Channel channel = (Channel) getDeployedChannel(channelId);
 
             if (channel != null) {
                 channel.halt();
@@ -2255,7 +2306,7 @@ public class DonkeyEngineController implements EngineController {
                 Set<Integer> metaDataIds = result.getMetaDataIdSet();
                 boolean processed = result.isProcessed();
 
-                Channel channel = getDeployedChannel(channelId);
+                Channel channel = (Channel) getDeployedChannel(channelId);
                 // Allow unprocessed messages to be deleted only if the channel is undeployed or stopped.
                 if (channel == null || channel.getCurrentState() == DeployedState.STOPPED || processed) {
                     if (metaDataIds.contains(0)) {
@@ -2271,7 +2322,7 @@ public class DonkeyEngineController implements EngineController {
             Channel.DELETE_PERMIT.acquire();
 
             try {
-                com.mirth.connect.donkey.server.controllers.MessageController.getInstance().deleteMessages(channelId, messages);
+            	com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().deleteMessages(channelId, messages);
             } finally {
                 Channel.DELETE_PERMIT.release();
             }
@@ -2293,7 +2344,7 @@ public class DonkeyEngineController implements EngineController {
 
         @Override
         public Void execute() throws Exception {
-            Channel channel = getDeployedChannel(channelId);
+            Channel channel = (Channel) getDeployedChannel(channelId);
 
             if (channel != null) {
                 channel.removeAllMessages(force, clearStatistics);

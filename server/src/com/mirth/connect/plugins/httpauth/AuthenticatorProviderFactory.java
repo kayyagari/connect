@@ -9,14 +9,18 @@
 
 package com.mirth.connect.plugins.httpauth;
 
+import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
 import com.mirth.connect.donkey.server.channel.Connector;
+import com.mirth.connect.donkey.server.channel.IConnector;
+import com.mirth.connect.plugins.core.httpauth.AuthenticatorProvider;
+import com.mirth.connect.plugins.core.httpauth.AuthenticatorProviderFactoryBase;
 import com.mirth.connect.plugins.httpauth.basic.BasicAuthenticatorProvider;
 import com.mirth.connect.plugins.httpauth.custom.CustomAuthenticatorProvider;
 import com.mirth.connect.plugins.httpauth.digest.DigestAuthenticatorProvider;
 import com.mirth.connect.plugins.httpauth.javascript.JavaScriptAuthenticatorProvider;
 import com.mirth.connect.plugins.httpauth.oauth2.OAuth2AuthenticatorProvider;
 
-public class AuthenticatorProviderFactory {
+public class AuthenticatorProviderFactory extends AuthenticatorProviderFactoryBase {
 
     public static AuthenticatorProvider getAuthenticatorProvider(Connector connector, HttpAuthConnectorPluginProperties properties) throws Exception {
         switch (properties.getAuthType()) {
@@ -33,5 +37,10 @@ public class AuthenticatorProviderFactory {
             default:
                 return null;
         }
+    }
+
+    @Override
+    public AuthenticatorProvider getAuthenticatorProviderNonStatic(IConnector connector, ConnectorPluginProperties properties) throws Exception {
+        return getAuthenticatorProvider((Connector) connector, (HttpAuthConnectorPluginProperties) properties);
     }
 }

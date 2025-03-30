@@ -115,6 +115,7 @@ import com.mirth.connect.server.servlets.WebStartServlet;
 import com.mirth.connect.server.tools.ClassPathResource;
 import com.mirth.connect.server.util.PackagePredicate;
 import com.mirth.connect.server.util.SqlConfig;
+import com.mirth.connect.util.MetaDataUtil;
 import com.mirth.connect.util.MirthSSLUtil;
 
 import io.swagger.v3.jaxrs2.integration.resources.AcceptHeaderOpenApiResource;
@@ -571,7 +572,7 @@ public class MirthWebServer extends Server {
         // Add JAX-RS providers from extensions
         for (MetaData metaData : CollectionUtils.union(extensionController.getPluginMetaData().values(), extensionController.getConnectorMetaData().values())) {
             if (extensionController.isExtensionEnabled(metaData.getName())) {
-                for (ApiProvider apiProvider : metaData.getApiProviders(version)) {
+                for (ApiProvider apiProvider : MetaDataUtil.getApiProviders(metaData, version)) {
                     try {
                         switch (apiProvider.getType()) {
                             case SERVLET_INTERFACE_PACKAGE:

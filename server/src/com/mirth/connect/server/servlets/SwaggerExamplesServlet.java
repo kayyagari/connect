@@ -30,6 +30,9 @@ import javax.ws.rs.core.MediaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.mirth.connect.client.core.Version;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap.DefinitionPortMap;
+import com.mirth.connect.connectors.core.ws.DefinitionServiceMap.PortInformation;
 import com.mirth.connect.connectors.file.FileDispatcherProperties;
 import com.mirth.connect.connectors.file.FileReceiverProperties;
 import com.mirth.connect.connectors.http.HttpDispatcherProperties;
@@ -40,9 +43,6 @@ import com.mirth.connect.connectors.smtp.SmtpDispatcherProperties;
 import com.mirth.connect.connectors.tcp.TcpDispatcherProperties;
 import com.mirth.connect.connectors.vm.VmDispatcherProperties;
 import com.mirth.connect.connectors.vm.VmReceiverProperties;
-import com.mirth.connect.connectors.ws.DefinitionServiceMap;
-import com.mirth.connect.connectors.ws.DefinitionServiceMap.DefinitionPortMap;
-import com.mirth.connect.connectors.ws.DefinitionServiceMap.PortInformation;
 import com.mirth.connect.connectors.ws.WebServiceDispatcherProperties;
 import com.mirth.connect.donkey.model.channel.DeployedState;
 import com.mirth.connect.donkey.model.channel.MetaDataColumn;
@@ -123,7 +123,7 @@ import com.mirth.connect.util.ConfigurationProperty;
 import com.mirth.connect.util.ConnectionTestResponse;
 
 @SuppressWarnings("serial")
-public class SwaggerExamplesServlet extends HttpServlet {
+public class SwaggerExamplesServlet extends HttpServlet implements ISwaggerExamplesServlet {
 	
 	private static Calendar dateNow;
 	private static Calendar dateTomorrow;
@@ -325,6 +325,8 @@ public class SwaggerExamplesServlet extends HttpServlet {
             requestedObject = getPasswordRequirementListExample();
         } else if (exampleRequested.equals("plugin_metadata_map")) {
             requestedObject = getPluginMetaDataMapExample();
+        } else if (exampleRequested.equals("extension_maxcoreversions_map")) {
+            requestedObject = getExtensionMaxCoreVersionsExample();
         } else if (exampleRequested.equals("properties")) {
             requestedObject = getPropertiesExample();
         } else if (exampleRequested.equals("protocols_and_cipher_suites_map")) {
@@ -598,8 +600,8 @@ public class SwaggerExamplesServlet extends HttpServlet {
 	
 	private List<Ports> getChannelPortsInUseExample(){
 	    List<Ports> portsUsed = new ArrayList<Ports>();
-	    Ports ports1 = new Ports(UUID.randomUUID().toString(),"Default WebClient Port", 8080);
-	    Ports ports2 = new Ports(UUID.randomUUID().toString(),"Default Administrator Port", 8443);
+	    Ports ports1 = new Ports(UUID.randomUUID().toString(),"Default WebClient Port", "8080");
+	    Ports ports2 = new Ports(UUID.randomUUID().toString(),"Default Administrator Port", "8443");
 	    portsUsed.add(ports1);
 	    portsUsed.add(ports2);
 	    return portsUsed;
@@ -1198,9 +1200,24 @@ public class SwaggerExamplesServlet extends HttpServlet {
 	    Map<String, PluginMetaData> pluginMetaDataMap = new HashMap<>();
 	    pluginMetaDataMap.put("Name", getPluginMetaDataExample());
 	    return pluginMetaDataMap;
-	}
-	
-	private Properties getPropertiesExample() {
+    }
+
+    private Map<String, Map<String, String>> getExtensionMaxCoreVersionsExample() {
+        Map<String, Map<String, String>> extensionMaxCoreVersions = new HashMap<>();
+        Map<String, String> versionsMap = new HashMap<>();
+        versionsMap.put("mirth-core-client", Version.getLatest().toString());
+        versionsMap.put("mirth-core-client-api", Version.getLatest().toString());
+        versionsMap.put("mirth-core-client-base", Version.getLatest().toString());
+        versionsMap.put("mirth-core-client-plugins", Version.getLatest().toString());
+        versionsMap.put("mirth-core-models", Version.getLatest().toString());
+        versionsMap.put("mirth-core-server-plugins", Version.getLatest().toString());
+        versionsMap.put("mirth-core-ui", Version.getLatest().toString());
+        versionsMap.put("mirth-core-util", Version.getLatest().toString());
+        extensionMaxCoreVersions.put("Name", versionsMap);
+        return extensionMaxCoreVersions;
+    }
+
+    private Properties getPropertiesExample() {
 	    Properties properties = new Properties();
 	    properties.setProperty("exampleKey1", "exampleValue1");
 	    properties.setProperty("exampleKey2", "exampleValue2");
@@ -1322,7 +1339,7 @@ public class SwaggerExamplesServlet extends HttpServlet {
 	}
 	
 	private ServerSettings getServerSettingsExample() {
-	    ServerSettings serverSettings = new ServerSettings("Environment 1", "Server 1", getPropertiesExample());
+	    ServerSettings serverSettings = new ServerSettings("Environment 1", "Server 1", getPropertiesExample(), ObjectXMLSerializer.getInstance());
 	    serverSettings.setClearGlobalMap(true);
 	    serverSettings.setSmtpHost("");
 	    serverSettings.setSmtpPort("");
@@ -1336,7 +1353,7 @@ public class SwaggerExamplesServlet extends HttpServlet {
 	}
 	
 	private PublicServerSettings getPublicServerSettingsExample() {
-	    return new PublicServerSettings(getServerSettingsExample());
+	    return new PublicServerSettings(getServerSettingsExample(), ObjectXMLSerializer.getInstance());
 	}
 	
 	private SystemInfo getSystemInfoExample() {
@@ -1389,7 +1406,7 @@ public class SwaggerExamplesServlet extends HttpServlet {
 	    UpdateSettings updateSettings = new UpdateSettings();
 	    updateSettings.setLastStatsTime(dateNow.getTimeInMillis());
 	    updateSettings.setStatsEnabled(true);
-	    updateSettings.setProperties(getPropertiesExample());
+	    updateSettings.setProperties(getPropertiesExample(), ObjectXMLSerializer.getInstance());
 	    return updateSettings;
 	}
 	

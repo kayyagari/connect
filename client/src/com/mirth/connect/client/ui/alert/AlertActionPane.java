@@ -60,7 +60,8 @@ import com.mirth.connect.client.ui.components.MirthVariableList;
 import com.mirth.connect.model.alert.AlertAction;
 import com.mirth.connect.model.alert.AlertActionGroup;
 
-public class AlertActionPane extends JPanel {
+@SuppressWarnings("serial")
+public class AlertActionPane extends AlertActionPaneBase {
 
     private static final int PROTOCOL_COLUMN_INDEX = 0;
     private static final int RECIPIENT_COLUMN_INDEX = 1;
@@ -76,7 +77,7 @@ public class AlertActionPane extends JPanel {
         initComponents();
 
         try {
-            updateProtocols(PlatformUI.MIRTH_FRAME.mirthClient.getAlertProtocolOptions());
+            updateProtocols(PlatformUI.MIRTH_FRAME.getClient().getAlertProtocolOptions());
         } catch (ClientException e) {
             updateProtocols(new HashMap<String, Map<String, String>>());
             PlatformUI.MIRTH_FRAME.alertThrowable(PlatformUI.MIRTH_FRAME, e, "An error occurred while attempting to initialize the alert editor.", false);
@@ -231,7 +232,6 @@ public class AlertActionPane extends JPanel {
         private Map<String, TableCellEditor> cellEditors = new HashMap<String, TableCellEditor>();
         private String protocol;
 
-        @SuppressWarnings("serial")
         public RecipientCellEditor() {
             for (Protocol protocol : protocols.values()) {
                 if (protocol.hasOptions()) {
@@ -599,5 +599,10 @@ public class AlertActionPane extends JPanel {
     private JPanel variablePane;
     private JScrollPane variableScrollPane;
     private MirthVariableList variableList;
+
+	@Override
+	public AlertActionPaneBase createNewPanel() {
+		return new AlertActionPane();
+	}
 
 }

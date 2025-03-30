@@ -44,6 +44,7 @@ import com.mirth.connect.donkey.model.event.ErrorEventType;
 import com.mirth.connect.model.alert.AlertTrigger;
 import com.mirth.connect.model.alert.DefaultTrigger;
 
+@SuppressWarnings("serial")
 public class DefaultAlertTriggerPane extends AlertTriggerPane {
 
     private static int SELECTION_COLUMN_NUMBER = 0;
@@ -219,7 +220,8 @@ public class DefaultAlertTriggerPane extends AlertTriggerPane {
         return null;
     }
 
-    protected MirthTextArea getRegexTextArea() {
+    @Override
+    public MirthTextArea getRegexTextArea() {
         return regexTextArea;
     }
 

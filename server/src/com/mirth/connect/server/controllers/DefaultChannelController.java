@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.commons.lang.SerializationUtils;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.ibatis.session.SqlSession;
@@ -31,6 +31,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.mirth.connect.client.core.ControllerException;
+import com.mirth.connect.connectors.core.http.IHttpReceiverProperties;
+import com.mirth.connect.connectors.core.tcp.ITcpDispatcherProperties;
+import com.mirth.connect.connectors.core.tcp.ITcpReceiverProperties;
+import com.mirth.connect.connectors.core.ws.IWebServiceDispatcherProperties;
+import com.mirth.connect.connectors.http.HttpReceiverProperties;
+import com.mirth.connect.connectors.tcp.TcpDispatcherProperties;
+import com.mirth.connect.connectors.tcp.TcpReceiverProperties;
+import com.mirth.connect.connectors.ws.WebServiceDispatcherProperties;
+import com.mirth.connect.connectors.core.http.IHttpDispatcherProperties;
+import com.mirth.connect.connectors.http.HttpDispatcherProperties;
 import com.mirth.connect.donkey.model.channel.DeployedState;
 import com.mirth.connect.donkey.model.channel.MetaDataColumn;
 import com.mirth.connect.donkey.model.channel.Ports;
@@ -56,6 +66,7 @@ import com.mirth.connect.server.ExtensionLoader;
 import com.mirth.connect.server.util.DatabaseUtil;
 import com.mirth.connect.server.util.SqlConfig;
 import com.mirth.connect.server.util.StatementLock;
+import com.mirth.connect.server.util.TemplateValueReplacer;
 
 public class DefaultChannelController extends ChannelController {
     public static final String VACUUM_LOCK_CHANNEL_STATEMENT_ID = "Channel.vacuumChannelTable";
@@ -234,7 +245,7 @@ public class DefaultChannelController extends ChannelController {
                 if (!clientChannels.containsKey(serverChannelId)) {
                     ChannelSummary summary = new ChannelSummary(serverChannelId);
                     summary.getChannelStatus().setChannel(serverChannels.get(serverChannelId));
-                    summary.getChannelStatus().setLocalChannelId(com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getLocalChannelId(serverChannelId, true));
+                    summary.getChannelStatus().setLocalChannelId(com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getLocalChannelId(serverChannelId, true));
 
                     DeployedChannelInfo deployedChannelInfo = getDeployedChannelInfoById(serverChannelId);
                     boolean serverChannelDeployed = deployedChannelInfo != null;
@@ -336,12 +347,18 @@ public class DefaultChannelController extends ChannelController {
             throw firstCause;
         }
     }
-
+    
     @Override
     public synchronized boolean updateChannel(Channel channel, ServerEventContext context, boolean override) throws ControllerException {
+        return updateChannel(channel, context, override, null);
+    }
+
+    @Override
+    public synchronized boolean updateChannel(Channel channel, ServerEventContext context, boolean override, Calendar dateStartEdit) throws ControllerException {
         // Extract metadata and then clear it from the channel model so it won't be stored in the database
-        ChannelExportData exportData = channel.getExportData();
+    	ChannelExportData exportData = channel.getExportData();
         channel.clearExportData();
+        Calendar lastModifiedDate = null;
 
         /*
          * Methods that update the channel must be synchronized to ensure the channel cache and
@@ -377,18 +394,28 @@ public class DefaultChannelController extends ChannelController {
             // Use the larger nextMetaDataId to ensure a metadata ID will never be reused if an older version of a channel is imported or saved.
             channel.setNextMetaDataId(Math.max(matchingChannel.getNextMetaDataId(), channel.getNextMetaDataId()));
         }
-
-        /*
-         * If it's not a new channel, and its version is different from the one in the database (in
-         * case it has been changed on the server since the client started modifying it), and
-         * override is not enabled
-         */
-        if ((currentRevision > 0) && (currentRevision != newRevision) && !override) {
-            return false;
-        } else {
-            channel.setRevision(currentRevision + 1);
+        
+        // if this is not a new channel, get the date/time started to edit the channel and the last
+        // modified date/time of the channel to compare
+        if (currentRevision > 0) {
+        	if (dateStartEdit == null) {
+        		dateStartEdit = Calendar.getInstance();
+        	}         
+        	// need last modified date to compare with user interface Channel Edit screen and Channel History screen
+        	Map<String, ChannelMetadata> metadata = configurationController.getChannelMetadata();
+        	lastModifiedDate = metadata.get(channel.getId()).getLastModified();
         }
 
+        /*
+         * If it's not a new channel, we are not overriding the existing channel,
+         * and the last modified date/time of the channel is after the date/time of beginning to
+         * modify the channel then return false for a message if applicable
+         */
+        if ((currentRevision > 0) && !override && (dateStartEdit.before(lastModifiedDate))) {
+            return false;
+        }
+        
+        channel.setRevision(currentRevision + 1);
         ArrayList<String> destConnectorNames = new ArrayList<String>(channel.getDestinationConnectors().size());
 
         for (Connector connector : channel.getDestinationConnectors()) {
@@ -514,7 +541,7 @@ public class DefaultChannelController extends ChannelController {
         try {
             //TODO combine and organize these.
             // Delete the "d_" tables and the channel record from "d_channels"
-            com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().removeChannel(channel.getId());
+        	com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().removeChannel(channel.getId());
             // Delete the channel record from the "channel" table
             SqlConfig.getInstance().getSqlSessionManager().delete("Channel.deleteChannel", channel.getId());
 
@@ -707,37 +734,37 @@ public class DefaultChannelController extends ChannelController {
 
     @Override
     public Statistics getStatistics() {
-        return com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getStatistics();
+        return com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getStatistics();
     }
 
     @Override
     public Statistics getTotalStatistics() {
-        return com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getTotalStatistics();
+        return com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getTotalStatistics();
     }
 
     @Override
     public Statistics getStatisticsFromStorage(String serverId) {
-        return com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getStatisticsFromStorage(serverId);
+        return com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getStatisticsFromStorage(serverId);
     }
 
     @Override
     public Statistics getTotalStatisticsFromStorage(String serverId) {
-        return com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getTotalStatisticsFromStorage(serverId);
+        return com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getTotalStatisticsFromStorage(serverId);
     }
 
     @Override
     public int getConnectorMessageCount(String channelId, String serverId, int metaDataId, Status status) {
-        return com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getConnectorMessageCount(channelId, serverId, metaDataId, status);
+        return com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getConnectorMessageCount(channelId, serverId, metaDataId, status);
     }
 
     @Override
     public void resetStatistics(Map<String, List<Integer>> channelConnectorMap, Set<Status> statuses) {
-        com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().resetStatistics(channelConnectorMap, statuses);
+    	com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().resetStatistics(channelConnectorMap, statuses);
     }
 
     @Override
     public void resetAllStatistics() {
-        com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().resetAllStatistics();
+    	com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().resetAllStatistics();
     }
 
     @Override
@@ -1091,7 +1118,57 @@ public class DefaultChannelController extends ChannelController {
     @Override
     public List<Ports> getPortsInUse() {
         logger.debug("getting ports in use");
-        return com.mirth.connect.donkey.server.controllers.ChannelController.getInstance().getPortsInUse();
+        try {
+            TemplateValueReplacer replacer = new TemplateValueReplacer();
+            List<Ports> portsList = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createChannelController().getPortsInUse();
+            for (Ports portsItem : portsList) {
+                portsItem.setPort(replacer.replaceValues(portsItem.getPort(), portsItem.getId(), portsItem.getName()));
+            }
+            return portsList;
+        } catch (Exception ex) {
+            logger.error("getting ports in use: " + ex.toString());
+            return null;
+        }
     }
     
+    @Override
+    public IHttpReceiverProperties createHttpReceiverProperties() {
+    	return new HttpReceiverProperties();
+    }
+    
+    @Override
+    public IHttpDispatcherProperties createHttpDispatcherProperties() {
+        return new HttpDispatcherProperties();
+    }
+    
+    @Override
+    public IHttpDispatcherProperties createHttpDispatcherProperties(IHttpDispatcherProperties props) {
+        return new HttpDispatcherProperties((HttpDispatcherProperties) props);
+    }
+
+	@Override
+	public IWebServiceDispatcherProperties createWebServiceDispatcherProperties() {
+		return new WebServiceDispatcherProperties();
+	}
+
+	@Override
+	public IWebServiceDispatcherProperties createWebServiceDispatcherProperties(IWebServiceDispatcherProperties props) {
+		return new WebServiceDispatcherProperties(props);
+	}
+	
+	@Override
+	public ITcpReceiverProperties createTcpReceiverProperties() {
+		return new TcpReceiverProperties();
+	}
+	
+	@Override
+	public ITcpDispatcherProperties createTcpDispatcherProperties() {
+		return new TcpDispatcherProperties();
+	}
+	
+	@Override
+	public ITcpDispatcherProperties createTcpDispatcherProperties(ITcpDispatcherProperties props) {
+		return new TcpDispatcherProperties(props);
+	}
+	
 }

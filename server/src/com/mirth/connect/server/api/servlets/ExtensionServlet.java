@@ -98,6 +98,11 @@ public class ExtensionServlet extends MirthServlet implements ExtensionServletIn
     }
 
     @Override
+    public Map<String, Map<String, String>> getExtensionMaxCoreVersions() {
+        return extensionController.getExtensionMaxCoreVersions();
+    }
+
+    @Override
     public boolean isExtensionEnabled(String extensionName) {
         return extensionController.isExtensionEnabled(extensionName);
     }

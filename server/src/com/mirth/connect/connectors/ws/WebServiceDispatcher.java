@@ -90,7 +90,13 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.mirth.connect.connectors.core.interop.InteropDispatcherPlugin;
+import com.mirth.connect.connectors.core.ws.IDispatchContainer;
+import com.mirth.connect.connectors.core.ws.IWebServiceDispatcher;
+import com.mirth.connect.connectors.core.ws.IWebServiceDispatcherProperties;
+import com.mirth.connect.connectors.core.ws.WebServiceConfiguration;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
+import com.mirth.connect.donkey.model.channel.DestinationConnectorPropertiesInterface;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.ErrorEventType;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
@@ -111,7 +117,7 @@ import com.mirth.connect.userutil.AttachmentEntry;
 import com.mirth.connect.util.ErrorMessageBuilder;
 import com.mirth.connect.util.HttpUtil;
 
-public class WebServiceDispatcher extends DestinationConnector {
+public class WebServiceDispatcher extends DestinationConnector implements IWebServiceDispatcher {
 
     // The system property actually ends up being the maximum request count
     private static final int MAX_REDIRECTS = NumberUtils.toInt(System.getProperty("http.maxRedirects"), 20);
@@ -135,9 +141,18 @@ public class WebServiceDispatcher extends DestinationConnector {
      * CloseableHttpClient objects used to request the initial WSDL
      */
     private Set<CloseableHttpClient> clients = Collections.newSetFromMap(new ConcurrentHashMap<CloseableHttpClient, Boolean>());
-
+    
     @Override
     public void onDeploy() throws ConnectorTaskException {
+    	if (connectorPlugin!= null) {
+    		connectorPlugin.onDeploy();
+    	} else {
+    		doOnDeploy();
+    	}
+    }
+
+    @Override
+    public void doOnDeploy() throws ConnectorTaskException {
         // load the default configuration
         String configurationClass = getConfigurationClass();
 
@@ -155,20 +170,47 @@ public class WebServiceDispatcher extends DestinationConnector {
             throw new ConnectorTaskException(e);
         }
     }
-
+    
     @Override
     public void onUndeploy() throws ConnectorTaskException {
-        configuration.configureConnectorUndeploy(this);
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onUndeploy();
+    	} else {
+    		doOnUndeploy();
+    	}
     }
 
     @Override
+    public void doOnUndeploy() throws ConnectorTaskException {
+        configuration.configureConnectorUndeploy(this);
+    }
+    
+    @Override
     public void onStart() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStart();
+    	} else {
+    		doOnStart();
+    	}
+    }
+
+    @Override
+    public void doOnStart() throws ConnectorTaskException {
         executor = Executors.newCachedThreadPool();
         dispatchTasks = Collections.newSetFromMap(new ConcurrentHashMap<DispatchTask<SOAPMessage>, Boolean>());
     }
-
+    
     @Override
     public void onStop() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onStop();
+    	} else {
+    		doOnStop();
+    	}
+    }
+
+    @Override
+    public void doOnStop() throws ConnectorTaskException {
         for (CloseableHttpClient client : clients.toArray(new CloseableHttpClient[clients.size()])) {
             HttpClientUtils.closeQuietly(client);
         }
@@ -185,9 +227,18 @@ public class WebServiceDispatcher extends DestinationConnector {
         }
         dispatchContainers.clear();
     }
-
+    
     @Override
     public void onHalt() throws ConnectorTaskException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.onHalt();
+    	} else {
+    		doOnHalt();
+    	}
+    }
+
+    @Override
+    public void doOnHalt() throws ConnectorTaskException {
         for (CloseableHttpClient client : clients.toArray(new CloseableHttpClient[clients.size()])) {
             HttpClientUtils.closeQuietly(client);
         }
@@ -224,7 +275,10 @@ public class WebServiceDispatcher extends DestinationConnector {
     }
 
     @Override
-    protected String getConfigurationClass() {
+	public String getConfigurationClass() {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropDispatcherPlugin) {
+    		return ((InteropDispatcherPlugin) connectorPlugin).getConfigurationClass();
+    	}
         return configurationController.getProperty(getConnectorProperties().getProtocol(), "wsConfigurationClass");
     }
 
@@ -240,7 +294,7 @@ public class WebServiceDispatcher extends DestinationConnector {
         return writer.toString();
     }
 
-    private void createDispatch(WebServiceDispatcherProperties webServiceDispatcherProperties, DispatchContainer dispatchContainer, int timeout) throws Exception {
+    private void createDispatch(IWebServiceDispatcherProperties webServiceDispatcherProperties, DispatchContainer dispatchContainer, int timeout) throws Exception {
         String wsdlUrl = webServiceDispatcherProperties.getWsdlUrl();
         String username = webServiceDispatcherProperties.getUsername();
         String password = webServiceDispatcherProperties.getPassword();
@@ -286,6 +340,23 @@ public class WebServiceDispatcher extends DestinationConnector {
             dispatchContainer.setDispatch(dispatch);
         }
     }
+    
+    /**
+     * Returns the URL for the passed in String. If the URL requires authentication, then the WSDL
+     * is saved as a temp file and the URL for that file is returned.
+     * 
+     * @param wsdlUrl
+     * @param username
+     * @param password
+     * @return
+     * @throws Exception
+     */
+    public URL getWsdlUrl(IWebServiceDispatcherProperties webServiceDispatcherProperties, IDispatchContainer dispatchContainer, int timeout) throws Exception {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropDispatcherPlugin) {
+    		return ((InteropDispatcherPlugin) connectorPlugin).getWsdlUrl(webServiceDispatcherProperties, dispatchContainer, timeout);
+    	}
+    	return doGetWsdlUrl(webServiceDispatcherProperties, dispatchContainer, timeout);
+    }
 
     /**
      * Returns the URL for the passed in String. If the URL requires authentication, then the WSDL
@@ -297,7 +368,8 @@ public class WebServiceDispatcher extends DestinationConnector {
      * @return
      * @throws Exception
      */
-    protected URL getWsdlUrl(WebServiceDispatcherProperties webServiceDispatcherProperties, DispatchContainer dispatchContainer, int timeout) throws Exception {
+    @Override
+    public URL doGetWsdlUrl(IWebServiceDispatcherProperties webServiceDispatcherProperties, IDispatchContainer dispatchContainer, int timeout) throws Exception {
         URI uri = new URI(dispatchContainer.getCurrentWsdlUrl());
 
         // If the URL points to file, just return it
@@ -339,7 +411,7 @@ public class WebServiceDispatcher extends DestinationConnector {
         return uri.toURL();
     }
 
-    private File getWsdl(CloseableHttpClient client, HttpContext context, DispatchContainer dispatchContainer, Map<String, File> visitedUrls, String wsdlUrl) throws Exception {
+    private File getWsdl(CloseableHttpClient client, HttpContext context, IDispatchContainer dispatchContainer, Map<String, File> visitedUrls, String wsdlUrl) throws Exception {
         if (visitedUrls.containsKey(wsdlUrl)) {
             return visitedUrls.get(wsdlUrl);
         }
@@ -395,10 +467,15 @@ public class WebServiceDispatcher extends DestinationConnector {
             throw new Exception("Unable to load WSDL at URL \"" + wsdlUrl + "\": " + String.valueOf(responseStatusLine));
         }
     }
-
+    
     @Override
     public void replaceConnectorProperties(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
-        WebServiceDispatcherProperties webServiceDispatcherProperties = (WebServiceDispatcherProperties) connectorProperties;
+    	doReplaceConnectorProperties(connectorProperties, connectorMessage);
+    }
+
+    @Override
+    public void doReplaceConnectorProperties(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
+        IWebServiceDispatcherProperties webServiceDispatcherProperties = (IWebServiceDispatcherProperties) connectorProperties;
 
         // Replace all values in connector properties
         webServiceDispatcherProperties.setWsdlUrl(replacer.replaceValues(webServiceDispatcherProperties.getWsdlUrl(), connectorMessage));
@@ -428,10 +505,19 @@ public class WebServiceDispatcher extends DestinationConnector {
 
         }
     }
-
+    
     @Override
     public Response send(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
-        WebServiceDispatcherProperties webServiceDispatcherProperties = (WebServiceDispatcherProperties) connectorProperties;
+    	if (connectorPlugin != null) {
+    		return connectorPlugin.send(connectorProperties, connectorMessage);
+    	} else {
+    		return doSend(connectorProperties, connectorMessage);
+    	}
+    }
+
+    @Override
+    public Response doSend(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage) {
+        IWebServiceDispatcherProperties webServiceDispatcherProperties = (IWebServiceDispatcherProperties) connectorProperties;
 
         eventController.dispatchEvent(new ConnectionStatusEvent(getChannelId(), getMetaDataId(), getDestinationName(), ConnectionStatusEventType.SENDING));
 
@@ -459,7 +545,7 @@ public class WebServiceDispatcher extends DestinationConnector {
 
             Dispatch<SOAPMessage> dispatch = dispatchContainer.getDispatch();
 
-            configuration.configureDispatcher(this, webServiceDispatcherProperties, dispatch.getRequestContext());
+            configuration.configureDispatcher(this, (ConnectorProperties) webServiceDispatcherProperties, dispatch.getRequestContext());
 
             SOAPBinding soapBinding = (SOAPBinding) dispatch.getBinding();
 
@@ -503,7 +589,7 @@ public class WebServiceDispatcher extends DestinationConnector {
             // build the message
             logger.debug("Creating SOAP envelope.");
             AttachmentHandlerProvider attachmentHandlerProvider = getAttachmentHandlerProvider();
-            String content = attachmentHandlerProvider.reAttachMessage(webServiceDispatcherProperties.getEnvelope(), connectorMessage, webServiceDispatcherProperties.getDestinationConnectorProperties().isReattachAttachments());
+            String content = attachmentHandlerProvider.reAttachMessage(webServiceDispatcherProperties.getEnvelope(), connectorMessage, ((DestinationConnectorPropertiesInterface) webServiceDispatcherProperties).getDestinationConnectorProperties().isReattachAttachments());
             Source source = new StreamSource(new StringReader(content));
             SOAPMessage message = soapBinding.getMessageFactory().createMessage();
             message.getSOAPPart().setContent(source);
@@ -515,7 +601,7 @@ public class WebServiceDispatcher extends DestinationConnector {
                 for (AttachmentEntry entry : attachmentEntries) {
                     String attachmentContentId = entry.getName();
                     String attachmentContentType = entry.getMimeType();
-                    String attachmentContent = attachmentHandlerProvider.reAttachMessage(entry.getContent(), connectorMessage, webServiceDispatcherProperties.getDestinationConnectorProperties().isReattachAttachments());
+                    String attachmentContent = attachmentHandlerProvider.reAttachMessage(entry.getContent(), connectorMessage, ((DestinationConnectorPropertiesInterface) webServiceDispatcherProperties).getDestinationConnectorProperties().isReattachAttachments());
 
                     AttachmentPart attachment = message.createAttachmentPart();
                     attachment.setBase64Content(new ByteArrayInputStream(attachmentContent.getBytes("UTF-8")), attachmentContentType);
@@ -645,9 +731,13 @@ public class WebServiceDispatcher extends DestinationConnector {
         return new Response(responseStatus, responseData, responseStatusMessage, responseError, validateResponse);
     }
 
-    protected void handleSOAPResult(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage, SOAPMessage result) throws Exception {}
+    protected void handleSOAPResult(ConnectorProperties connectorProperties, ConnectorMessage connectorMessage, SOAPMessage result) throws Exception {
+    	if (connectorPlugin != null && connectorPlugin instanceof InteropDispatcherPlugin) {
+    		((InteropDispatcherPlugin) connectorPlugin).handleSOAPResult(connectorProperties, connectorMessage, result);
+    	}
+    }
 
-    protected class DispatchContainer {
+    protected class DispatchContainer implements IDispatchContainer {
         /*
          * Dispatch object used for pooling the soap connection, and the current properties used to
          * create the dispatch object
@@ -669,59 +759,73 @@ public class WebServiceDispatcher extends DestinationConnector {
             this.dispatch = dispatch;
         }
 
+        @Override
         public String getCurrentWsdlUrl() {
             return currentWsdlUrl;
         }
 
+        @Override
         public void setCurrentWsdlUrl(String currentWsdlUrl) {
             this.currentWsdlUrl = currentWsdlUrl;
         }
 
+        @Override
         public String getCurrentUsername() {
             return currentUsername;
         }
 
+        @Override
         public void setCurrentUsername(String currentUsername) {
             this.currentUsername = currentUsername;
         }
 
+        @Override
         public String getCurrentPassword() {
             return currentPassword;
         }
 
+        @Override
         public void setCurrentPassword(String currentPassword) {
             this.currentPassword = currentPassword;
         }
 
+        @Override
         public String getCurrentServiceName() {
             return currentServiceName;
         }
 
+        @Override
         public void setCurrentServiceName(String currentServiceName) {
             this.currentServiceName = currentServiceName;
         }
 
+        @Override
         public String getCurrentPortName() {
             return currentPortName;
         }
 
+        @Override
         public void setCurrentPortName(String currentPortName) {
             this.currentPortName = currentPortName;
         }
 
+        @Override
         public List<File> getTempFiles() {
             return tempFiles;
         }
 
+        @Override
         public Map<String, List<String>> getDefaultRequestHeaders() {
             return defaultRequestHeaders;
         }
 
+        @Override
         public void setDefaultRequestHeaders(Map<String, List<String>> defaultRequestHeaders) {
             this.defaultRequestHeaders = defaultRequestHeaders;
         }
     }
 
+    @Override
     public RegistryBuilder<ConnectionSocketFactory> getSocketFactoryRegistry() {
         return socketFactoryRegistry;
     }
@@ -757,11 +861,11 @@ public class WebServiceDispatcher extends DestinationConnector {
         }
     }
 
-    Map<String, List<String>> getHeaders(WebServiceDispatcherProperties webServiceDispatcherProperties, ConnectorMessage connectorMessage) {
+    Map<String, List<String>> getHeaders(IWebServiceDispatcherProperties webServiceDispatcherProperties, ConnectorMessage connectorMessage) {
         return HttpUtil.getTableMap(webServiceDispatcherProperties.isUseHeadersVariable(), webServiceDispatcherProperties.getHeadersVariable(), webServiceDispatcherProperties.getHeadersMap(), getMessageMaps(), connectorMessage);
     }
 
-    List<AttachmentEntry> getAttachments(WebServiceDispatcherProperties webServiceDispatcherProperties, ConnectorMessage connectorMessage) {
+    List<AttachmentEntry> getAttachments(IWebServiceDispatcherProperties webServiceDispatcherProperties, ConnectorMessage connectorMessage) {
         List<AttachmentEntry> attachmentList = new ArrayList<>();
 
         if (webServiceDispatcherProperties.isUseAttachmentsVariable()) {
@@ -795,7 +899,7 @@ public class WebServiceDispatcher extends DestinationConnector {
     }
 
     @Override
-    public WebServiceDispatcherProperties getConnectorProperties() {
-        return (WebServiceDispatcherProperties) super.getConnectorProperties();
+    public ConnectorProperties getConnectorProperties() {
+        return super.getConnectorProperties();
     }
 }

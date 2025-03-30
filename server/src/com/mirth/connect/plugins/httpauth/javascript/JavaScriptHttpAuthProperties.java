@@ -14,6 +14,7 @@ import java.util.Map;
 
 import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
+import com.mirth.connect.plugins.core.httpauth.AuthType;
 import com.mirth.connect.plugins.httpauth.HttpAuthConnectorPluginProperties;
 
 public class JavaScriptHttpAuthProperties extends HttpAuthConnectorPluginProperties {

@@ -52,7 +52,7 @@ import com.mirth.connect.userutil.ResponseMap;
 import com.mirth.connect.userutil.Status;
 import com.mirth.connect.util.PropertyLoader;
 
-public class JavaScriptScopeUtil {
+public class JavaScriptScopeUtil implements IJavaScriptScopeUtil {
     private static Logger logger = LogManager.getLogger(JavaScriptScopeUtil.class);
     private static Integer rhinoOptimizationLevel = null;
 
@@ -80,6 +80,11 @@ public class JavaScriptScopeUtil {
         Context context = contextFactory.enterContext();
         context.setOptimizationLevel(rhinoOptimizationLevel);
         return context;
+    }
+    
+    @Override
+    public Context doGetContext(ContextFactory contextFactory) {
+    	return JavaScriptScopeUtil.getContext(contextFactory);
     }
 
     protected static ScriptableObject createSealedSharedScope(ContextFactory contextFactory) {
@@ -388,6 +393,11 @@ public class JavaScriptScopeUtil {
         }
 
         return scope;
+    }
+    
+    @Override
+    public Scriptable doGetBatchProcessorScope(ContextFactory contextFactory, Object logger, String channelId, String channelName, Map<String, Object> scopeObjects) {
+    	return JavaScriptScopeUtil.getBatchProcessorScope(contextFactory, logger, channelId, channelName, scopeObjects);
     }
 
     /*

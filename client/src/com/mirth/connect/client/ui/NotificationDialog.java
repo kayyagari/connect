@@ -54,10 +54,10 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.mirth.connect.client.core.ClientException;
-import com.mirth.connect.client.core.ConnectServiceUtil;
 import com.mirth.connect.client.ui.util.DisplayUtil;
 import com.mirth.connect.model.converters.ObjectXMLSerializer;
 import com.mirth.connect.model.notification.Notification;
+import com.mirth.connect.util.ConnectServiceUtil;
 
 public class NotificationDialog extends MirthDialog {
 
@@ -102,7 +102,7 @@ public class NotificationDialog extends MirthDialog {
         preferenceNames.add("showNotificationPopup");
         preferenceNames.add("archivedNotifications");
         try {
-            userPreferences = parent.mirthClient.getUserPreferences(parent.getCurrentUser(parent).getId(), preferenceNames);
+            userPreferences = parent.getClient().getUserPreferences(parent.getCurrentUser(parent).getId(), preferenceNames);
         } catch (ClientException e) {
         }
         String archivedNotificationString = userPreferences.getProperty("archivedNotifications");
@@ -371,7 +371,7 @@ public class NotificationDialog extends MirthDialog {
             SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
                 public Void doInBackground() {
                     try {
-                        parent.mirthClient.setUserPreferences(parent.getCurrentUser(parent).getId(), personPreferences);
+                        parent.getClient().setUserPreferences(parent.getCurrentUser(parent).getId(), personPreferences);
                     } catch (ClientException e) {
                         parent.alertThrowable(parent, e);
                     }
@@ -472,7 +472,7 @@ public class NotificationDialog extends MirthDialog {
         }
     }
 
-    private Frame parent;
+    private FrameBase parent;
     private JPanel notificationPanel;
 
     // List header panel

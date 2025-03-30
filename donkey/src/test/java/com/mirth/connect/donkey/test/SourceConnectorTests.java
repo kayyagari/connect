@@ -26,7 +26,7 @@ import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.test.util.TestChannel;
 import com.mirth.connect.donkey.test.util.TestSourceConnector;
 import com.mirth.connect.donkey.test.util.TestUtils;
@@ -153,7 +153,7 @@ public class SourceConnectorTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -221,7 +221,7 @@ public class SourceConnectorTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*

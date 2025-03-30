@@ -17,20 +17,20 @@ import org.dcm4che2.data.DicomObject;
 import org.dcm4che2.data.Tag;
 import org.dcm4che2.io.DicomOutputStream;
 import org.dcm4che2.net.Association;
-import org.dcm4che2.net.Device;
 import org.dcm4che2.net.DicomServiceException;
 import org.dcm4che2.net.NetworkConnection;
 import org.dcm4che2.net.PDVInputStream;
 import org.dcm4che2.net.pdu.PresentationContext;
 import org.dcm4che2.net.pdu.UserIdentityRQ;
 
-import com.mirth.connect.connectors.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.IMirthDcmRcv;
 import com.mirth.connect.donkey.model.message.RawMessage;
 import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
 
-public class MirthDcmRcv extends DcmRcv {
+public class MirthDcmRcv extends DcmRcv implements IMirthDcmRcv {
     private Logger logger = LogManager.getLogger(this.getClass());
     private SourceConnector sourceConnector;
     private DICOMConfiguration dicomConfiguration;
@@ -42,17 +42,19 @@ public class MirthDcmRcv extends DcmRcv {
         init();
     }
 
-    public Device getDevice() {
+    @Override
+    public Object getDevice() {
         return device;
     }
 
-    public NetworkConnection getNetworkConnection() {
+    @Override
+    public Object getNetworkConnection() {
         return nc;
     }
 
     @Override
     protected NetworkConnection createNetworkConnection() {
-        return dicomConfiguration.createNetworkConnection();
+        return (NetworkConnection) dicomConfiguration.createNetworkConnection();
     }
 
     @Override

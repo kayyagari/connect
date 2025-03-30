@@ -30,7 +30,7 @@ import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.server.Donkey;
 import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.channel.Channel;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.timed.TimedDaoFactory;
 import com.mirth.connect.donkey.test.util.TestSourceConnector;
 import com.mirth.connect.donkey.test.util.TestUtils;
@@ -74,19 +74,19 @@ public class ChannelControllerTests {
             logger.info("Testing ChannelController.getLocalChannelId...");
 
             for (int i = 1; i <= TEST_SIZE; i++) {
-                ChannelController.getInstance().removeChannel(channelId);
-                long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+                ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
+                long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
                 // Assert that the channel was created
                 TestUtils.assertChannelExists(channelId, true);
 
                 // Assert that subsequent calls return the same local channel ID
-                assertEquals(localChannelId, (long) ChannelController.getInstance().getLocalChannelId(channelId));
+                assertEquals(localChannelId, (long) ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId));
             }
 
             System.out.println(daoTimer.getLog());
         } finally {
-            ChannelController.getInstance().removeChannel(channelId);
+        	ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
         }
     }
 
@@ -107,19 +107,19 @@ public class ChannelControllerTests {
         try {
             logger.info("Testing ChannelController.getTotals...");
 
-            ChannelController.getInstance().removeChannel(channelId);
-            assertEquals(TestUtils.getChannelStatistics(channelId), ChannelController.getInstance().getStatistics().getChannelStats(channelId));
+            ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
+            assertEquals(TestUtils.getChannelStatistics(channelId), ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId));
 
             channel = TestUtils.createDefaultChannel(channelId, serverId);
             channel.deploy();
             channel.start(null);
 
-            assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ChannelController.getInstance().getStatistics().getChannelStats(channelId));
+            assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId));
 
             for (int i = 1; i <= TEST_SIZE; i++) {
                 ((TestSourceConnector) channel.getSourceConnector()).readTestMessage(testMessage);
 
-                assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ChannelController.getInstance().getStatistics().getChannelStats(channelId));
+                assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId));
             }
 
             System.out.println(daoTimer.getLog());
@@ -127,7 +127,7 @@ public class ChannelControllerTests {
             if (channel != null) {
                 channel.stop();
                 channel.undeploy();
-                ChannelController.getInstance().removeChannel(channel.getChannelId());
+                ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
             }
         }
     }
@@ -149,7 +149,7 @@ public class ChannelControllerTests {
             Connection connection = null;
             PreparedStatement statement = null;
             try {
-                long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+                long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
                 connection = TestUtils.getConnection();
                 statement = connection.prepareStatement("DELETE FROM d_ms" + localChannelId);
                 statement.executeUpdate();
@@ -185,7 +185,7 @@ public class ChannelControllerTests {
                 ((TestSourceConnector) channel.getSourceConnector()).readTestMessage(testMessage);
 
                 Map<Integer, Map<Status, Long>> dbStats = TestUtils.getChannelStatistics(channel.getChannelId());
-                Map<Integer, Map<Status, Long>> vmStats = ChannelController.getInstance().getStatistics().getChannelStats(channel.getChannelId());
+                Map<Integer, Map<Status, Long>> vmStats = ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channel.getChannelId());
                 Map<Integer, Map<Status, Long>> subtractedStats = subtractStats(dbStats, initialStats);
 
                 // Assert that getStatistics returns the difference between the current database statistics and the initial statistics
@@ -196,7 +196,7 @@ public class ChannelControllerTests {
         } finally {
             channel.stop();
             channel.undeploy();
-            ChannelController.getInstance().removeChannel(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
         }
     }
 

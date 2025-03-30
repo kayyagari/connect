@@ -35,6 +35,7 @@ import org.reflections.scanners.ResourcesScanner;
 
 import com.mirth.connect.client.ui.LoadedExtensions;
 import com.mirth.connect.client.ui.PlatformUI;
+import com.mirth.connect.client.ui.ReferenceListFactoryBase;
 import com.mirth.connect.client.ui.components.rsta.ac.MirthCompletionCacheInterface;
 import com.mirth.connect.client.ui.components.rsta.ac.MirthLanguageSupport;
 import com.mirth.connect.client.ui.reference.Reference.Type;
@@ -47,7 +48,7 @@ import com.mirth.connect.model.codetemplates.ContextType;
 import com.mirth.connect.model.util.DefaultMetaData;
 import com.mirth.connect.plugins.CodeTemplatePlugin;
 
-public class ReferenceListFactory {
+public class ReferenceListFactory extends ReferenceListFactoryBase {
 
     private static final CodeTemplateContextSet CONTEXT_GLOBAL = CodeTemplateContextSet.getGlobalContextSet();
     private static final CodeTemplateContextSet CONTEXT_CHANNEL = CodeTemplateContextSet.getChannelContextSet();
@@ -130,7 +131,7 @@ public class ReferenceListFactory {
         List<CodeTemplate> codeList = new ArrayList<CodeTemplate>();
         List<Reference> references = new ArrayList<Reference>();
 
-        for (CodeTemplate template : PlatformUI.MIRTH_FRAME.codeTemplatePanel.getCachedCodeTemplates().values()) {
+        for (CodeTemplate template : PlatformUI.MIRTH_FRAME.getCodeTemplatePanel().getCachedCodeTemplates().values()) {
             Category category = null;
 
             if (template.getType() == CodeTemplateType.FUNCTION) {
@@ -155,6 +156,7 @@ public class ReferenceListFactory {
         completionCache.addReferences(references);
     }
 
+    @Override
     public synchronized void loadPluginReferences() {
         if (pluginReferencesLoaded) {
             return;
@@ -201,6 +203,7 @@ public class ReferenceListFactory {
         }
     }
 
+    @Override
     public synchronized void loadReferencesAfterPlugins() {
         if (afterPluginReferencesLoaded) {
             return;
@@ -405,7 +408,10 @@ public class ReferenceListFactory {
         addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.UTILITY.toString(), "Remove Illegal XML Characters", "Removes illegal XML characters like control characters that cause a parsing error in e4x (\\x00-\\x1F besides TAB, LF, and CR)", "var ${newMessage} = ${message}.replace(/[\\x00-\\x08]|[\\x0B-\\x0C]|[\\x0E-\\x1F]/g, '');\n"));
         addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.UTILITY.toString(), "Pretty Print XML", "Formats an XML string with indented markup.", "XmlUtil.prettyPrint(${xmlString})"));
         addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.UTILITY.toString(), "Pretty Print JSON", "Formats an JSON string with indented markup.", "JsonUtil.prettyPrint(${jsonString})"));
-
+        addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.UTILITY.toString(), "Generate Hash (Object)", "Returns the hash of the passed in Object", "var ${hash} = HashUtil.generate(${object});"));
+        addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.UTILITY.toString(), "Generate Hash (String)", "Returns the hash of the passed in String", "var ${hash} = HashUtil.generate(${string}, ${encoding}, ${algorithm});"));
+        addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.UTILITY.toString(), "Generate Hash (byte[])", "Returns the hash of the passed in byte[]", "var ${hash} = HashUtil.generate(${byte[]}, ${algorithm});"));
+        
         // Conversion references
         addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.CONVERSION.toString(), "Convert XML to JSON", "Converts an XML string to JSON.", "XmlUtil.toJson(${xmlString})"));
         addReference(new ParameterizedCodeReference(CONTEXT_GLOBAL, Category.CONVERSION.toString(), "Convert JSON to XML", "Converts a JSON string to XML.", "JsonUtil.toXml(${jsonString})"));

@@ -37,8 +37,8 @@ public class DICOMViewer extends AttachmentViewer {
     public void viewAttachments(String channelId, Long messageId, String attachmentId) {
         // do viewing code
         try {
-            ConnectorMessage message = parent.messageBrowser.getSelectedConnectorMessage();
-            byte[] rawImage = StringUtils.getBytesUsAscii(parent.mirthClient.getDICOMMessage(message));
+            ConnectorMessage message = parent.getMessageBrowser().getSelectedConnectorMessage();
+            byte[] rawImage = StringUtils.getBytesUsAscii(parent.getClient().getDICOMMessage(message));
             BufferedInputStream bis = new BufferedInputStream(new Base64InputStream(new ByteArrayInputStream(rawImage)));
 
             /*
@@ -84,7 +84,7 @@ public class DICOMViewer extends AttachmentViewer {
 
     @Override
     public boolean isContentTypeViewable(String contentType) {
-        return org.apache.commons.lang.StringUtils.containsIgnoreCase(contentType, "dicom");
+        return org.apache.commons.lang3.StringUtils.containsIgnoreCase(contentType, "dicom");
     }
 
     @Override

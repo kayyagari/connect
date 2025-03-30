@@ -14,13 +14,14 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import com.mirth.connect.connectors.core.dimse.IDICOMDispatcherProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorPropertiesInterface;
 import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
 
-public class DICOMDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface {
+public class DICOMDispatcherProperties extends ConnectorProperties implements DestinationConnectorPropertiesInterface, IDICOMDispatcherProperties {
 
     private DestinationConnectorProperties destinationConnectorProperties;
 
@@ -149,6 +150,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         localApplicationEntity = props.getLocalApplicationEntity();
     }
 
+    @Override
     public String getHost() {
         return host;
     }
@@ -157,6 +159,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.host = host;
     }
 
+    @Override
     public String getPort() {
         return port;
     }
@@ -373,6 +376,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.username = username;
     }
 
+    @Override
     public String getKeyPW() {
         return keyPW;
     }
@@ -381,6 +385,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.keyPW = keyPW;
     }
 
+    @Override
     public String getKeyStore() {
         return keyStore;
     }
@@ -389,6 +394,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.keyStore = keyStore;
     }
 
+    @Override
     public String getKeyStorePW() {
         return keyStorePW;
     }
@@ -397,6 +403,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.keyStorePW = keyStorePW;
     }
 
+    @Override
     public boolean isNoClientAuth() {
         return noClientAuth;
     }
@@ -405,6 +412,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.noClientAuth = noClientAuth;
     }
 
+    @Override
     public boolean isNossl2() {
         return nossl2;
     }
@@ -413,6 +421,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.nossl2 = nossl2;
     }
 
+    @Override
     public String getTls() {
         return tls;
     }
@@ -421,6 +430,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.tls = tls;
     }
 
+    @Override
     public String getTrustStore() {
         return trustStore;
     }
@@ -429,6 +439,7 @@ public class DICOMDispatcherProperties extends ConnectorProperties implements De
         this.trustStore = trustStore;
     }
 
+    @Override
     public String getTrustStorePW() {
         return trustStorePW;
     }

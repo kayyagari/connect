@@ -15,7 +15,6 @@ import javax.json.JsonReader;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.mirth.connect.client.core.Version;
 import com.mirth.connect.model.Channel;
 import com.mirth.connect.model.InvalidChannel;
 
@@ -24,7 +23,7 @@ public class ObjectJSONSerializerTest {
     @BeforeClass
     public static void SetupApi() throws Exception {
         try {
-            ObjectXMLSerializer.getInstance().init(Version.getLatest().toString());
+            ObjectXMLSerializer.getInstance().init("4.5.0");
         } catch (Exception e) {
             // Ignore if it has already been initialized
         }

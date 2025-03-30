@@ -13,6 +13,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import com.mirth.connect.connectors.core.dimse.DICOMConnectorProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.ListenerConnectorProperties;
 import com.mirth.connect.donkey.model.channel.ListenerConnectorPropertiesInterface;
@@ -21,7 +22,7 @@ import com.mirth.connect.donkey.model.channel.SourceConnectorPropertiesInterface
 import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
 
-public class DICOMReceiverProperties extends ConnectorProperties implements ListenerConnectorPropertiesInterface, SourceConnectorPropertiesInterface {
+public class DICOMReceiverProperties extends ConnectorProperties implements ListenerConnectorPropertiesInterface, SourceConnectorPropertiesInterface, DICOMConnectorProperties {
     private ListenerConnectorProperties listenerConnectorProperties;
     private SourceConnectorProperties sourceConnectorProperties;
 
@@ -296,6 +297,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.tcpDelay = tcpDelay;
     }
 
+    @Override
     public String getKeyPW() {
         return keyPW;
     }
@@ -304,6 +306,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.keyPW = keyPW;
     }
 
+    @Override
     public String getKeyStore() {
         return keyStore;
     }
@@ -312,6 +315,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.keyStore = keyStore;
     }
 
+    @Override
     public String getKeyStorePW() {
         return keyStorePW;
     }
@@ -320,6 +324,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.keyStorePW = keyStorePW;
     }
 
+    @Override
     public boolean isNoClientAuth() {
         return noClientAuth;
     }
@@ -328,6 +333,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.noClientAuth = noClientAuth;
     }
 
+    @Override
     public boolean isNossl2() {
         return nossl2;
     }
@@ -336,6 +342,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.nossl2 = nossl2;
     }
 
+    @Override
     public String getTls() {
         return tls;
     }
@@ -344,6 +351,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.tls = tls;
     }
 
+    @Override
     public String getTrustStore() {
         return trustStore;
     }
@@ -352,6 +360,7 @@ public class DICOMReceiverProperties extends ConnectorProperties implements List
         this.trustStore = trustStore;
     }
 
+    @Override
     public String getTrustStorePW() {
         return trustStorePW;
     }

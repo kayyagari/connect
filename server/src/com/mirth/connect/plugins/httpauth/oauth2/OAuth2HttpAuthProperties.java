@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
+import com.mirth.connect.plugins.core.httpauth.AuthType;
 import com.mirth.connect.plugins.httpauth.HttpAuthConnectorPluginProperties;
 
 public class OAuth2HttpAuthProperties extends HttpAuthConnectorPluginProperties {

@@ -25,7 +25,6 @@ import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
-import java.awt.dnd.DropTargetListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
@@ -85,13 +84,10 @@ import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.text.WordUtils;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.text.WordUtils;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.jdesktop.swingx.JXTaskPane;
 import org.jdesktop.swingx.action.ActionFactory;
@@ -103,6 +99,7 @@ import org.jdesktop.swingx.treetable.DefaultTreeTableModel;
 import org.jdesktop.swingx.treetable.MutableTreeTableNode;
 import org.jdesktop.swingx.treetable.TreeTableNode;
 
+import com.mirth.connect.client.ui.ChannelSetup;
 import com.mirth.connect.client.ui.Frame;
 import com.mirth.connect.client.ui.Mirth;
 import com.mirth.connect.client.ui.PlatformUI;
@@ -127,8 +124,10 @@ import com.mirth.connect.plugins.FilterTransformerTypePlugin;
 import com.mirth.connect.util.JavaScriptSharedUtil;
 import com.mirth.connect.util.ScriptBuilderException;
 
+import net.miginfocom.swing.MigLayout;
+
 @SuppressWarnings("serial")
-public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends FilterTransformerElement> extends JPanel implements DropTargetListener {
+public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends FilterTransformerElement> extends BaseEditorPaneBase<T, C> {
 
     private static final int TASK_ADD = 0;
     private static final int TASK_DELETE = 1;
@@ -164,11 +163,33 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         initComponents();
         initLayout();
     }
+    
+    @Override
+    protected int getNumColumn() {
+        return numColumn;
+    }
+    
+    @Override
+    protected int getNameColumn() {
+        return nameColumn;
+    }
+    
+    @Override
+    protected int getTypeColumn() {
+        return typeColumn;
+    }
+    
+    @Override
+    protected int getEnabledColumn() {
+        return enabledColumn;
+    }
 
+    @Override
     public Connector getConnector() {
         return connector;
     }
 
+    @Override
     public void setConnector(Connector connector) {
         this.connector = connector;
         updatePlugins();
@@ -228,6 +249,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         accept(true);
     }
 
+    @Override
     public void accept(boolean returning) {
         saveData();
         boolean saveEnabled = PlatformUI.MIRTH_FRAME.isSaveEnabled();
@@ -240,20 +262,21 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         doAccept(connector, properties, response);
 
         if (returning) {
-            PlatformUI.MIRTH_FRAME.channelEditPanel.setDestinationVariableList();
-            PlatformUI.MIRTH_FRAME.setCurrentContentPage(PlatformUI.MIRTH_FRAME.channelEditPanel);
-            PlatformUI.MIRTH_FRAME.setFocus(PlatformUI.MIRTH_FRAME.channelEditTasks);
-            PlatformUI.MIRTH_FRAME.setPanelName("Edit Channel - " + PlatformUI.MIRTH_FRAME.channelEditPanel.currentChannel.getName());
+            PlatformUI.MIRTH_FRAME.getChannelSetup().setDestinationVariableList();
+            PlatformUI.MIRTH_FRAME.setCurrentContentPage(PlatformUI.MIRTH_FRAME.getChannelSetup());
+            PlatformUI.MIRTH_FRAME.setFocus(((Frame) PlatformUI.MIRTH_FRAME).channelEditTasks);
+            PlatformUI.MIRTH_FRAME.setPanelName("Edit Channel - " + PlatformUI.MIRTH_FRAME.getChannelSetup().getCurrentChannel().getName());
             if (isModified(properties)) {
                 saveEnabled = true;
             }
-            PlatformUI.MIRTH_FRAME.channelEditPanel.updateComponentShown();
+            ((ChannelSetup) PlatformUI.MIRTH_FRAME.getChannelSetup()).updateComponentShown();
             PlatformUI.MIRTH_FRAME.setSaveEnabled(saveEnabled);
         }
     }
 
     protected abstract void doAccept(Connector connector, T properties, boolean response);
 
+    @Override
     public boolean isModified() {
         return isModified(getProperties());
     }
@@ -264,6 +287,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
 
     public abstract T getProperties();
 
+    @Override
     public void setProperties(Connector connector, T properties, boolean response) {
         setProperties(connector, properties, response, true);
     }
@@ -288,11 +312,11 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
             previouslySelectedIndex = -1;
 
             if (connector.getMode() == Connector.Mode.SOURCE) {
-                templatePanel.setSourceView();
+                ((TabbedTemplatePanel) templatePanel).setSourceView();
             } else if (connector.getMode() == Connector.Mode.DESTINATION) {
-                templatePanel.setDestinationView(response);
+                ((TabbedTemplatePanel) templatePanel).setDestinationView(response);
             }
-            templatePanel.setDefaultComponent();
+            ((TabbedTemplatePanel) templatePanel).setDefaultComponent();
 
             doSetProperties(connector, properties, response, overwriteOriginal);
 
@@ -347,64 +371,64 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
     protected abstract FilterTransformerTreeTableNode<T, C> createTreeTableNode(C element);
 
     public String getInboundTemplate() {
-        return templatePanel.getIncomingMessage();
+        return ((TabbedTemplatePanel) templatePanel).getIncomingMessage();
     }
 
     public void setInboundTemplate(String inboundTemplate) {
-        templatePanel.setIncomingMessage(inboundTemplate);
+        ((TabbedTemplatePanel) templatePanel).setIncomingMessage(inboundTemplate);
     }
 
     public String getOutboundTemplate() {
-        return templatePanel.getOutgoingMessage();
+        return ((TabbedTemplatePanel) templatePanel).getOutgoingMessage();
     }
 
     public void setOutboundTemplate(String outboundTemplate) {
-        templatePanel.setOutgoingMessage(outboundTemplate);
+        ((TabbedTemplatePanel) templatePanel).setOutgoingMessage(outboundTemplate);
     }
 
     public String getInboundDataType() {
-        return PlatformUI.MIRTH_FRAME.displayNameToDataType.get(templatePanel.getIncomingDataType());
+        return PlatformUI.MIRTH_FRAME.getDisplayNameToDataTypeMap().get(((TabbedTemplatePanel) templatePanel).getIncomingDataType());
     }
 
     public void setInboundDataType(String inboundDataType) {
-        templatePanel.setIncomingDataType(PlatformUI.MIRTH_FRAME.dataTypeToDisplayName.get(inboundDataType));
+        ((TabbedTemplatePanel) templatePanel).setIncomingDataType(PlatformUI.MIRTH_FRAME.getDataTypeToDisplayNameMap().get(inboundDataType));
     }
 
     public String getOutboundDataType() {
-        return PlatformUI.MIRTH_FRAME.displayNameToDataType.get(templatePanel.getOutgoingDataType());
+        return PlatformUI.MIRTH_FRAME.getDisplayNameToDataTypeMap().get(((TabbedTemplatePanel) templatePanel).getOutgoingDataType());
     }
 
     public void setOutboundDataType(String outboundDataType) {
-        templatePanel.setOutgoingDataType(PlatformUI.MIRTH_FRAME.dataTypeToDisplayName.get(outboundDataType));
+        ((TabbedTemplatePanel) templatePanel).setOutgoingDataType(PlatformUI.MIRTH_FRAME.getDataTypeToDisplayNameMap().get(outboundDataType));
     }
 
     public DataTypeProperties getInboundDataTypeProperties() {
-        return templatePanel.getIncomingDataProperties();
+        return ((TabbedTemplatePanel) templatePanel).getIncomingDataProperties();
     }
 
     public void setInboundDataTypeProperties(DataTypeProperties properties) {
-        templatePanel.setIncomingDataProperties(properties);
+        ((TabbedTemplatePanel) templatePanel).setIncomingDataProperties(properties);
     }
 
     public DataTypeProperties getOutboundDataTypeProperties() {
-        return templatePanel.getOutgoingDataProperties();
+        return ((TabbedTemplatePanel) templatePanel).getOutgoingDataProperties();
     }
 
     public void setOutboundDataTypeProperties(DataTypeProperties properties) {
-        templatePanel.setOutgoingDataProperties(properties);
+        ((TabbedTemplatePanel) templatePanel).setOutgoingDataProperties(properties);
     }
 
     public void doAddNewElement() {
         addNewElement();
     }
 
-    public abstract void addNewElement();
-
+    @Override
     public void addNewElement(String name, String variable, String mapping, String type) {
         addNewElement(name, variable, mapping, type, false);
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public void addNewElement(String name, String variable, String mapping, String type, boolean showIteratorWizard) {
         updating.set(true);
         try {
@@ -878,6 +902,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         }
     }
 
+    @Override
     public String validateElement(C element) {
         return validateElement(element, true, true);
     }
@@ -950,10 +975,11 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         }
     }
 
+    @Override
     public void resizePanes() {
-        verticalSplitPane.setDividerLocation((int) (PlatformUI.MIRTH_FRAME.currentContentPage.getHeight() / 2 - PlatformUI.MIRTH_FRAME.currentContentPage.getHeight() / 3.5));
-        horizontalSplitPane.setDividerLocation((int) (PlatformUI.MIRTH_FRAME.currentContentPage.getWidth() / 2 + PlatformUI.MIRTH_FRAME.currentContentPage.getWidth() / 6.7));
-        templatePanel.resizePanes();
+        verticalSplitPane.setDividerLocation((int) (PlatformUI.MIRTH_FRAME.getCurrentContentPage().getHeight() / 2 - PlatformUI.MIRTH_FRAME.getCurrentContentPage().getHeight() / 3.5));
+        horizontalSplitPane.setDividerLocation((int) (PlatformUI.MIRTH_FRAME.getCurrentContentPage().getWidth() / 2 + PlatformUI.MIRTH_FRAME.getCurrentContentPage().getWidth() / 6.7));
+        ((TabbedTemplatePanel) templatePanel).resizePanes();
     }
 
     private void initComponents() {
@@ -1227,7 +1253,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         viewTasks.add(initActionCallback("accept", "Return back to channel.", ActionFactory.createBoundAction("accept", "Back to Channel", "B"), new ImageIcon(Frame.class.getResource("images/resultset_previous.png"))));
         PlatformUI.MIRTH_FRAME.setNonFocusable(viewTasks);
         viewTasks.setVisible(false);
-        PlatformUI.MIRTH_FRAME.taskPaneContainer.add(viewTasks, PlatformUI.MIRTH_FRAME.taskPaneContainer.getComponentCount() - 1);
+        PlatformUI.MIRTH_FRAME.getTaskPaneContainer().add(viewTasks, PlatformUI.MIRTH_FRAME.getTaskPaneContainer().getComponentCount() - 1);
 
         String containerName = getContainerName().toLowerCase();
         String containerNameCap = WordUtils.capitalize(containerName);
@@ -1352,7 +1378,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         // add the tasks to the taskpane, and the taskpane to the mirth client
         PlatformUI.MIRTH_FRAME.setNonFocusable(editorTasks);
         editorTasks.setVisible(false);
-        PlatformUI.MIRTH_FRAME.taskPaneContainer.add(editorTasks, PlatformUI.MIRTH_FRAME.taskPaneContainer.getComponentCount() - 1);
+        PlatformUI.MIRTH_FRAME.getTaskPaneContainer().add(editorTasks, PlatformUI.MIRTH_FRAME.getTaskPaneContainer().getComponentCount() - 1);
 
         dropTarget = new DropTarget(this, this);
         treeTable.setDropTarget(dropTarget);
@@ -1477,10 +1503,10 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
             Set<String> concatenatedSteps = new LinkedHashSet<String>();
             getRuleVariables(connector, concatenatedRules, true);
             getStepVariables(connector, concatenatedSteps, true, viewRow);
-            templatePanel.updateVariables(concatenatedRules, concatenatedSteps);
+            ((TabbedTemplatePanel) templatePanel).updateVariables(concatenatedRules, concatenatedSteps);
         } else {
-            templatePanel.updateVariables(getRuleVariables(), getStepVariables(viewRow));
-            templatePanel.populateConnectors(PlatformUI.MIRTH_FRAME.channelEditPanel.currentChannel.getDestinationConnectors());
+            ((TabbedTemplatePanel) templatePanel).updateVariables(getRuleVariables(), getStepVariables(viewRow));
+            ((TabbedTemplatePanel) templatePanel).populateConnectors(PlatformUI.MIRTH_FRAME.getChannelSetup().getCurrentChannel().getDestinationConnectors());
         }
     }
 
@@ -1489,7 +1515,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
     protected abstract void getStepVariables(Connector connector, Set<String> concatenatedSteps, boolean includeLocalVars, int viewRow);
 
     private Set<String> getRuleVariables() {
-        Channel channel = PlatformUI.MIRTH_FRAME.channelEditPanel.currentChannel;
+        Channel channel = PlatformUI.MIRTH_FRAME.getChannelSetup().getCurrentChannel();
         Set<String> concatenatedRules = new LinkedHashSet<String>();
         VariableListUtil.getRuleVariables(concatenatedRules, channel.getSourceConnector().getFilter(), false);
 
@@ -1510,7 +1536,7 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
     }
 
     private Set<String> getStepVariables(int viewRow) {
-        Channel channel = PlatformUI.MIRTH_FRAME.channelEditPanel.currentChannel;
+        Channel channel = PlatformUI.MIRTH_FRAME.getChannelSetup().getCurrentChannel();
         Set<String> concatenatedSteps = new LinkedHashSet<String>();
         VariableListUtil.getStepVariables(concatenatedSteps, channel.getSourceConnector().getTransformer(), false);
 
@@ -2076,25 +2102,6 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
         }
     }
 
-    protected static class OperatorNamePair extends MutablePair<Operator, String> {
-
-        public OperatorNamePair(String name) {
-            this(null, name);
-        }
-
-        public OperatorNamePair(Operator operator, String name) {
-            super(operator, name);
-        }
-
-        public Operator getOperator() {
-            return getLeft();
-        }
-
-        public String getName() {
-            return getRight();
-        }
-    }
-
     private class CheckBoxRenderer extends JPanel implements TableCellRenderer {
         private MirthCheckBox checkBox;
 
@@ -2163,6 +2170,4 @@ public abstract class BaseEditorPane<T extends FilterTransformer<C>, C extends F
     private JPanel propertiesContainer;
     private JScrollPane propertiesScrollPane;
     private MirthRTextScrollPane generatedScriptTextArea;
-
-    public TabbedTemplatePanel templatePanel;
 }

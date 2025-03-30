@@ -43,6 +43,7 @@ import org.apache.commons.math3.util.Precision;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.mirth.connect.donkey.model.DonkeyDaoException;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DestinationConnectorPropertiesInterface;
@@ -53,6 +54,7 @@ import com.mirth.connect.donkey.model.channel.SourceConnectorProperties;
 import com.mirth.connect.donkey.model.event.Event;
 import com.mirth.connect.donkey.model.message.ConnectorMessage;
 import com.mirth.connect.donkey.model.message.ContentType;
+import com.mirth.connect.donkey.model.message.DataType;
 import com.mirth.connect.donkey.model.message.MapContent;
 import com.mirth.connect.donkey.model.message.Message;
 import com.mirth.connect.donkey.model.message.MessageContent;
@@ -73,13 +75,12 @@ import com.mirth.connect.donkey.server.channel.SourceConnector;
 import com.mirth.connect.donkey.server.channel.StorageSettings;
 import com.mirth.connect.donkey.server.channel.components.ResponseTransformer;
 import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
-import com.mirth.connect.donkey.server.data.DonkeyDaoException;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.buffered.BufferedDaoFactory;
 import com.mirth.connect.donkey.server.data.passthru.PassthruDaoFactory;
 import com.mirth.connect.donkey.server.event.EventDispatcher;
-import com.mirth.connect.donkey.server.message.DataType;
 import com.mirth.connect.donkey.server.queue.ConnectorMessageQueueDataSource;
 import com.mirth.connect.donkey.server.queue.DestinationQueue;
 import com.mirth.connect.donkey.util.ResourceUtil;
@@ -112,14 +113,14 @@ public class TestUtils {
     }
 
     public static void initChannel(String channelId) throws SQLException {
-        ChannelController channelController = ChannelController.getInstance();
+        ChannelController channelController = ControllerFactory.getFactory().createChannelController();
 
         if (channelController.channelExists(channelId)) {
             channelController.deleteAllMessages(channelId);
             TestUtils.deleteChannelStatistics(channelId);
         }
 
-        ChannelController.getInstance().initChannelStorage(channelId);
+        ControllerFactory.getFactory().createChannelController().initChannelStorage(channelId);
     }
 
     public static TestChannel createDefaultChannel(String channelId, String serverId) throws SQLException {
@@ -404,7 +405,7 @@ public class TestUtils {
     }
 
     public static void assertMessageExists(Message message, boolean deepSearch) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(message.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(message.getChannelId());
 
         Connection connection = null;
         PreparedStatement statement = null;
@@ -441,7 +442,7 @@ public class TestUtils {
     }
 
     public static void assertMessageDoesNotExist(Message message) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(message.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(message.getChannelId());
 
         Connection connection = null;
         PreparedStatement statement = null;
@@ -486,7 +487,7 @@ public class TestUtils {
     }
 
     public static void assertConnectorMessageExists(ConnectorMessage connectorMessage, boolean deepSearch, Connection connection) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(connectorMessage.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(connectorMessage.getChannelId());
         PreparedStatement statement = null;
         ResultSet result = null;
 
@@ -526,7 +527,7 @@ public class TestUtils {
     }
 
     public static void assertConnectorMessageDoesNotExist(ConnectorMessage message) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(message.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(message.getChannelId());
 
         Connection connection = null;
         PreparedStatement statement = null;
@@ -547,7 +548,7 @@ public class TestUtils {
     }
 
     public static void assertConnectorMessageStatusEquals(String channelId, long messageId, int metaDataId, Status status) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -633,7 +634,7 @@ public class TestUtils {
     }
 
     public static void assertMessageContentExists(Connection connection, MessageContent content) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(content.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(content.getChannelId());
 
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -698,7 +699,7 @@ public class TestUtils {
     }
 
     public static void assertMessageContentDoesNotExist(MessageContent content) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(content.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(content.getChannelId());
 
         Connection connection = null;
         PreparedStatement statement = null;
@@ -734,7 +735,7 @@ public class TestUtils {
     }
 
     public static void assertAttachmentExists(String channelId, long messageId, Attachment attachment) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -758,7 +759,7 @@ public class TestUtils {
     }
 
     public static void assertResponseExists(String channelId, long messageId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -780,7 +781,7 @@ public class TestUtils {
     }
 
     public static void assertResponseDoesNotExist(String channelId, long messageId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -812,7 +813,7 @@ public class TestUtils {
     }
 
     public static List<MetaDataColumn> getExistingMetaDataColumns(String channelId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         List<MetaDataColumn> metaDataColumns = new ArrayList<MetaDataColumn>();
         Connection connection = null;
         ResultSet columns = null;
@@ -936,7 +937,7 @@ public class TestUtils {
         List<MetaDataColumn> columns = getExistingMetaDataColumns(channelId);
 
         if (columns.size() > 0) {
-            long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+            long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
             Connection connection = null;
             PreparedStatement statement = null;
             ResultSet result = null;
@@ -1055,7 +1056,7 @@ public class TestUtils {
     }
 
     public static MessageContent getMessageContent(String channelId, long messageId, int metaDataId, ContentType contentType) {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         ResultSet result = null;
         PreparedStatement statement = null;
@@ -1088,7 +1089,7 @@ public class TestUtils {
     }
 
     public static boolean isMessageProcessed(String channelId, long messageId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -1108,7 +1109,7 @@ public class TestUtils {
     }
 
     public static Map<Integer, Map<Status, Long>> getChannelStatistics(String channelId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Map<Integer, Map<Status, Long>> stats = new HashMap<Integer, Map<Status, Long>>();
         Connection connection = null;
         PreparedStatement statement = null;
@@ -1143,7 +1144,7 @@ public class TestUtils {
     }
 
     public static void deleteChannelStatistics(String channelId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
 
@@ -1157,7 +1158,7 @@ public class TestUtils {
             close(connection);
         }
 
-        ChannelController.getInstance().getStatistics().remove(channelId);
+        ControllerFactory.getFactory().createChannelController().getStatistics().remove(channelId);
     }
 
     public static String getPerformanceText(int numDestinations, long milliseconds, List<Long> times) throws IOException {
@@ -1260,7 +1261,7 @@ public class TestUtils {
     }
 
     public static Integer getSendAttempts(String channelId, long messageId) throws SQLException {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet result = null;
@@ -1320,8 +1321,8 @@ public class TestUtils {
         boolean isPostgres = getDatabaseType().equals("postgres");
 
         for (int i = 0; i < channels.length; i++) {
-            ChannelController.getInstance().deleteAllMessages(channels[i].getChannelId());
-            long localChannelId = ChannelController.getInstance().getLocalChannelId(channels[i].getChannelId());
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channels[i].getChannelId());
+            long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channels[i].getChannelId());
 
             if (isPostgres) {
                 System.out.print("Vacuuming tables for channel: " + channels[i].getChannelId() + "...");
@@ -1468,7 +1469,7 @@ public class TestUtils {
             channel.undeploy();
         }
 
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet resultSet = null;
@@ -1494,7 +1495,7 @@ public class TestUtils {
     }
 
     public static long getChannelStorageSize(String channelId) throws Exception {
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
         return getTableSize("d_m" + localChannelId) + getTableSize("d_mm" + localChannelId) + getTableSize("d_mc" + localChannelId) + getTableSize("d_mcm" + localChannelId) + getTableSize("d_ma" + localChannelId) + getTableSize("d_ms" + localChannelId);
     }
 

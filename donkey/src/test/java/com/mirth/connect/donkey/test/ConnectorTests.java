@@ -24,7 +24,7 @@ import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.channel.DestinationChainProvider;
 import com.mirth.connect.donkey.server.channel.MetaDataReplacer;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.test.util.TestChannel;
 import com.mirth.connect.donkey.test.util.TestDataType;
 import com.mirth.connect.donkey.test.util.TestDestinationConnector;
@@ -59,8 +59,8 @@ public class ConnectorTests {
         String channelId = TestUtils.DEFAULT_CHANNEL_ID;
         String serverId = TestUtils.DEFAULT_SERVER_ID;
 
-        if (ChannelController.getInstance().channelExists(channelId)) {
-            ChannelController.getInstance().deleteAllMessages(channelId);
+        if (ControllerFactory.getFactory().createChannelController().channelExists(channelId)) {
+        	ControllerFactory.getFactory().createChannelController().deleteAllMessages(channelId);
         }
 
         TestChannel channel = new TestChannel();

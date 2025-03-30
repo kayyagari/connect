@@ -84,21 +84,7 @@ import com.mirth.connect.plugins.DashboardPanelPlugin;
 import com.mirth.connect.plugins.DashboardTabPlugin;
 import com.mirth.connect.plugins.DashboardTablePlugin;
 
-public class DashboardPanel extends JPanel {
-
-    private static final String STATUS_COLUMN_NAME = "Status";
-    private static final String NAME_COLUMN_NAME = "Name";
-    private static final String RECEIVED_COLUMN_NAME = "Received";
-    private static final String QUEUED_COLUMN_NAME = "Queued";
-    private static final String SENT_COLUMN_NAME = "Sent";
-    private static final String ERROR_COLUMN_NAME = "Errored";
-    private static final String FILTERED_COLUMN_NAME = "Filtered";
-    private static final String LAST_DEPLOYED_COLUMN_NAME = "Last Deployed";
-    private static final String DEPLOYED_REVISION_DELTA_COLUMN_NAME = "Rev \u0394";
-    private static final String[] defaultColumns = new String[] { STATUS_COLUMN_NAME,
-            NAME_COLUMN_NAME, DEPLOYED_REVISION_DELTA_COLUMN_NAME, LAST_DEPLOYED_COLUMN_NAME,
-            RECEIVED_COLUMN_NAME, FILTERED_COLUMN_NAME, QUEUED_COLUMN_NAME, SENT_COLUMN_NAME,
-            ERROR_COLUMN_NAME };
+public class DashboardPanel extends DashboardPanelBase {
 
     private Frame parent;
     private boolean showLifetimeStats = false;
@@ -112,7 +98,7 @@ public class DashboardPanel extends JPanel {
     private ListSelectionListener listSelectionListener;
 
     public DashboardPanel() {
-        this.parent = PlatformUI.MIRTH_FRAME;
+        this.parent = (Frame) PlatformUI.MIRTH_FRAME;
         userPreferences = Preferences.userNodeForPackage(Mirth.class);
 
         haltableStates.add(DeployedState.DEPLOYING);
@@ -220,7 +206,9 @@ public class DashboardPanel extends JPanel {
         repaint();
     }
 
-    public void loadPanelPlugin(final DashboardPanelPlugin plugin) {
+    @Override
+    public void loadPanelPlugin(final Object pluginObj) {
+        final DashboardPanelPlugin plugin = (DashboardPanelPlugin) pluginObj;
         final List<DashboardStatus> selectedStatuses = getSelectedStatuses();
 
         QueuingSwingWorkerTask<Void, Void> task = new QueuingSwingWorkerTask<Void, Void>(plugin.getPluginPointName(), "Updating " + plugin.getPluginPointName() + " dashboard plugin...") {
@@ -251,6 +239,7 @@ public class DashboardPanel extends JPanel {
         new QueuingSwingWorker<Void, Void>(task, true).executeDelegate();
     }
 
+    @Override
     public DashboardTabPlugin getCurrentTabPlugin() {
         return LoadedExtensions.getInstance().getDashboardTabPlugins().get(tabPane.getTitleAt(tabPane.getSelectedIndex()));
     }
@@ -827,6 +816,7 @@ public class DashboardPanel extends JPanel {
         return selectedStatuses;
     }
 
+    @Override
     public synchronized Set<DashboardStatus> getSelectedChannelStatuses() {
         Set<DashboardStatus> selectedStatuses = new HashSet<DashboardStatus>();
         List<AbstractDashboardTableNode> selectedNodes = dashboardTable.getSelectedNodes();
@@ -925,10 +915,6 @@ public class DashboardPanel extends JPanel {
                 loadPanelPlugin(plugin);
             }
         }
-    }
-
-    public static int getNumberOfDefaultColumns() {
-        return defaultColumns.length;
     }
 
     private static class DefaultDashboardTableNodeFactory implements DashboardTableNodeFactory {

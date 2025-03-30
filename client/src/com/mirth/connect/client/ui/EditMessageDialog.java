@@ -24,6 +24,7 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -46,7 +47,7 @@ import javax.swing.table.TableCellEditor;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jdesktop.swingx.decorator.HighlighterFactory;
 import org.syntax.jedit.SyntaxDocument;
 import org.syntax.jedit.tokenmarker.TokenMarker;
@@ -55,17 +56,20 @@ import com.mirth.connect.client.ui.components.ItemSelectionTable;
 import com.mirth.connect.client.ui.components.ItemSelectionTableModel;
 import com.mirth.connect.client.ui.components.MirthSyntaxTextArea;
 import com.mirth.connect.client.ui.components.MirthTable;
+import com.mirth.connect.client.ui.editors.MessageTemplatePanel;
 import com.mirth.connect.donkey.model.message.RawMessage;
 
-public class EditMessageDialog extends MirthDialog implements DropTargetListener {
+@SuppressWarnings("serial")
+public class EditMessageDialog extends MirthDialog implements DropTargetListener, IMessageTypeable {
 
     private Frame parent;
     private String channelId;
     private String dataType;
+    private List<String> content = new ArrayList<String>();
 
     public EditMessageDialog() {
         super(PlatformUI.MIRTH_FRAME);
-        this.parent = PlatformUI.MIRTH_FRAME;
+        this.parent = (Frame) PlatformUI.MIRTH_FRAME;
         initComponents();
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setModalityType(ModalityType.DOCUMENT_MODAL);
@@ -602,18 +606,34 @@ public class EditMessageDialog extends MirthDialog implements DropTargetListener
 
     private void openBinaryFileButtonActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_openBinaryFileButtonActionPerformed
     {//GEN-HEADEREND:event_openBinaryFileButtonActionPerformed
-        byte[] content = parent.browseForFileBytes(null);
+    	messageContent.setEnabled(true);
+        List<byte[]> contentByte = parent.browseForMultipleFileBytes(null);
+        content = new ArrayList<String>();
 
-        if (content != null) {
-            messageContent.setText(new String(Base64.encodeBase64Chunked(content)));
+        if (contentByte != null) {
+            if (contentByte.size() == 1) {
+                messageContent.setText(new String(Base64.encodeBase64Chunked(contentByte.get(0))));
+            } else {
+            	for (byte[] singleByte : contentByte) {
+            		String encodedString = new String(Base64.encodeBase64Chunked(singleByte));
+            		content.add(encodedString);
+            	}        		
+	            messageContent.setText("Multiple Messages Selected");
+	            messageContent.setEnabled(false);
+            }
         }
     }//GEN-LAST:event_openBinaryFileButtonActionPerformed
 
     private void openTextFileButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_openTextFileButtonActionPerformed
-        String content = parent.browseForFileString(null);
-
+    	messageContent.setEnabled(true);
+    	content = parent.browseForMultipleFileStrings(null);
         if (content != null) {
-            messageContent.setText(content);
+	        if (content.size() == 1) {       		
+	                messageContent.setText(content.get(0));
+	        } else {
+	            messageContent.setText("Multiple Messages Selected");
+	            messageContent.setEnabled(false);
+	        }
         }
     }//GEN-LAST:event_openTextFileButtonActionPerformed
 
@@ -649,7 +669,15 @@ public class EditMessageDialog extends MirthDialog implements DropTargetListener
             sourceMap.put(key, value);
         }
 
-        parent.processMessage(channelId, new RawMessage(messageContent.getText(), metaDataIds, sourceMap));
+        if (messageContent.getText().equals("Multiple Messages Selected")) {
+            for (String file : content) {
+                parent.processMessage(channelId, new RawMessage(file, metaDataIds, sourceMap));
+            }
+        } else {
+        	parent.processMessage(channelId, new RawMessage(messageContent.getText(), metaDataIds, sourceMap));
+        }
+      
+
         this.dispose();
     }//GEN-LAST:event_processMessageButtonActionPerformed
 

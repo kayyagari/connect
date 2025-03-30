@@ -26,7 +26,7 @@ import javax.swing.text.html.StyleSheet;
 
 import net.miginfocom.swing.MigLayout;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import com.mirth.connect.model.Channel;
 import com.mirth.connect.model.codetemplates.CodeTemplateLibrary;
@@ -67,7 +67,7 @@ public class ExportChannelLibrariesDialog extends MirthDialog {
         librariesTextPane.setBorder(null);
 
         StringBuilder librariesText = new StringBuilder("<html><ul class=\"export-channel-libraries-dialog\">");
-        for (CodeTemplateLibrary library : PlatformUI.MIRTH_FRAME.codeTemplatePanel.getCachedCodeTemplateLibraries().values()) {
+        for (CodeTemplateLibrary library : PlatformUI.MIRTH_FRAME.getCodeTemplatePanel().getCachedCodeTemplateLibraries().values()) {
             if (library.getEnabledChannelIds().contains(channel.getId()) || (library.isIncludeNewChannels() && !library.getDisabledChannelIds().contains(channel.getId()))) {
                 librariesText.append("<li>").append(StringEscapeUtils.escapeHtml4(library.getName())).append("</li>");
             }

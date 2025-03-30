@@ -23,15 +23,13 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import net.miginfocom.swing.MigLayout;
-
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.ui.ConnectorTypeDecoration;
-import com.mirth.connect.client.ui.Frame;
+import com.mirth.connect.client.ui.FrameBase;
 import com.mirth.connect.client.ui.LoadedExtensions;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.UIConstants;
@@ -45,6 +43,8 @@ import com.mirth.connect.client.ui.components.MirthTextField;
 import com.mirth.connect.client.ui.panels.connectors.ConnectorSettingsPanel;
 import com.mirth.connect.client.ui.panels.connectors.ResponseHandler;
 import com.mirth.connect.client.ui.util.PortUsageDialog;
+import com.mirth.connect.connectors.core.tcp.TcpConnectorSettingsPanel;
+import com.mirth.connect.connectors.core.tcp.TcpConnectorServletInterface;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.model.Connector.Mode;
 import com.mirth.connect.model.transmission.TransmissionModeProperties;
@@ -53,10 +53,12 @@ import com.mirth.connect.plugins.TransmissionModeClientProvider;
 import com.mirth.connect.plugins.TransmissionModePlugin;
 import com.mirth.connect.util.ConnectionTestResponse;
 
-public class TcpSender extends ConnectorSettingsPanel implements ActionListener {
+import net.miginfocom.swing.MigLayout;
+
+public class TcpSender extends ConnectorSettingsPanel implements ActionListener, TcpConnectorSettingsPanel {
 
     private Logger logger = LogManager.getLogger(this.getClass());
-    private Frame parent;
+    private FrameBase parent;
     private TransmissionModeClientProvider defaultProvider;
     private TransmissionModeClientProvider transmissionModeProvider;
     private JComponent settingsPlaceHolder;
@@ -866,6 +868,16 @@ public class TcpSender extends ConnectorSettingsPanel implements ActionListener 
 		PortUsageDialog dialog = new PortUsageDialog(parent);
 		
 	}
+	
+	@Override
+	public MirthRadioButton getModeServerRadio() {
+		return modeServerRadio;
+	}
+
+	@Override
+	public MirthRadioButton getModeClientRadio() {
+		return modeClientRadio;
+	}
 
     private JLabel modeLabel;
     public MirthRadioButton modeServerRadio;
@@ -917,4 +929,5 @@ public class TcpSender extends ConnectorSettingsPanel implements ActionListener 
     private JButton testConnection;
     private MirthComboBox transmissionModeComboBox;
     private JLabel transmissionModeLabel;
+
 }

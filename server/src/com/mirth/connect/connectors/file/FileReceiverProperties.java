@@ -13,6 +13,9 @@ import java.util.Map;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import com.mirth.connect.connectors.core.file.FileConnectorProperties;
+import com.mirth.connect.connectors.core.file.FileScheme;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.PollConnectorProperties;
 import com.mirth.connect.donkey.model.channel.PollConnectorPropertiesInterface;
@@ -22,7 +25,7 @@ import com.mirth.connect.donkey.util.DonkeyElement;
 import com.mirth.connect.donkey.util.purge.PurgeUtil;
 import com.mirth.connect.util.CharsetUtils;
 
-public class FileReceiverProperties extends ConnectorProperties implements PollConnectorPropertiesInterface, SourceConnectorPropertiesInterface {
+public class FileReceiverProperties extends ConnectorProperties implements PollConnectorPropertiesInterface, SourceConnectorPropertiesInterface, FileConnectorProperties {
 
     public static final String NAME = "File Reader";
 
@@ -98,6 +101,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         charsetEncoding = CharsetUtils.DEFAULT_ENCODING;
     }
 
+    @Override
     public FileScheme getScheme() {
         return scheme;
     }
@@ -106,6 +110,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.scheme = scheme;
     }
 
+    @Override
     public SchemeProperties getSchemeProperties() {
         return schemeProperties;
     }
@@ -114,6 +119,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.schemeProperties = schemeProperties;
     }
 
+    @Override
     public String getHost() {
         return host;
     }
@@ -154,6 +160,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.ignoreDot = ignoreDot;
     }
 
+    @Override
     public boolean isAnonymous() {
         return anonymous;
     }
@@ -162,6 +169,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.anonymous = anonymous;
     }
 
+    @Override
     public String getUsername() {
         return username;
     }
@@ -170,6 +178,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.username = username;
     }
 
+    @Override
     public String getPassword() {
         return password;
     }
@@ -178,6 +187,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.password = password;
     }
 
+    @Override
     public String getTimeout() {
         return timeout;
     }
@@ -186,6 +196,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.timeout = timeout;
     }
 
+    @Override
     public boolean isSecure() {
         return secure;
     }
@@ -194,6 +205,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.secure = secure;
     }
 
+    @Override
     public boolean isPassive() {
         return passive;
     }
@@ -202,6 +214,7 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
         this.passive = passive;
     }
 
+    @Override
     public boolean isValidateConnection() {
         return validateConnection;
     }
@@ -423,6 +436,35 @@ public class FileReceiverProperties extends ConnectorProperties implements PollC
     @Override public void migrate3_11_0(DonkeyElement element) {} 
     @Override public void migrate3_11_1(DonkeyElement element) {} 
     @Override public void migrate3_12_0(DonkeyElement element) {}// @formatter:on
+
+    @Override
+    public void migrate4_6_0(DonkeyElement element) {
+        // Change fully-qualified names of classes moved to different packages
+        DonkeyElement schemeElement = element.getChildElement("scheme");
+        if (schemeElement != null) {
+            if (schemeElement.getTextContent().equalsIgnoreCase("ftp")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.FTPSchemeProperties");
+                }
+            } else if (schemeElement.getTextContent().equalsIgnoreCase("sftp")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.SftpSchemeProperties");
+                }
+            } else if (schemeElement.getTextContent().equalsIgnoreCase("smb")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.SmbSchemeProperties");
+                }
+            } else if (schemeElement.getTextContent().equalsIgnoreCase("S3")) {
+                DonkeyElement schemeProperties = element.getChildElement("schemeProperties");
+                if (schemeProperties != null) {
+                    schemeProperties.setAttribute("class", "com.mirth.connect.connectors.core.file.S3SchemeProperties");
+                }
+            }
+        }
+    }
 
     @Override
     public Map<String, Object> getPurgedProperties() {

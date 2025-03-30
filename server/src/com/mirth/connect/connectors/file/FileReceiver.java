@@ -29,14 +29,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.commons.text.StringEscapeUtils;
 
-import com.mirth.connect.connectors.file.filesystems.FileInfo;
-import com.mirth.connect.connectors.file.filesystems.FileSystemConnection;
+import com.mirth.connect.connectors.core.file.FileConfiguration;
+import com.mirth.connect.connectors.core.file.FileConnectorException;
+import com.mirth.connect.connectors.core.file.FileSystemConnectionOptions;
+import com.mirth.connect.connectors.core.file.IFileConnector;
+import com.mirth.connect.connectors.core.file.IFileReceiver;
+import com.mirth.connect.connectors.core.file.S3SchemeProperties;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
+import com.mirth.connect.connectors.core.file.SftpSchemeProperties;
+import com.mirth.connect.connectors.core.file.filesystems.FileInfo;
+import com.mirth.connect.connectors.core.file.filesystems.FileSystemConnection;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.ErrorEventType;
 import com.mirth.connect.donkey.model.message.BatchRawMessage;
@@ -55,7 +63,7 @@ import com.mirth.connect.server.controllers.EventController;
 import com.mirth.connect.server.util.TemplateValueReplacer;
 import com.mirth.connect.util.CharsetUtils;
 
-public class FileReceiver extends PollConnector {
+public class FileReceiver extends PollConnector implements IFileReceiver {
     protected transient Log logger = LogFactory.getLog(getClass());
 
     private String moveToDirectory = null;
@@ -69,7 +77,7 @@ public class FileReceiver extends PollConnector {
     private ConfigurationController configurationController = ControllerFactory.getFactory().createConfigurationController();
     private TemplateValueReplacer replacer = new TemplateValueReplacer();
     private FileConfiguration configuration = null;
-    private FileConnector fileConnector = null;
+    private IFileConnector fileConnector = null;
 
     private String originalFilename = null;
 
@@ -150,7 +158,7 @@ public class FileReceiver extends PollConnector {
             URI uri = fileConnector.getEndpointURI(host, connectorProperties.getScheme(), schemeProperties, connectorProperties.isSecure());
 
             fileSystemOptions = new FileSystemConnectionOptions(uri, connectorProperties.isAnonymous(), username, password, schemeProperties);
-            FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+            FileSystemConnection con = getConnection();
             fileConnector.releaseConnection(con, fileSystemOptions);
         } catch (URISyntaxException e1) {
             throw new ConnectorTaskException("Error creating URI.", e1);
@@ -244,6 +252,14 @@ public class FileReceiver extends PollConnector {
         } finally {
             eventController.dispatchEvent(new ConnectionStatusEvent(getChannelId(), getMetaDataId(), getSourceName(), ConnectionStatusEventType.IDLE));
         }
+    }
+    
+    private FileSystemConnection getConnection() throws Exception {
+        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+        if (configuration != null) {
+            con.setFileConfiguration(configuration);
+        }
+        return con;
     }
 
     private List<FileInfo> listFilesRecursively(Set<String> visitedDirectories, Stack<String> directoryStack) throws Exception {
@@ -385,7 +401,7 @@ public class FileReceiver extends PollConnector {
 
                     // ast: use the user-selected encoding
                     if (isProcessBatch()) {
-                        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+                        FileSystemConnection con = getConnection();
                         Reader in = null;
                         try {
                             in = new InputStreamReader(con.readFile(file.getName(), file.getParent(), sourceMap), charsetEncoding);
@@ -527,7 +543,7 @@ public class FileReceiver extends PollConnector {
 
     /** Delete a file */
     private boolean deleteFile(String name, String dir, boolean mayNotExist) throws Exception {
-        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+        FileSystemConnection con = getConnection();
         try {
             con.delete(name, dir, mayNotExist);
             return true;
@@ -544,7 +560,7 @@ public class FileReceiver extends PollConnector {
     }
 
     private boolean renameFile(String fromName, String fromDir, String toName, String toDir) throws Exception {
-        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+        FileSystemConnection con = getConnection();
         try {
 
             con.move(fromName, fromDir, toName, toDir);
@@ -559,7 +575,7 @@ public class FileReceiver extends PollConnector {
 
     // Returns the contents of the file in a byte array.
     private byte[] getBytesFromFile(FileInfo file, Map<String, Object> sourceMap) throws Exception {
-        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+        FileSystemConnection con = getConnection();
 
         try {
             InputStream is = null;
@@ -641,7 +657,7 @@ public class FileReceiver extends PollConnector {
      * @throws Exception
      */
     List<FileInfo> listFiles(String fromDir) throws Exception {
-        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+        FileSystemConnection con = getConnection();
 
         try {
             List<FileInfo> files = con.listFiles(fromDir, filenamePattern, connectorProperties.isRegex(), connectorProperties.isIgnoreDot());
@@ -667,7 +683,7 @@ public class FileReceiver extends PollConnector {
      * @throws Exception
      */
     List<String> listDirectories(String fromDir) throws Exception {
-        FileSystemConnection con = fileConnector.getConnection(fileSystemOptions);
+        FileSystemConnection con = getConnection();
 
         try {
             return con.listDirectories(fromDir);
@@ -682,7 +698,8 @@ public class FileReceiver extends PollConnector {
         finishDispatch(dispatchResult);
     }
 
-    public void setFileConnector(FileConnector fileConnector) {
+    @Override
+    public void setFileConnector(IFileConnector fileConnector) {
         this.fileConnector = fileConnector;
     }
 }

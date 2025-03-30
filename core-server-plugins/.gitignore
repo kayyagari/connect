@@ -1,0 +1,8 @@
+
+# /
+/.settings
+/classes
+/dist
+/build
+*.version.properties
+/bin/

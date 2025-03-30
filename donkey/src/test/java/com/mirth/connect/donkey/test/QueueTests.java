@@ -32,7 +32,7 @@ import com.mirth.connect.donkey.server.StartException;
 import com.mirth.connect.donkey.server.channel.ChannelException;
 import com.mirth.connect.donkey.server.channel.DestinationChainProvider;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.queue.ConnectorMessageQueue;
 import com.mirth.connect.donkey.server.queue.ConnectorMessageQueueDataSource;
@@ -177,7 +177,7 @@ public class QueueTests {
 
         channel.stop();
         channel.undeploy();
-        ChannelController.getInstance().removeChannel(channelId);
+        ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
     }
 
     /*
@@ -284,7 +284,7 @@ public class QueueTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -388,7 +388,7 @@ public class QueueTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -499,6 +499,6 @@ public class QueueTests {
 
         channel.stop();
         channel.undeploy();
-        ChannelController.getInstance().removeChannel(channelId);
+        ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
     }
 }

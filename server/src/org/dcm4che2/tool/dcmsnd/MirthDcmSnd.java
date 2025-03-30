@@ -7,13 +7,13 @@ import org.dcm4che2.data.Tag;
 import org.dcm4che2.data.VR;
 import org.dcm4che2.net.Association;
 import org.dcm4che2.net.CommandUtils;
-import org.dcm4che2.net.Device;
 import org.dcm4che2.net.DicomServiceException;
 import org.dcm4che2.net.NetworkConnection;
 
-import com.mirth.connect.connectors.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.IMirthDcmSnd;
 
-public class MirthDcmSnd extends DcmSnd {
+public class MirthDcmSnd extends DcmSnd implements IMirthDcmSnd {
 
     private DICOMConfiguration dicomConfiguration;
 
@@ -23,25 +23,29 @@ public class MirthDcmSnd extends DcmSnd {
         init();
     }
 
-    public Device getDevice() {
+    @Override
+    public Object getDevice() {
         return device;
     }
 
-    public NetworkConnection getNetworkConnection() {
+    @Override
+    public Object getNetworkConnection() {
         return conn;
     }
 
-    public NetworkConnection getRemoteNetworkConnection() {
+    @Override
+    public Object getRemoteNetworkConnection() {
         return remoteConn;
     }
 
-    public NetworkConnection getRemoteStgcmtNetworkConnection() {
+    @Override
+    public Object getRemoteStgcmtNetworkConnection() {
         return remoteStgcmtConn;
     }
 
     @Override
     protected NetworkConnection createNetworkConnection() {
-        return dicomConfiguration.createNetworkConnection();
+        return (NetworkConnection) dicomConfiguration.createNetworkConnection();
     }
 
     @Override

@@ -11,11 +11,12 @@ package com.mirth.connect.plugins.datatypes.hl7v2;
 
 import java.io.InputStream;
 
+import com.mirth.connect.donkey.server.channel.ISourceConnector;
+import com.mirth.connect.donkey.model.message.AutoResponder;
+import com.mirth.connect.donkey.model.message.ResponseValidator;
+import com.mirth.connect.donkey.model.message.batch.BatchStreamReader;
 import com.mirth.connect.donkey.server.channel.SourceConnector;
-import com.mirth.connect.donkey.server.message.AutoResponder;
-import com.mirth.connect.donkey.server.message.ResponseValidator;
 import com.mirth.connect.donkey.server.message.batch.BatchAdaptorFactory;
-import com.mirth.connect.donkey.server.message.batch.BatchStreamReader;
 import com.mirth.connect.model.datatype.DataTypeDelegate;
 import com.mirth.connect.model.datatype.ResponseGenerationProperties;
 import com.mirth.connect.model.datatype.ResponseValidationProperties;
@@ -51,8 +52,8 @@ public class HL7v2DataTypeServerPlugin extends DataTypeServerPlugin {
     }
 
     @Override
-    public BatchAdaptorFactory getBatchAdaptorFactory(SourceConnector sourceConnector, SerializerProperties properties) {
-        return new ER7BatchAdaptorFactory(sourceConnector, properties);
+    public BatchAdaptorFactory getBatchAdaptorFactory(ISourceConnector sourceConnector, SerializerProperties properties) {
+        return new ER7BatchAdaptorFactory((SourceConnector) sourceConnector, properties);
     }
 
     @Override

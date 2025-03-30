@@ -20,11 +20,18 @@ import com.mirth.connect.donkey.model.channel.PollConnectorPropertiesInterface;
 import com.mirth.connect.donkey.server.ConnectorTaskException;
 import com.mirth.connect.donkey.util.PollConnectorJobHandler;
 
-public abstract class PollConnector extends SourceConnector {
+public class PollConnector extends SourceConnector {
+	private PollSourceConnectorPlugin connectorPlugin;
     private PollConnectorJobHandler handler;
     private AtomicBoolean terminated = new AtomicBoolean(true);
     private JobDetail job;
     private Scheduler scheduler;
+    
+    @Override
+    public void initialize(SourceConnectorPlugin connectorPlugin) {
+    	super.initialize(connectorPlugin);
+    	this.connectorPlugin = (PollSourceConnectorPlugin) connectorPlugin;
+    }
 
     @Override
     public void start() throws ConnectorTaskException, InterruptedException {
@@ -79,5 +86,9 @@ public abstract class PollConnector extends SourceConnector {
         return terminated.get();
     }
 
-    protected abstract void poll() throws InterruptedException;
+    protected void poll() throws InterruptedException {
+    	if (connectorPlugin != null) {
+    		connectorPlugin.poll();
+    	}
+    }
 }

@@ -25,6 +25,8 @@ import org.apache.commons.lang3.StringUtils;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.UIConstants;
 import com.mirth.connect.client.ui.util.DisplayUtil;
+import com.mirth.connect.connectors.core.file.FTPSchemeProperties;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
 
 public class AdvancedFTPSettingsDialog extends AdvancedSettingsDialog {
 

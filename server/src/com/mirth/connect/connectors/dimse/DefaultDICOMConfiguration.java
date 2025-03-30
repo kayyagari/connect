@@ -12,12 +12,16 @@ package com.mirth.connect.connectors.dimse;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.dcm4che2.net.Association;
 import org.dcm4che2.net.NetworkConnection;
-import org.dcm4che2.tool.dcmrcv.MirthDcmRcv;
-import org.dcm4che2.tool.dcmsnd.MirthDcmSnd;
 
-import com.mirth.connect.donkey.server.channel.Connector;
+import com.mirth.connect.connectors.core.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.DICOMConfigurationUtil;
+import com.mirth.connect.connectors.core.dimse.DICOMConnectorProperties;
+import com.mirth.connect.connectors.core.dimse.IDICOMDispatcherProperties;
+import com.mirth.connect.connectors.core.dimse.IDICOMReceiver;
+import com.mirth.connect.connectors.core.dimse.IMirthDcmRcv;
+import com.mirth.connect.connectors.core.dimse.IMirthDcmSnd;
+import com.mirth.connect.donkey.server.channel.IConnector;
 import com.mirth.connect.server.controllers.ConfigurationController;
 import com.mirth.connect.server.controllers.ControllerFactory;
 import com.mirth.connect.util.MirthSSLUtil;
@@ -28,7 +32,7 @@ public class DefaultDICOMConfiguration implements DICOMConfiguration {
     private String[] protocols;
 
     @Override
-    public void configureConnectorDeploy(Connector connector) throws Exception {
+    public void configureConnectorDeploy(IConnector connector) throws Exception {
         if (connector instanceof DICOMReceiver) {
             protocols = MirthSSLUtil.getEnabledHttpsProtocols(configurationController.getHttpsServerProtocols());
         } else {
@@ -37,22 +41,22 @@ public class DefaultDICOMConfiguration implements DICOMConfiguration {
     }
 
     @Override
-    public NetworkConnection createNetworkConnection() {
+    public Object createNetworkConnection() {
         return new NetworkConnection();
     }
 
     @Override
-    public void configureDcmRcv(MirthDcmRcv dcmrcv, DICOMReceiver connector, DICOMReceiverProperties connectorProperties) throws Exception {
+    public void configureDcmRcv(IMirthDcmRcv dcmrcv, IDICOMReceiver connector, DICOMConnectorProperties connectorProperties) throws Exception {
         DICOMConfigurationUtil.configureDcmRcv(dcmrcv, connector, connectorProperties, protocols);
     }
 
     @Override
-    public void configureDcmSnd(MirthDcmSnd dcmsnd, DICOMDispatcher connector, DICOMDispatcherProperties connectorProperties) throws Exception {
+    public void configureDcmSnd(IMirthDcmSnd dcmsnd, IConnector connector, IDICOMDispatcherProperties connectorProperties) throws Exception {
         DICOMConfigurationUtil.configureDcmSnd(dcmsnd, connector, connectorProperties, protocols);
     }
 
     @Override
-    public Map<String, Object> getCStoreRequestInformation(Association as) {
+    public Map<String, Object> getCStoreRequestInformation(Object as) {
         return new HashMap<String, Object>();
     }
 }

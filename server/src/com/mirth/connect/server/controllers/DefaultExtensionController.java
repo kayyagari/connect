@@ -631,6 +631,11 @@ public class DefaultExtensionController extends ExtensionController {
         return extensionLoader.getInvalidMetaData();
     }
 
+    @Override
+    public Map<String, Map<String, String>> getExtensionMaxCoreVersions() {
+        return extensionLoader.getExtensionMaxCoreVersions();
+    }
+
     /**
      * Executes the script that removes that database tables for plugins that are marked for
      * removal. The actual removal of the plugin directory happens in MirthLauncher.java, before

@@ -54,7 +54,7 @@ public class WebStartServletTest {
 
 		webStartServlet.doGet(request, response);
 
-		assertEquals(CORE_JNLP.trim(), response.getResponseString().trim());
+		assertEquals(CORE_JNLP.trim().replaceAll("\r\n|\r|\n", "\n"), response.getResponseString().trim().replaceAll("\r\n|\r|\n", "\n"));
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
 		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
@@ -70,7 +70,7 @@ public class WebStartServletTest {
 
 		webStartServlet.doGet(request, response);
 
-		assertEquals(CORE_JNLP.trim(), response.getResponseString().trim());
+		assertEquals(CORE_JNLP.trim().replaceAll("\r\n|\r|\n", "\n"), response.getResponseString().trim().replaceAll("\r\n|\r|\n", "\n"));
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
 		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
@@ -100,7 +100,7 @@ public class WebStartServletTest {
 
 		webStartServlet.doGet(request, response);
 
-		assertEquals(CORE_JNLP.trim(), response.getResponseString().trim());
+		assertEquals(CORE_JNLP.trim().replaceAll("\r\n|\r|\n", "\n"), response.getResponseString().trim().replaceAll("\r\n|\r|\n", "\n"));
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("attachment; filename = \"webstart.jnlp\"", response.getHeader("Content-Disposition"));
 	}
@@ -216,7 +216,7 @@ public class WebStartServletTest {
 
 		webStartServlet.doGet(request, response);
 
-		assertEquals(EXTENSION_JNLP.trim(), response.getResponseString().trim());
+		assertEquals(EXTENSION_JNLP.trim().replaceAll("\r\n|\r|\n", "\n"), response.getResponseString().trim().replaceAll("\r\n|\r|\n", "\n"));
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
 		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
@@ -233,7 +233,7 @@ public class WebStartServletTest {
 
 		webStartServlet.doGet(request, response);
 
-		assertEquals(EXTENSION_JNLP.trim(), response.getResponseString().trim());
+		assertEquals(EXTENSION_JNLP.trim().replaceAll("\r\n|\r|\n", "\n"), response.getResponseString().trim().replaceAll("\r\n|\r|\n", "\n"));
 		assertEquals("application/x-java-jnlp-file", response.getContentType());
 		assertEquals("no-cache", response.getHeader("Pragma"));
 		assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
@@ -536,12 +536,12 @@ public class WebStartServletTest {
 		return dbf;
 	}
 
-	private static String CORE_JNLP = "<jnlp codebase=\"https://localhost:8443\" version=\"4.1.1\">\n"
-			+ "	<information>\n" + "		<title>Mirth Connect Administrator 4.1.1</title>\n"
+	private static String CORE_JNLP = "<jnlp codebase=\"https://localhost:8443\" version=\"4.6.0\">\n"
+			+ "	<information>\n" + "		<title>Mirth Connect Administrator 4.6.0</title>\n"
 			+ "		<vendor>NextGen Healthcare</vendor>\n" + "		<homepage href=\"http://www.nextgen.com\"/>\n"
 			+ "		<description>Open Source Healthcare Integration Engine</description>\n" + "		\n"
-			+ "		<icon href=\"images/mirth_128_ico.png\"/>\n"
-			+ "		<icon href=\"images/splashscreen.png\" kind=\"splash\"/> \n" + "		\n"
+			+ "		<icon href=\"images/NG_MC_Icon_128x128.png\"/>\n"
+			+ "		<icon href=\"images/MirthConnect_Logo_WordMark_Big.png\" kind=\"splash\"/> \n" + "		\n"
 			+ "		<offline-allowed/>\n" + "\n" + "		<shortcut online=\"true\">\n"
 			+ "            <!-- put a shortcut on the desktop -->\n" + "            <desktop/>\n"
 			+ "            <!-- put shortcut in start menu too -->\n"
@@ -554,7 +554,7 @@ public class WebStartServletTest {
 			+ "        <jar download=\"eager\" href=\"webstart/client-lib/mirth-client-core.jar\" sha256=\"testsha256\"/>\n"
 			+ "        <extension href=\"webstart/extensions/test.jnlp\"/>\n" + "    </resources>\n" + "	\n"
 			+ "	<application-desc main-class=\"com.mirth.connect.client.ui.Mirth\">\n"
-			+ "        <argument>https://localhost:8443</argument>\n" + "        <argument>4.1.1</argument>\n"
+			+ "        <argument>https://localhost:8443</argument>\n" + "        <argument>4.6.0</argument>\n"
 			+ "    </application-desc>\n" + "</jnlp>";
 
 	private static String EXTENSION_JNLP = "<jnlp>\n" + "    <information>\n"

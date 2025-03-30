@@ -32,6 +32,7 @@ import com.mirth.connect.client.ui.TreeTransferable;
 import com.mirth.connect.client.ui.components.MirthTree;
 import com.mirth.connect.client.ui.editors.BaseEditorPane;
 import com.mirth.connect.client.ui.editors.FilterTreeTableNode;
+import com.mirth.connect.client.ui.editors.TabbedTemplatePanel;
 import com.mirth.connect.client.ui.util.VariableListUtil;
 import com.mirth.connect.model.Connector;
 import com.mirth.connect.model.Filter;
@@ -185,7 +186,7 @@ public class FilterPane extends BaseEditorPane<Filter, Rule> {
         setInboundDataType(connector.getTransformer().getInboundDataType());
         setInboundDataTypeProperties(connector.getTransformer().getInboundProperties());
         setInboundTemplate(connector.getTransformer().getInboundTemplate());
-        templatePanel.setFilterView();
+        ((TabbedTemplatePanel) templatePanel).setFilterView();
     }
 
     @Override

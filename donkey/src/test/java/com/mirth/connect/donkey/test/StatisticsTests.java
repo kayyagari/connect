@@ -33,7 +33,7 @@ import com.mirth.connect.donkey.server.channel.DestinationConnector;
 import com.mirth.connect.donkey.server.channel.FilterTransformerExecutor;
 import com.mirth.connect.donkey.server.channel.FilterTransformerResult;
 import com.mirth.connect.donkey.server.channel.components.FilterTransformerException;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.queue.ConnectorMessageQueueDataSource;
 import com.mirth.connect.donkey.server.queue.DestinationQueue;
@@ -107,7 +107,7 @@ public class StatisticsTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -155,7 +155,7 @@ public class StatisticsTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -240,7 +240,7 @@ public class StatisticsTests {
 
         channel.addDestinationChainProvider(chain);
 
-        ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
         TestUtils.deleteChannelStatistics(channel.getChannelId());
         channel.deploy();
         channel.start(null);
@@ -266,7 +266,7 @@ public class StatisticsTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     /*
@@ -355,7 +355,7 @@ public class StatisticsTests {
         destinationConnector.setResponseTransformerExecutor(TestUtils.createDefaultResponseTransformerExecutor());
 
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("localChannelId", ChannelController.getInstance().getLocalChannelId(channel.getChannelId()));
+        params.put("localChannelId", ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId()));
         params.put("channelId", channel.getChannelId());
         params.put("metaDataId", 1);
         params.put("status", Status.QUEUED);
@@ -390,7 +390,7 @@ public class StatisticsTests {
 
         channel.addDestinationChainProvider(chain);
 
-        ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
         TestUtils.deleteChannelStatistics(channel.getChannelId());
         channel.deploy();
         channel.start(null);
@@ -412,7 +412,7 @@ public class StatisticsTests {
             logger.info(String.format("%-140s", "Sending Message #" + i + "..."));
             ((TestSourceConnector) channel.getSourceConnector()).readTestMessage(testMessage);
 
-            logger.info(String.format("%-140s", String.format("%-50s", "   - After sending (should be QUEUED): ") + (stats = ChannelController.getInstance().getStatistics().getConnectorStats(channelId, 1))));
+            logger.info(String.format("%-140s", String.format("%-50s", "   - After sending (should be QUEUED): ") + (stats = ControllerFactory.getFactory().createChannelController().getStatistics().getConnectorStats(channelId, 1))));
 
             // Assert that destination connector stats are correct
             assertDestinationStatsCorrect(stats, i, returnStatus, Status.QUEUED);
@@ -421,7 +421,7 @@ public class StatisticsTests {
             logger.info(String.format("%-140s", "   - Waiting " + waitTime + " ms..."));
             Thread.sleep(waitTime);
 
-            logger.info(String.format("%-140s", String.format("%-50s", "   - After first wait (should be PENDING):   ") + (stats = ChannelController.getInstance().getStatistics().getConnectorStats(channelId, 1))));
+            logger.info(String.format("%-140s", String.format("%-50s", "   - After first wait (should be PENDING):   ") + (stats = ControllerFactory.getFactory().createChannelController().getStatistics().getConnectorStats(channelId, 1))));
 
             // Assert that destination connector stats are correct
             assertDestinationStatsCorrect(stats, i, returnStatus, Status.PENDING);
@@ -430,7 +430,7 @@ public class StatisticsTests {
             logger.info(String.format("%-140s", "   - Waiting " + waitTime + " ms..."));
             Thread.sleep(waitTime);
 
-            logger.info(String.format("%-140s", String.format("%-50s", "   - After second wait (should be " + returnStatus + "): ") + (stats = ChannelController.getInstance().getStatistics().getConnectorStats(channelId, 1))));
+            logger.info(String.format("%-140s", String.format("%-50s", "   - After second wait (should be " + returnStatus + "): ") + (stats = ControllerFactory.getFactory().createChannelController().getStatistics().getConnectorStats(channelId, 1))));
 
             // Assert the source connector stats are correct
             statsEqual(channel.getChannelId(), 0, i, 0L, i, 0L, 0L, 0L);
@@ -455,11 +455,11 @@ public class StatisticsTests {
         channel.stop();
         channel.undeploy();
 
-        ChannelController.getInstance().removeChannel(channel.getChannelId());
+        ControllerFactory.getFactory().createChannelController().removeChannel(channel.getChannelId());
     }
 
     private void statsEqual(String channelId, Integer metaDataId, Long received, Long filtered, Long transformed, Long pending, Long sent, Long error) {
-        assertStatsEqual(ChannelController.getInstance().getStatistics().getConnectorStats(channelId, metaDataId), received, filtered, transformed, pending, sent, error);
+        assertStatsEqual(ControllerFactory.getFactory().createChannelController().getStatistics().getConnectorStats(channelId, metaDataId), received, filtered, transformed, pending, sent, error);
     }
 
     private void assertStatsEqual(Map<Status, Long> stats, Long received, Long filtered, Long transformed, Long pending, Long sent, Long error) {
@@ -480,7 +480,7 @@ public class StatisticsTests {
      * statistics with respect to the source connector.
      */
     private boolean channelStatsCorrect() {
-        Map<Integer, Map<Status, Long>> stats = ChannelController.getInstance().getStatistics().getChannelStats(channelId);
+        Map<Integer, Map<Status, Long>> stats = ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId);
         Map<Status, Long> channelStats = createStatsMap();
 
         for (Integer metaDataId : stats.keySet()) {
@@ -518,7 +518,7 @@ public class StatisticsTests {
     }
 
     private void destinationStatsCorrect(String channelId, int metaDataId, long numMessages, Status returnStatus, Status currentStatus) {
-        assertDestinationStatsCorrect(ChannelController.getInstance().getStatistics().getConnectorStats(channelId, metaDataId), numMessages, returnStatus, currentStatus);
+        assertDestinationStatsCorrect(ControllerFactory.getFactory().createChannelController().getStatistics().getConnectorStats(channelId, metaDataId), numMessages, returnStatus, currentStatus);
     }
 
     private void assertDestinationStatsCorrect(Map<Status, Long> stats, long numMessages, Status returnStatus, Status currentStatus) {

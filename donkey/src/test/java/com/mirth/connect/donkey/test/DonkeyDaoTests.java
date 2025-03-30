@@ -48,7 +48,7 @@ import com.mirth.connect.donkey.server.channel.Channel;
 import com.mirth.connect.donkey.server.channel.DestinationChainProvider;
 import com.mirth.connect.donkey.server.channel.DispatchResult;
 import com.mirth.connect.donkey.server.channel.StorageSettings;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.buffered.BufferedDaoFactory;
@@ -90,7 +90,7 @@ public class DonkeyDaoTests {
         }, donkey.getStatisticsUpdater());
         donkey.setDaoFactory(daoFactory);
 
-        ChannelController.getInstance().initChannelStorage(channelId);
+        ControllerFactory.getFactory().createChannelController().initChannelStorage(channelId);
     }
 
     @AfterClass
@@ -111,7 +111,7 @@ public class DonkeyDaoTests {
     @Test
     public void testInsertMessage() throws Exception {
         Channel channel = TestUtils.createDefaultChannel(channelId, serverId);
-        long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+        long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
 
         logger.info("Testing DonkeyDao.insertMessage...");
 
@@ -202,7 +202,7 @@ public class DonkeyDaoTests {
 
             logger.info("Testing DonkeyDao.insertConnectorMessage...");
 
-            long localChannelId = ChannelController.getInstance().getLocalChannelId(channelId);
+            long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channelId);
 
             daoTimer.reset();
 
@@ -510,7 +510,7 @@ public class DonkeyDaoTests {
                 TestUtils.assertConnectorMessageExists(sourceMessage, false);
 
                 // Assert that the send attempts were updated
-                long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+                long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
                 connection = TestUtils.getConnection();
                 statement = connection.prepareStatement("SELECT send_attempts FROM d_mm" + localChannelId + " WHERE message_id = ? AND id = ?");
                 statement.setLong(1, sourceMessage.getMessageId());
@@ -758,7 +758,7 @@ public class DonkeyDaoTests {
         // Assert that TEST_SIZE messages were added
         assertEquals(TEST_SIZE, messages.size());
 
-        Map<Integer, Map<Status, Long>> channelStats = ChannelController.getInstance().getStatistics().getChannelStats(channelId);
+        Map<Integer, Map<Status, Long>> channelStats = ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId);
 
         try {
             // Assert that the statistics were updated, ignore the RECEIVED status for the source/aggregate
@@ -809,7 +809,7 @@ public class DonkeyDaoTests {
 
         if (deleteStatistics) {
             // Assert that the statistics were decremented
-            channelStats = ChannelController.getInstance().getStatistics().getChannelStats(channelId);
+            channelStats = ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId);
             assertEquals(0, channelStats.get(null).get(Status.RECEIVED).intValue());
             assertEquals(0, channelStats.get(null).get(Status.SENT).intValue());
             assertEquals(0, channelStats.get(0).get(Status.RECEIVED).intValue());
@@ -817,7 +817,7 @@ public class DonkeyDaoTests {
             assertEquals(0, channelStats.get(1).get(Status.SENT).intValue());
         } else {
             // Assert that the statistics were not deleted, ignore the RECEIVED status for the source/aggregate
-            channelStats = ChannelController.getInstance().getStatistics().getChannelStats(channelId);
+            channelStats = ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channelId);
             assertEquals(TEST_SIZE, channelStats.get(null).get(Status.SENT).intValue());
             assertEquals(TEST_SIZE, channelStats.get(1).get(Status.RECEIVED).intValue());
             assertEquals(TEST_SIZE, channelStats.get(1).get(Status.SENT).intValue());
@@ -918,7 +918,7 @@ public class DonkeyDaoTests {
 
         try {
             // Assert that all the message tables have been truncated
-            long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+            long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
             connection = TestUtils.getConnection();
 
             statement = connection.prepareStatement("SELECT * FROM d_m" + localChannelId);
@@ -1271,7 +1271,7 @@ public class DonkeyDaoTests {
             // Create new channels
             for (int i = 1; i <= TEST_SIZE; i++) {
                 String tempChannelId = "selectMaxLocalChannelId test " + i;
-                ChannelController.getInstance().getLocalChannelId(tempChannelId);
+                ControllerFactory.getFactory().createChannelController().getLocalChannelId(tempChannelId);
 
                 try {
                     connection = TestUtils.getConnection();
@@ -1298,7 +1298,7 @@ public class DonkeyDaoTests {
             System.out.println(daoTimer.getLog());
         } finally {
             for (String channelId : localChannelIds.keySet()) {
-                ChannelController.getInstance().removeChannel(channelId);
+                ControllerFactory.getFactory().createChannelController().removeChannel(channelId);
             }
         }
     }
@@ -1418,7 +1418,7 @@ public class DonkeyDaoTests {
         try {
             logger.info("Testing DonkeyDao.getMaxMessageId...");
 
-            long localChannelId = ChannelController.getInstance().getLocalChannelId(channel.getChannelId());
+            long localChannelId = ControllerFactory.getFactory().createChannelController().getLocalChannelId(channel.getChannelId());
             channel.deploy();
             channel.start(null);
 
@@ -1570,7 +1570,7 @@ public class DonkeyDaoTests {
             // Assert the connector message lists are equal
             TestUtils.assertConnectorMessageListsEqual(sourceMessages, databaseSourceMessages);
 
-            ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
 
             // Test selecting source and destination connector messages by metadata ID and status
             sourceMessages = new ArrayList<ConnectorMessage>();
@@ -1595,7 +1595,7 @@ public class DonkeyDaoTests {
             TestUtils.assertConnectorMessageListsEqual(sourceMessages, databaseSourceMessages);
             TestUtils.assertConnectorMessageListsEqual(destinationMessages, databaseDestinationMessages);
 
-            ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
 
             // Test selecting source connector messages by metadata ID, status, offset, and limit
             sourceMessages = new ArrayList<ConnectorMessage>();
@@ -1619,7 +1619,7 @@ public class DonkeyDaoTests {
                 TestUtils.assertConnectorMessageListsEqual(sourceMessages.subList(offset, Math.min(offset + limit, sourceMessages.size())), databaseSourceMessages);
             }
 
-            ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
 
             // Test selecting source and destination connector messages by metadata ID, status, offset, and limit
             sourceMessages = new ArrayList<ConnectorMessage>();
@@ -1648,7 +1648,7 @@ public class DonkeyDaoTests {
                 TestUtils.assertConnectorMessageListsEqual(destinationMessages.subList(offset, Math.min(offset + limit, destinationMessages.size())), databaseDestinationMessages);
             }
 
-            ChannelController.getInstance().deleteAllMessages(channel.getChannelId());
+            ControllerFactory.getFactory().createChannelController().deleteAllMessages(channel.getChannelId());
             System.out.println(daoTimer.getLog());
         } finally {
             channel.stop();
@@ -1832,13 +1832,13 @@ public class DonkeyDaoTests {
             logger.info("Testing DonkeyDao.getChannelStatistics...");
 
             // Assert that the statistics are correct
-            assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ChannelController.getInstance().getStatistics().getChannelStats(channel.getChannelId()));
+            assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channel.getChannelId()));
 
             for (int i = 1; i <= TEST_SIZE; i++) {
                 ((TestSourceConnector) channel.getSourceConnector()).readTestMessage(testMessage);
 
                 // Assert that the statistics are correct
-                assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ChannelController.getInstance().getStatistics().getChannelStats(channel.getChannelId()));
+                assertEquals(TestUtils.getChannelStatistics(channel.getChannelId()), ControllerFactory.getFactory().createChannelController().getStatistics().getChannelStats(channel.getChannelId()));
             }
 
             System.out.println(daoTimer.getLog());

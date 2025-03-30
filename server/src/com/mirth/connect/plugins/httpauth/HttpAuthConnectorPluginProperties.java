@@ -13,27 +13,12 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
 import com.mirth.connect.donkey.util.DonkeyElement;
+import com.mirth.connect.plugins.core.httpauth.AuthType;
+import com.mirth.connect.plugins.core.httpauth.IHttpAuthConnectorPluginProperties;
 
-public abstract class HttpAuthConnectorPluginProperties extends ConnectorPluginProperties {
+public abstract class HttpAuthConnectorPluginProperties extends ConnectorPluginProperties implements IHttpAuthConnectorPluginProperties {
 
     public static final String PLUGIN_POINT = "HTTP Auth Connector Plugin Properties";
-
-    public enum AuthType {
-        NONE("None"), BASIC("Basic Authentication"), DIGEST("Digest Authentication"), JAVASCRIPT(
-                "JavaScript"), CUSTOM(
-                        "Custom Java Class"), OAUTH2_VERIFICATION("OAuth 2.0 Token Verification");
-
-        private String value;
-
-        private AuthType(String value) {
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return value;
-        }
-    }
 
     private AuthType authType;
 
@@ -41,6 +26,7 @@ public abstract class HttpAuthConnectorPluginProperties extends ConnectorPluginP
         this.authType = authType;
     }
 
+    @Override
     public AuthType getAuthType() {
         return authType;
     }

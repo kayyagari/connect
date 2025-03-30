@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.mirth.connect.donkey.model.channel.ConnectorPluginProperties;
+import com.mirth.connect.plugins.core.httpauth.AuthType;
 
 public class NoneHttpAuthProperties extends HttpAuthConnectorPluginProperties {
 

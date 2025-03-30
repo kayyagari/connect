@@ -87,6 +87,7 @@
 	        SEGMENT_ID INTEGER NOT NULL,
 	        ATTACHMENT_SIZE INTEGER NOT NULL,
 	        CONTENT BLOB,
+	        ENCRYPTION_HEADER CLOB,
 	        CONSTRAINT D_MA${localChannelId}_FKEY FOREIGN KEY(MESSAGE_ID) REFERENCES D_M${localChannelId}(ID) ON DELETE RESTRICT
         )
 	</query>
@@ -380,6 +381,6 @@
         SUBSTR(CHANNEL.CHANNEL, LOCATE (<![CDATA['<port>']]>, CHANNEL.CHANNEL )+6, 
         (LOCATE (<![CDATA['</port>']]>, CHANNEL.CHANNEL) - LOCATE (<![CDATA['<port>']]>, CHANNEL.CHANNEL)) - 6) AS PORTSTRING
         FROM CHANNEL
-        WHERE CHANNEL.CHANNEL LIKE '%listenerConnectorProperties%'
+        WHERE CHANNEL.CHANNEL LIKE <![CDATA['%<listenerConnectorProperties%']]>
 	</query>
 </queries>

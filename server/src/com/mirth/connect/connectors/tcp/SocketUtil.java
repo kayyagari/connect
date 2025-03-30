@@ -17,6 +17,7 @@ import java.net.UnknownHostException;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.mirth.connect.connectors.core.tcp.TcpConfiguration;
 import com.mirth.connect.util.TcpUtil;
 
 public class SocketUtil {

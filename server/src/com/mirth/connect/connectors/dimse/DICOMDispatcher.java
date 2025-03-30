@@ -26,6 +26,8 @@ import org.dcm4che2.tool.dcmsnd.CustomDimseRSPHandler;
 import org.dcm4che2.tool.dcmsnd.MirthDcmSnd;
 import org.dcm4che2.util.StringUtils;
 
+import com.mirth.connect.connectors.core.dimse.DICOMConfiguration;
+import com.mirth.connect.connectors.core.dimse.IDICOMDispatcher;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.event.ConnectionStatusEventType;
 import com.mirth.connect.donkey.model.event.ErrorEventType;
@@ -43,7 +45,7 @@ import com.mirth.connect.server.controllers.EventController;
 import com.mirth.connect.server.util.TemplateValueReplacer;
 import com.mirth.connect.util.ErrorMessageBuilder;
 
-public class DICOMDispatcher extends DestinationConnector {
+public class DICOMDispatcher extends DestinationConnector implements IDICOMDispatcher {
     private Logger logger = LogManager.getLogger(this.getClass());
     private DICOMDispatcherProperties connectorProperties;
 

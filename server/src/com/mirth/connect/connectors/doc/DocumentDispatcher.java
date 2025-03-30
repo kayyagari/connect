@@ -46,7 +46,6 @@ import com.mirth.connect.donkey.model.message.Status;
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.donkey.server.ConnectorTaskException;
 import com.mirth.connect.donkey.server.channel.DestinationConnector;
-import com.mirth.connect.donkey.server.controllers.MessageController;
 import com.mirth.connect.donkey.server.event.ConnectionStatusEvent;
 import com.mirth.connect.donkey.server.event.ErrorEvent;
 import com.mirth.connect.donkey.util.Base64Util;
@@ -204,8 +203,8 @@ public class DocumentDispatcher extends DestinationConnector {
         }
 
         if (StringUtils.isNotBlank(documentDispatcherProperties.getOutput()) && !documentDispatcherProperties.getOutput().equalsIgnoreCase("file")) {
-            Attachment attachment = MessageController.getInstance().createAttachment(new String(Base64Util.encodeBase64(outputStream.toByteArray(), false), "US-ASCII"), documentDispatcherProperties.getDocumentType().contains("pdf") ? "application/pdf" : "application/rtf");
-            MessageController.getInstance().insertAttachment(attachment, connectorMessage.getChannelId(), connectorMessage.getMessageId());
+            Attachment attachment = com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().createAttachment(new String(Base64Util.encodeBase64(outputStream.toByteArray(), false), "US-ASCII"), documentDispatcherProperties.getDocumentType().contains("pdf") ? "application/pdf" : "application/rtf");
+            com.mirth.connect.donkey.server.controllers.ControllerFactory.getFactory().createMessageController().insertAttachment(attachment, connectorMessage.getChannelId(), connectorMessage.getMessageId());
 
             return attachment.getAttachmentId();
         }

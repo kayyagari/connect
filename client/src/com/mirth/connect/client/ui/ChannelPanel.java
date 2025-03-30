@@ -91,7 +91,7 @@ import org.jdesktop.swingx.treetable.MutableTreeTableNode;
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.core.ForbiddenException;
 import com.mirth.connect.client.core.TaskConstants;
-import com.mirth.connect.client.ui.Frame.ConflictOption;
+import com.mirth.connect.client.ui.FrameBase.ConflictOption;
 import com.mirth.connect.client.ui.codetemplate.CodeTemplateImportDialog;
 import com.mirth.connect.client.ui.components.ChannelTableTransferHandler;
 import com.mirth.connect.client.ui.components.IconToggleButton;
@@ -131,7 +131,7 @@ import com.mirth.connect.plugins.TaskPlugin;
 
 import net.miginfocom.swing.MigLayout;
 
-public class ChannelPanel extends AbstractFramePanel {
+public class ChannelPanel extends ChannelPanelBase {
 
     public static final String STATUS_COLUMN_NAME = "Status";
     public static final String DATA_TYPE_COLUMN_NAME = "Data Type";
@@ -195,9 +195,10 @@ public class ChannelPanel extends AbstractFramePanel {
     private boolean tagTextModeSelected = false;
     private boolean tagIconModeSelected = false;
     private boolean canViewChannelGroups = AuthorizationControllerFactory.getAuthorizationController().checkTask(TaskConstants.CHANNEL_GROUP_KEY, TaskConstants.CHANNEL_GROUP_EXPORT_GROUP);
-
+    private boolean channelsGroupsLoaded = false;
+    
     public ChannelPanel() {
-        this.parent = PlatformUI.MIRTH_FRAME;
+        this.parent = (Frame) PlatformUI.MIRTH_FRAME;
         userPreferences = Preferences.userNodeForPackage(Mirth.class);
 
         initComponents();
@@ -228,7 +229,7 @@ public class ChannelPanel extends AbstractFramePanel {
         parent.addTask(TaskConstants.CHANNEL_DISABLE, "Disable Channel", "Disable the currently selected channel.", "", new ImageIcon(com.mirth.connect.client.ui.Frame.class.getResource("images/control_stop_blue.png")), channelTasks, channelPopupMenu, this);
         parent.addTask(TaskConstants.CHANNEL_VIEW_MESSAGES, "View Messages", "Show the messages for the currently selected channel.", "", new ImageIcon(com.mirth.connect.client.ui.Frame.class.getResource("images/page_white_stack.png")), channelTasks, channelPopupMenu, this);
         parent.setNonFocusable(channelTasks);
-        parent.taskPaneContainer.add(channelTasks, parent.taskPaneContainer.getComponentCount() - 1);
+        parent.getTaskPaneContainer().add(channelTasks, parent.getTaskPaneContainer().getComponentCount() - 1);
 
         groupTasks = new JXTaskPane();
         groupTasks.setTitle("Group Tasks");
@@ -247,7 +248,7 @@ public class ChannelPanel extends AbstractFramePanel {
         parent.addTask(TaskConstants.CHANNEL_GROUP_DELETE_GROUP, "Delete Group", "Delete the currently selected channel group.", "L", new ImageIcon(com.mirth.connect.client.ui.Frame.class.getResource("images/application_form_delete.png")), groupTasks, groupPopupMenu, this);
 
         parent.setNonFocusable(groupTasks);
-        parent.taskPaneContainer.add(groupTasks, parent.taskPaneContainer.getComponentCount() - 1);
+        parent.getTaskPaneContainer().add(groupTasks, parent.getTaskPaneContainer().getComponentCount() - 1);
 
         channelScrollPane.setComponentPopupMenu(channelPopupMenu);
 
@@ -308,7 +309,7 @@ public class ChannelPanel extends AbstractFramePanel {
 
         tagField.setFocus(true);
 
-        parent.setBold(parent.viewPane, 1);
+        parent.setBold(parent.getViewPane(), 1);
         parent.setPanelName("Channels");
         parent.setCurrentContentPage(ChannelPanel.this);
         parent.setFocus(taskPanes.toArray(new JXTaskPane[taskPanes.size()]), true, true);
@@ -333,6 +334,7 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void closePopupWindow() {
         tagField.closePopupWindow();
     }
@@ -389,34 +391,42 @@ public class ChannelPanel extends AbstractFramePanel {
         return taskComponent;
     }
 
+    @Override
     public Map<String, String> getCachedChannelIdsAndNames() {
         return channelIdsAndNames;
     }
 
+    @Override
     public Map<String, ChannelStatus> getCachedChannelStatuses() {
         return channelStatuses;
     }
 
+    @Override
     public Map<String, ChannelGroupStatus> getCachedGroupStatuses() {
         return groupStatuses;
     }
 
+    @Override
     public Set<ChannelDependency> getCachedChannelDependencies() {
         return channelDependencies;
     }
 
+    @Override
     public Set<ChannelTag> getCachedChannelTags() {
         return parent.getCachedChannelTags();
     }
 
+    @Override
     public String getUserTags() {
         return tagField.getTags();
     }
 
+    @Override
     public void doRefreshChannels() {
         doRefreshChannels(true);
     }
 
+    @Override
     public void doRefreshChannels(boolean queue) {
         if (isSaveEnabled() && !confirmLeave()) {
             return;
@@ -432,6 +442,7 @@ public class ChannelPanel extends AbstractFramePanel {
             @Override
             public void done() {
                 updateModel(getCurrentTableState());
+                channelsGroupsLoaded = true;
                 updateTasks();
                 updateTags(false);
                 parent.setSaveEnabled(false);
@@ -457,7 +468,10 @@ public class ChannelPanel extends AbstractFramePanel {
         setChannelTaskVisible(TASK_CHANNEL_IMPORT_CHANNEL);
         if (model.isGroupModeEnabled()) {
             if (!filterEnabled) {
-                setGroupTaskVisible(TASK_GROUP_NEW_GROUP);
+                // Only allow users to create new groups if all the Channels' groups have been loaded
+                if (channelsGroupsLoaded) {
+                    setGroupTaskVisible(TASK_GROUP_NEW_GROUP);
+                }
 
                 if (!saveEnabled) {
                     setGroupTaskVisible(TASK_GROUP_IMPORT_GROUP);
@@ -550,12 +564,16 @@ public class ChannelPanel extends AbstractFramePanel {
                 if (rows.length == 1) {
                     setChannelTaskVisible(TASK_CHANNEL_CLONE);
                     setChannelTaskVisible(TASK_CHANNEL_EDIT);
-                    setChannelTaskVisible(TASK_CHANNEL_VIEW_MESSAGES);
                     setChannelTaskVisible(TASK_CHANNEL_DEBUG_DEPLOY);
                 }
             } else {
                 setChannelTaskVisible(TASK_CHANNEL_DEPLOY);
             }
+
+            if (parent.isMultiChannelMessageBrowsingEnabled() ||
+            		(allChannels && rows.length == 1)) {
+            	setChannelTaskVisible(TASK_CHANNEL_VIEW_MESSAGES);
+            } 
         }
     }
 
@@ -572,9 +590,10 @@ public class ChannelPanel extends AbstractFramePanel {
         tagField.update(tags, false, true, updateController);
     }
 
+    @Override
     public void retrieveGroups() {
         try {
-            updateChannelGroups(parent.mirthClient.getAllChannelGroups());
+            updateChannelGroups(parent.getClient().getAllChannelGroups());
         } catch (ClientException e) {
             updateChannelGroups(null);
             if (!(e instanceof ForbiddenException)) {
@@ -585,9 +604,10 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void retrieveChannelIdsAndNames() {
         try {
-            channelIdsAndNames = parent.mirthClient.getChannelIdsAndNames();
+            channelIdsAndNames = parent.getClient().getChannelIdsAndNames();
         } catch (ClientException e) {
             SwingUtilities.invokeLater(() -> {
                 parent.alertThrowable(parent, e, false);
@@ -595,27 +615,29 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void retrieveChannels() {
         retrieveChannels(true);
     }
 
+    @Override
     public void retrieveChannels(boolean refreshTags) {
         try {
-            channelIdsAndNames = parent.mirthClient.getChannelIdsAndNames();
-            updateChannelStatuses(parent.mirthClient.getChannelSummary(getChannelHeaders(), false));
+            channelIdsAndNames = parent.getClient().getChannelIdsAndNames();
+            updateChannelStatuses(parent.getClient().getChannelSummary(getChannelHeaders(), false));
 
             try {
-                updateChannelGroups(parent.mirthClient.getAllChannelGroups());
+                updateChannelGroups(parent.getClient().getAllChannelGroups());
             } catch (ForbiddenException e) {
                 // Ignore
                 updateChannelGroups(null);
             }
 
-            channelDependencies = parent.mirthClient.getChannelDependencies();
-            updateChannelMetadata(parent.mirthClient.getChannelMetadata());
+            channelDependencies = parent.getClient().getChannelDependencies();
+            updateChannelMetadata(parent.getClient().getChannelMetadata());
 
             if (refreshTags) {
-                SettingsPanelTags tagsPanel = parent.getTagsPanel();
+                SettingsPanelTags tagsPanel = (SettingsPanelTags) parent.getTagsPanel();
                 if (tagsPanel != null) {
                     tagsPanel.refresh();
                 }
@@ -627,9 +649,10 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void retrieveDependencies() {
         try {
-            channelDependencies = parent.mirthClient.getChannelDependencies();
+            channelDependencies = parent.getClient().getChannelDependencies();
         } catch (ClientException e) {
             SwingUtilities.invokeLater(() -> {
                 parent.alertThrowable(parent, e);
@@ -637,6 +660,7 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public Map<String, ChannelHeader> getChannelHeaders() {
         Map<String, ChannelHeader> channelHeaders = new HashMap<String, ChannelHeader>();
 
@@ -671,7 +695,7 @@ public class ChannelPanel extends AbstractFramePanel {
             updateTagList.add(newTag);
         }
 
-        SettingsPanelTags tagsPanel = parent.getTagsPanel();
+        SettingsPanelTags tagsPanel = (SettingsPanelTags) parent.getTagsPanel();
         if (tagsPanel != null) {
             tagsPanel.updateTagsTable(updateTagList);
         }
@@ -754,7 +778,7 @@ public class ChannelPanel extends AbstractFramePanel {
     }
 
     private boolean updateGroups(Set<ChannelGroup> channelGroups, Set<String> removedChannelGroupIds, boolean override) throws ClientException {
-        return parent.mirthClient.updateChannelGroups(channelGroups, removedChannelGroupIds, override);
+        return parent.getClient().updateChannelGroups(channelGroups, removedChannelGroupIds, override);
     }
 
     private void afterUpdate() {
@@ -821,14 +845,14 @@ public class ChannelPanel extends AbstractFramePanel {
         }
 
         final String workingId = parent.startWorking("Deploying channels...");
-        parent.dashboardPanel.deselectRows(false);
+        ((DashboardPanel) parent.getDashboardPanel()).deselectRows(false);
         parent.doShowDashboard();
 
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             public Void doInBackground() {
                 try {
-                    parent.mirthClient.redeployAllChannels();
+                    parent.getClient().redeployAllChannels();
                 } catch (ClientException e) {
                     SwingUtilities.invokeLater(() -> {
                         parent.alertThrowable(parent, e);
@@ -1074,6 +1098,7 @@ public class ChannelPanel extends AbstractFramePanel {
         new ChannelWizard();
     }
 
+    @Override
     public void createNewChannel() {
         if (isSaveEnabled() && !promptSave(true)) {
             return;
@@ -1082,7 +1107,7 @@ public class ChannelPanel extends AbstractFramePanel {
         Channel channel = new Channel();
 
         try {
-            channel.setId(parent.mirthClient.getGuid());
+            channel.setId(parent.getClient().getGuid());
         } catch (ClientException e) {
             parent.alertThrowable(parent, e);
         }
@@ -1111,6 +1136,7 @@ public class ChannelPanel extends AbstractFramePanel {
         parent.setupChannel(channel, selectedGroupIds.size() == 1 ? selectedGroupIds.iterator().next() : null);
     }
 
+    @Override
     public void addChannelToGroup(String channelId, String groupId) {
         Set<ChannelGroup> channelGroups = new HashSet<ChannelGroup>();
 
@@ -1265,7 +1291,7 @@ public class ChannelPanel extends AbstractFramePanel {
             String groupName = importGroup.getName();
             String tempId;
             try {
-                tempId = parent.mirthClient.getGuid();
+                tempId = parent.getClient().getGuid();
             } catch (ClientException e) {
                 tempId = UUID.randomUUID().toString();
             }
@@ -1377,6 +1403,7 @@ public class ChannelPanel extends AbstractFramePanel {
         if (synchronous) {
             retrieveChannels();
             updateModel(getCurrentTableState());
+            channelsGroupsLoaded = true;
             updateTasks();
             parent.setSaveEnabled(false);
         } else {
@@ -1432,16 +1459,15 @@ public class ChannelPanel extends AbstractFramePanel {
 
     public Channel importChannel(Channel importChannel, boolean showAlerts, boolean refreshStatuses) {
         boolean overwrite = false;
-        String otherUsername = "unknown";
+        Integer userId = null;
     	Channel originalStateChannel = null;
         
     	try {
-			originalStateChannel = parent.mirthClient.getChannel(importChannel.getId(), false);
+			originalStateChannel = parent.getClient().getChannel(importChannel.getId(), false);
         	if (originalStateChannel != null) {
-        		Integer userId = originalStateChannel.getExportData().getMetadata().getUserId();
-    			if (userId != 0 && userId != null) {
-    				otherUsername = parent.mirthClient.getUser(userId).getUsername();
-    			}
+        		userId = originalStateChannel.getExportData().getMetadata().getUserId();
+        	} else {
+        		userId = parent.getClient().getCurrentUser().getId();
         	}
 		} catch (ClientException e1) {
 			
@@ -1449,7 +1475,7 @@ public class ChannelPanel extends AbstractFramePanel {
 
         try {
             String channelName = importChannel.getName();
-            String tempId = parent.mirthClient.getGuid();
+            String tempId = parent.getClient().getGuid();
 
             // Check to see that the channel name doesn't already exist.
             if (!parent.checkChannelName(channelName, tempId)) {
@@ -1567,7 +1593,7 @@ public class ChannelPanel extends AbstractFramePanel {
 
                 if (!channelDependencies.equals(getCachedChannelDependencies())) {
                     try {
-                        parent.mirthClient.setChannelDependencies(channelDependencies);
+                        parent.getClient().setChannelDependencies(channelDependencies);
                     } catch (ClientException e) {
                         parent.alertThrowable(parent, e, "Unable to save channel dependencies.");
                     }
@@ -1587,7 +1613,7 @@ public class ChannelPanel extends AbstractFramePanel {
          */
         if (overwrite || !showAlerts || importChannel instanceof InvalidChannel) {
             try {
-                parent.updateChannel(importChannel, overwrite, otherUsername);
+                parent.updateChannel(importChannel, overwrite, userId, null);
 
                 if (importChannel instanceof InvalidChannel && showAlerts) {
                     InvalidChannel invalidChannel = (InvalidChannel) importChannel;
@@ -1659,6 +1685,7 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public boolean doExportChannel() {
         if (isSaveEnabled() && !promptSave(true)) {
             return false;
@@ -2208,7 +2235,7 @@ public class ChannelPanel extends AbstractFramePanel {
                 }
 
                 try {
-                    parent.mirthClient.removeChannels(channelIds);
+                    parent.getClient().removeChannels(channelIds);
                 } catch (ClientException e) {
                     SwingUtilities.invokeLater(() -> {
                         parent.alertThrowable(parent, e);
@@ -2269,7 +2296,7 @@ public class ChannelPanel extends AbstractFramePanel {
 
         try {
             channel.setRevision(0);
-            channel.setId(parent.mirthClient.getGuid());
+            channel.setId(parent.getClient().getGuid());
         } catch (ClientException e) {
             parent.alertThrowable(parent, e);
         }
@@ -2377,7 +2404,7 @@ public class ChannelPanel extends AbstractFramePanel {
                     }
 
                     try {
-                        parent.mirthClient.setChannelEnabled(channelIds, true);
+                        parent.getClient().setChannelEnabled(channelIds, true);
                     } catch (ClientException e) {
                         SwingUtilities.invokeLater(() -> {
                             parent.alertThrowable(parent, e);
@@ -2443,7 +2470,7 @@ public class ChannelPanel extends AbstractFramePanel {
 
                 if (CollectionUtils.isNotEmpty(channelIds)) {
                     try {
-                        parent.mirthClient.setChannelEnabled(channelIds, false);
+                        parent.getClient().setChannelEnabled(channelIds, false);
                     } catch (ClientException e) {
                         SwingUtilities.invokeLater(() -> {
                             parent.alertThrowable(parent, e);
@@ -2495,6 +2522,7 @@ public class ChannelPanel extends AbstractFramePanel {
         parent.setVisibleTasks(groupTasks, groupPopupMenu, 1, TASK_GROUP_DELETE_GROUP, visible);
     }
 
+    @Override
     public void updateChannelStatuses(List<ChannelSummary> changedChannels) {
         for (ChannelSummary channelSummary : changedChannels) {
             String channelId = channelSummary.getChannelId();
@@ -2534,6 +2562,7 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void updateDefaultChannelGroup(List<DashboardStatus> statuses) {
         if (statuses != null && this.groupStatuses != null) {
             // Build up a map by the channel ID for convenience
@@ -2624,6 +2653,7 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void clearChannelCache() {
         channelStatuses = new LinkedHashMap<String, ChannelStatus>();
         groupStatuses = new LinkedHashMap<String, ChannelGroupStatus>();
@@ -2707,6 +2737,7 @@ public class ChannelPanel extends AbstractFramePanel {
         }
     }
 
+    @Override
     public void initPanelPlugins() {
         loadPanelPlugins();
         switchBottomPane();
@@ -2974,6 +3005,7 @@ public class ChannelPanel extends AbstractFramePanel {
         return false;
     }
 
+    @Override
     public List<Channel> getSelectedChannels() {
         List<Channel> selectedChannels = new ArrayList<Channel>();
 
@@ -3811,8 +3843,6 @@ public class ChannelPanel extends AbstractFramePanel {
         private JButton cancelButton;
     }
 
-    public JXTaskPane channelTasks;
-    public JPopupMenu channelPopupMenu;
     public JXTaskPane groupTasks;
     public JPopupMenu groupPopupMenu;
 

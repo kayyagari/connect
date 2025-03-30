@@ -18,6 +18,9 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.commons.lang3.StringUtils;
 
 import com.mirth.connect.client.core.api.MirthApiException;
+import com.mirth.connect.connectors.core.http.HttpConnectorServletInterface;
+import com.mirth.connect.donkey.model.channel.ConnectorProperties;
+import com.mirth.connect.donkey.model.channel.RemoteHostConnectorProperties;
 import com.mirth.connect.server.api.MirthServlet;
 import com.mirth.connect.server.util.ConnectorUtil;
 import com.mirth.connect.server.util.TemplateValueReplacer;
@@ -33,9 +36,9 @@ public class HttpConnectorServlet extends MirthServlet implements HttpConnectorS
     }
 
     @Override
-    public ConnectionTestResponse testConnection(String channelId, String channelName, HttpDispatcherProperties properties) {
+    public ConnectionTestResponse testConnection(String channelId, String channelName, ConnectorProperties properties) {
         try {
-            URL url = new URL(replacer.replaceValues(properties.getHost(), channelId, channelName));
+            URL url = new URL(replacer.replaceValues(((RemoteHostConnectorProperties) properties).getHost(), channelId, channelName));
             int port = url.getPort();
             // If no port was provided, default to port 80 or 443.
             return ConnectorUtil.testConnection(url.getHost(), (port == -1) ? (StringUtils.equalsIgnoreCase(url.getProtocol(), "https") ? 443 : 80) : port, TIMEOUT);

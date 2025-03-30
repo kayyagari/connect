@@ -22,6 +22,9 @@ import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.UIConstants;
 import com.mirth.connect.client.ui.components.MirthComboBox;
 import com.mirth.connect.client.ui.util.DisplayUtil;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
+import com.mirth.connect.connectors.core.file.SmbDialectVersion;
+import com.mirth.connect.connectors.core.file.SmbSchemeProperties;
 
 public class AdvancedSmbSettingsDialog extends AdvancedSettingsDialog {
 	private boolean saved;

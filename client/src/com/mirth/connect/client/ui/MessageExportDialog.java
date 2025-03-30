@@ -40,11 +40,14 @@ import com.mirth.connect.util.messagewriter.MessageWriterOptions;
  * Dialog containing MessageExportPanel that is used in the message browser to export messages
  */
 public class MessageExportDialog extends MirthDialog {
-    private Frame parent;
+    protected FrameBase parent;
     private String channelId;
-    private MessageFilter messageFilter;
-    private int pageSize;
+    protected List<String> channelIds;
+    protected MessageFilter messageFilter;
+    protected int pageSize;
     private Encryptor encryptor;
+    private PaginatedMessageList messages;
+    private boolean isChannelMessagesPanelFirstLoadSearch;
 
     public MessageExportDialog() {
         super(PlatformUI.MIRTH_FRAME);
@@ -62,6 +65,10 @@ public class MessageExportDialog extends MirthDialog {
     public void setChannelId(String channelId) {
         this.channelId = channelId;
     }
+    
+    public void setChannelIds(List<String> channelIds) {
+        this.channelIds = channelIds;
+    }
 
     public void setMessageFilter(MessageFilter messageFilter) {
         this.messageFilter = messageFilter;
@@ -73,6 +80,18 @@ public class MessageExportDialog extends MirthDialog {
 
     public void setEncryptor(Encryptor encryptor) {
         this.encryptor = encryptor;
+    }
+    
+    public void setMessages(PaginatedMessageList messages) {
+        if (messages != null) {
+            PaginatedMessageList clonedMessages = (PaginatedMessageList) messages.clone();
+            clonedMessages.setIncludeContent(true);
+            this.messages = clonedMessages;
+        }
+    }
+    
+    public void setIsChannelMessagesPanelFirstLoadSearch(boolean isChannelMessagesPanelFirstLoadSearch) {
+        this.isChannelMessagesPanelFirstLoadSearch = isChannelMessagesPanelFirstLoadSearch;
     }
 
     private void initComponents() {
@@ -108,7 +127,7 @@ public class MessageExportDialog extends MirthDialog {
         add(cancelButton, "width 60");
     }
 
-    private void export() {
+    private void export() {        
         String errorMessage = messageExportPanel.validate(true);
         if (StringUtils.isNotEmpty(errorMessage)) {
             parent.alertError(this, errorMessage);
@@ -127,50 +146,59 @@ public class MessageExportDialog extends MirthDialog {
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
         try {
-            if (messageExportPanel.isExportLocal()) {
-                PaginatedMessageList messageList = new PaginatedMessageList();
-                messageList.setChannelId(channelId);
-                messageList.setClient(parent.mirthClient);
-                messageList.setMessageFilter(messageFilter);
-                messageList.setPageSize(pageSize);
-                messageList.setIncludeContent(true);
+            if (!isChannelMessagesPanelFirstLoadSearch) {
+                if (messageExportPanel.isExportLocal()) {                    
+                    PaginatedMessageList messageList = messages;
 
-                writerOptions.setBaseFolder(SystemUtils.getUserHome().getAbsolutePath());
+                    writerOptions.setBaseFolder(SystemUtils.getUserHome().getAbsolutePath());
 
-                MessageWriter messageWriter = MessageWriterFactory.getInstance().getMessageWriter(writerOptions, encryptor);
+                    MessageWriter messageWriter = MessageWriterFactory.getInstance().getMessageWriter(writerOptions, encryptor);
 
-                AttachmentSource attachmentSource = null;
-                if (writerOptions.includeAttachments()) {
-                    attachmentSource = new AttachmentSource() {
-                        @Override
-                        public List<Attachment> getMessageAttachments(Message message) throws ClientException {
-                            return PlatformUI.MIRTH_FRAME.mirthClient.getAttachmentsByMessageId(message.getChannelId(), message.getMessageId());
-                        }
-                    };
+                    AttachmentSource attachmentSource = null;
+                    if (writerOptions.includeAttachments()) {
+                        attachmentSource = new AttachmentSource() {
+                            @Override
+                            public List<Attachment> getMessageAttachments(Message message) throws ClientException {
+                                return PlatformUI.MIRTH_FRAME.getClient().getAttachmentsByMessageId(message.getChannelId(), message.getMessageId());
+                            }
+                        };
+                    }
+
+                    try {
+                        exportCount = new MessageExporter().exportMessages(messageList, messageWriter, attachmentSource, writerOptions); 
+                        messageWriter.finishWrite();
+                    } finally {
+                        messageWriter.close();
+                    }
+                } else {
+                    exportCount = exportToServer(writerOptions);
                 }
-
-                try {
-                    exportCount = new MessageExporter().exportMessages(messageList, messageWriter, attachmentSource);
-                    messageWriter.finishWrite();
-                } finally {
-                    messageWriter.close();
-                }
-            } else {
-                writerOptions.setIncludeAttachments(messageExportPanel.isIncludeAttachments());
-                exportCount = parent.mirthClient.exportMessagesServer(channelId, messageFilter, pageSize, writerOptions);
             }
 
             setVisible(false);
             setCursor(Cursor.getDefaultCursor());
-            parent.alertInformation(parent, exportCount + " message" + ((exportCount == 1) ? " has" : "s have") + " been successfully exported to: " + writerOptions.getRootFolder());
+            
+            if (isChannelMessagesPanelFirstLoadSearch) {
+                parent.alertInformation(parent, "There are no messages to export. Please perform a search before exporting.");
+            } else if (exportCount == 0) {
+                parent.alertInformation(parent, "There are no messages to export.");
+            } else {
+                parent.alertInformation(parent, exportCount + " message" + ((exportCount == 1) ? " has" : "s have") + " been successfully exported to: " + writerOptions.getRootFolder());
+            }
         } catch (Exception e) {
             setCursor(Cursor.getDefaultCursor());
             Throwable cause = (e.getCause() == null) ? e : e.getCause();
             parent.alertThrowable(parent, cause);
         }
     }
+    
+    protected int exportToServer(MessageWriterOptions writerOptions) throws ClientException {
+        // Single channel server export
+        writerOptions.setIncludeAttachments(messageExportPanel.isIncludeAttachments());
+        return parent.getClient().exportMessagesServer(channelId, messageFilter, pageSize, writerOptions);
+    }
 
-    private MessageExportPanel messageExportPanel;
+    protected MessageExportPanel messageExportPanel;
     private JButton exportButton;
     private JButton cancelButton;
 }

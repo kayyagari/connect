@@ -26,7 +26,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.inject.Inject;
 import com.mirth.connect.donkey.model.DatabaseConstants;
 import com.mirth.connect.donkey.server.channel.Channel;
-import com.mirth.connect.donkey.server.controllers.ChannelController;
+import com.mirth.connect.donkey.server.controllers.ControllerFactory;
 import com.mirth.connect.donkey.server.data.DonkeyDao;
 import com.mirth.connect.donkey.server.data.DonkeyDaoFactory;
 import com.mirth.connect.donkey.server.data.DonkeyStatisticsUpdater;
@@ -124,7 +124,7 @@ public class Donkey {
         }
 
         // load channel statistics into memory
-        ChannelController.getInstance().loadStatistics(donkeyConfiguration.getServerId());
+        ControllerFactory.getFactory().createChannelController().loadStatistics(donkeyConfiguration.getServerId());
 
         encryptor = donkeyConfiguration.getEncryptor();
 

@@ -42,13 +42,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.jdesktop.swingx.decorator.HighlighterFactory;
 
 import com.mirth.connect.client.core.ClientException;
-import com.mirth.connect.client.core.PropertiesConfigurationUtil;
 import com.mirth.connect.client.core.TaskConstants;
 import com.mirth.connect.client.ui.components.MirthButton;
 import com.mirth.connect.client.ui.components.MirthDialogTableCellEditor;
 import com.mirth.connect.client.ui.components.MirthPasswordTableCellRenderer;
 import com.mirth.connect.client.ui.components.MirthTable;
 import com.mirth.connect.util.ConfigurationProperty;
+import com.mirth.connect.util.PropertiesConfigurationUtil;
 
 public class SettingsPanelMap extends AbstractSettingsPanel {
 
@@ -87,7 +87,7 @@ public class SettingsPanelMap extends AbstractSettingsPanel {
 
             public Void doInBackground() {
                 try {
-                    configurationMap = getFrame().mirthClient.getConfigurationMap();
+                    configurationMap = getFrame().getClient().getConfigurationMap();
                 } catch (ClientException e) {
                     getFrame().alertThrowable(getFrame(), e);
                 }
@@ -124,7 +124,7 @@ public class SettingsPanelMap extends AbstractSettingsPanel {
 
             public Void doInBackground() {
                 try {
-                    getFrame().mirthClient.setConfigurationMap(configurationMap);
+                    getFrame().getClient().setConfigurationMap(configurationMap);
                 } catch (ClientException e) {
                     getFrame().alertThrowable(getFrame(), e);
                 }
@@ -228,7 +228,7 @@ public class SettingsPanelMap extends AbstractSettingsPanel {
                         properties.clear();
                         PropertiesConfigurationLayout layout = properties.getLayout();
 
-                        configurationMap = getFrame().mirthClient.getConfigurationMap();
+                        configurationMap = getFrame().getClient().getConfigurationMap();
                         Map<String, ConfigurationProperty> sortedMap = new TreeMap<String, ConfigurationProperty>(String.CASE_INSENSITIVE_ORDER);
                         sortedMap.putAll(configurationMap);
 

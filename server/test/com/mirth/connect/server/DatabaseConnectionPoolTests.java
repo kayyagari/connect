@@ -33,7 +33,7 @@ import java.util.HashMap;
 
 import javax.sql.DataSource;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.io.Resources;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -57,6 +57,7 @@ import com.mirth.connect.model.PasswordRequirements;
 import com.mirth.connect.model.User;
 import com.mirth.connect.model.codetemplates.CodeTemplate;
 import com.mirth.connect.model.codetemplates.CodeTemplateLibrary;
+import com.mirth.connect.model.converters.ObjectXMLSerializer;
 import com.mirth.connect.model.filters.EventFilter;
 import com.mirth.connect.model.filters.MessageFilter;
 import com.mirth.connect.server.controllers.AlertController;
@@ -219,7 +220,7 @@ public class DatabaseConnectionPoolTests {
         adminUser.setId(1);
         adminUser.setUsername("admin");
         doReturn(adminUser).when(userController).getUser(null, adminUser.getUsername());
-        userController.authorizeUser("admin", "admin");
+        userController.authorizeUser("admin", "admin", null);
 
         userController.getUserCredentials(1);
         userController.getUserPreferences(1, null);
@@ -345,7 +346,7 @@ public class DatabaseConnectionPoolTests {
         });
         donkeyConnectionPoolsInjector.getInstance(DonkeyConnectionPools.class);
 
-        DonkeyConnectionPools.getInstance().init(databaseSettings.getProperties());
+        DonkeyConnectionPools.getInstance().init(databaseSettings.getProperties(ObjectXMLSerializer.getInstance()));
 
         donkey = spy(Donkey.class);
 
@@ -391,7 +392,7 @@ public class DatabaseConnectionPoolTests {
         });
         sqlConfigInjector.getInstance(SqlConfig.class);
 
-        donkey.startEngine(new DonkeyConfiguration("appdata", databaseSettings.getProperties(), null, null, "testserverid"));
+        donkey.startEngine(new DonkeyConfiguration("appdata", databaseSettings.getProperties(ObjectXMLSerializer.getInstance()), null, null, "testserverid"));
 
         // These use connections from the write pool, so initialize them now before resetting mocks
         StatementLock.getInstance(DefaultChannelController.VACUUM_LOCK_CHANNEL_STATEMENT_ID);

@@ -24,7 +24,7 @@ import javax.swing.JScrollPane;
 import javax.swing.UIManager;
 
 import org.apache.commons.codec.binary.Base64InputStream;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.mirth.connect.donkey.model.message.attachment.Attachment;
 import com.mirth.connect.plugins.AttachmentViewer;
@@ -54,7 +54,7 @@ public class ImageViewer extends AttachmentViewer {
 
         try {
 
-            Attachment attachment = parent.mirthClient.getAttachment(channelId, messageId, attachmentId);
+            Attachment attachment = parent.getClient().getAttachment(channelId, messageId, attachmentId);
             byte[] rawData = attachment.getContent();
             ByteArrayInputStream bis = new ByteArrayInputStream(rawData);
 

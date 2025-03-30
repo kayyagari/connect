@@ -11,6 +11,9 @@ package com.mirth.connect.server.userutil;
 
 import org.apache.commons.mail.EmailException;
 
+import com.mirth.connect.server.util.IServerSMTPConnection;
+import com.mirth.connect.server.util.ServerSMTPConnection;
+
 /**
  * Used to send e-mail messages.
  */
@@ -65,8 +68,8 @@ public class SMTPConnection {
         smtpConnection = new com.mirth.connect.server.util.ServerSMTPConnection(host, port, useAuthentication, secure, username, password, from);
     }
 
-    SMTPConnection(com.mirth.connect.server.util.ServerSMTPConnection smtpConnection) {
-        this.smtpConnection = smtpConnection;
+    SMTPConnection(IServerSMTPConnection iServerSMTPConnection) {
+        this.smtpConnection = (ServerSMTPConnection) iServerSMTPConnection;
     }
 
     /**
@@ -244,7 +247,7 @@ public class SMTPConnection {
      * @throws EmailException
      *             If an error occurred while sending the e-mail message.
      */
-    public void send(String toList, String ccList, String from, String subject, String body, String charset) throws EmailException {
+    public void send(String toList, String ccList, String from, String subject, String body, String charset) throws Exception {
         smtpConnection.send(toList, ccList, from, subject, body, charset);
     }
 
@@ -266,7 +269,7 @@ public class SMTPConnection {
      * @throws EmailException
      *             If an error occurred while sending the e-mail message.
      */
-    public void send(String toList, String ccList, String from, String subject, String body) throws EmailException {
+    public void send(String toList, String ccList, String from, String subject, String body) throws Exception {
         smtpConnection.send(toList, ccList, from, subject, body);
     }
 
@@ -286,7 +289,7 @@ public class SMTPConnection {
      * @throws EmailException
      *             If an error occurred while sending the e-mail message.
      */
-    public void send(String toList, String ccList, String subject, String body) throws EmailException {
+    public void send(String toList, String ccList, String subject, String body) throws Exception {
         smtpConnection.send(toList, ccList, subject, body);
     }
 }

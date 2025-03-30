@@ -22,15 +22,14 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
-import net.miginfocom.swing.MigLayout;
-
-import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.ui.ConnectorTypeDecoration;
 import com.mirth.connect.client.ui.Frame;
+import com.mirth.connect.client.ui.FrameBase;
 import com.mirth.connect.client.ui.PlatformUI;
 import com.mirth.connect.client.ui.UIConstants;
 import com.mirth.connect.client.ui.components.MirthComboBox;
@@ -40,14 +39,23 @@ import com.mirth.connect.client.ui.components.MirthSyntaxTextArea;
 import com.mirth.connect.client.ui.components.MirthTextField;
 import com.mirth.connect.client.ui.panels.connectors.ConnectorSettingsPanel;
 import com.mirth.connect.client.ui.panels.connectors.ResponseHandler;
+import com.mirth.connect.connectors.core.file.FTPSchemeProperties;
+import com.mirth.connect.connectors.core.file.FileConnectorServletInterface;
+import com.mirth.connect.connectors.core.file.FileScheme;
+import com.mirth.connect.connectors.core.file.S3SchemeProperties;
+import com.mirth.connect.connectors.core.file.SchemeProperties;
+import com.mirth.connect.connectors.core.file.SftpSchemeProperties;
+import com.mirth.connect.connectors.core.file.SmbSchemeProperties;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.model.Connector.Mode;
 import com.mirth.connect.util.ConnectionTestResponse;
 
+import net.miginfocom.swing.MigLayout;
+
 public class FileWriter extends ConnectorSettingsPanel {
 
     private Logger logger = LogManager.getLogger(this.getClass());
-    private Frame parent;
+    private FrameBase parent;
 
     private FileScheme selectedScheme;
     private SchemeProperties advancedProperties;

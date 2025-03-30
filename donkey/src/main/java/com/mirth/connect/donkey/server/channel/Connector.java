@@ -15,10 +15,10 @@ import java.util.Set;
 import com.mirth.connect.donkey.model.channel.ConnectorProperties;
 import com.mirth.connect.donkey.model.channel.DebugOptions;
 import com.mirth.connect.donkey.model.channel.DeployedState;
+import com.mirth.connect.donkey.model.message.DataType;
 import com.mirth.connect.donkey.server.ConnectorTaskException;
-import com.mirth.connect.donkey.server.message.DataType;
 
-public abstract class Connector {
+public abstract class Connector implements IConnector {
     protected Channel channel;
 
     private String channelId;
@@ -55,87 +55,113 @@ public abstract class Connector {
 
     }
 
+    @Override
     public Channel getChannel() {
         return channel;
     }
 
-    public void setChannel(Channel channel) {
-        this.channel = channel;
+    @Override
+    public void setChannel(IChannel channel) {
+        this.channel = (Channel) channel;
     }
 
+    @Override
     public String getChannelId() {
         return channelId;
     }
 
+    @Override
     public void setChannelId(String channelId) {
         this.channelId = channelId;
     }
+    
+    @Override
+    public String getChannelName() {
+        return channel != null ? channel.getName() : null;
+    }
 
+    @Override
     public int getMetaDataId() {
         return metaDataId;
     }
 
+    @Override
     public void setMetaDataId(int metaDataId) {
         this.metaDataId = metaDataId;
     }
 
+    @Override
     public DataType getInboundDataType() {
         return inboundDataType;
     }
 
+    @Override
     public void setInboundDataType(DataType inboundDataType) {
         this.inboundDataType = inboundDataType;
     }
 
+    @Override
     public DataType getOutboundDataType() {
         return outboundDataType;
     }
 
+    @Override
     public void setOutboundDataType(DataType outboundDataType) {
         this.outboundDataType = outboundDataType;
     }
 
+    @Override
     public DeployedState getCurrentState() {
         return currentState;
     }
 
+    @Override
     public void setCurrentState(DeployedState currentState) {
         this.currentState = currentState;
     }
 
+    @Override
     public ConnectorProperties getConnectorProperties() {
         return connectorProperties;
     }
 
+    @Override
     public void setConnectorProperties(ConnectorProperties connectorProperties) {
         this.connectorProperties = connectorProperties;
     }
 
+    @Override
     public Map<String, Integer> getDestinationIdMap() {
         return destinationIdMap;
     }
 
+    @Override
     public void setDestinationIdMap(Map<String, Integer> destinationIdMap) {
         this.destinationIdMap = destinationIdMap;
     }
 
+    @Override
     public FilterTransformerExecutor getFilterTransformerExecutor() {
         return filterTransformerExecutor;
     }
 
-    public void setFilterTransformerExecutor(FilterTransformerExecutor filterTransformerExecutor) {
-        this.filterTransformerExecutor = filterTransformerExecutor;
+    @Override
+    public void setFilterTransformerExecutor(Object filterTransformerExecutor) {
+        this.filterTransformerExecutor = (FilterTransformerExecutor) filterTransformerExecutor;
     }
 
+    @Override
     public Set<String> getResourceIds() {
         return resourceIds;
     }
 
+    @Override
     public void setResourceIds(Set<String> resourceIds) {
         this.resourceIds = resourceIds;
     }
 
-    protected String getConfigurationClass() {
+    @Override
+    public String getConfigurationClass() {
         return null;
     }
 }

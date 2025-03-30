@@ -16,8 +16,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import com.mirth.connect.donkey.model.message.attachment.AttachmentHandler;
 import com.mirth.connect.donkey.model.message.attachment.AttachmentHandlerProperties;
@@ -65,9 +65,11 @@ public class RegexAttachmentHandlerProvider extends MirthAttachmentHandlerProvid
     }
 
     @Override
-    public void setProperties(Channel channel, AttachmentHandlerProperties attachmentProperties) {
-        channelId = channel.getChannelId();
-        channelName = channel.getName();
+    public void setProperties(Object channel, AttachmentHandlerProperties attachmentProperties) {
+        if (channel instanceof Channel) {
+            channelId = ((Channel) channel).getChannelId();
+            channelName = ((Channel) channel).getName();
+        }
 
         if (attachmentProperties.getProperties().containsKey("regex.pattern")) {
             String regex = attachmentProperties.getProperties().get("regex.pattern");
